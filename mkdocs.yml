@@ -1,0 +1,21 @@
+site_name: CR-XactXtract_workspace Docs
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - content.code.copy
+    - content.tabs.link
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - tables
+  - footnotes
+  - codehilite
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - ADRs:
+      - ADR Index: adr/index.md
+  - Additional Docs: 
+      - README: README.md

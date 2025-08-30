@@ -1,0 +1,22 @@
+# CR-XactXtract_workspace — Project Overview
+
+**Last updated:** 2025-08-30 UTC
+
+## Vision (1‑pager)
+- **Problem:** _Fill in succinctly:_ What pain does this CLI solve?
+- **Audience:** _Who uses it?_
+- **Non‑Goals:** _What this project will not do (for now)._
+- **Success Metrics:** _e.g., CLI task completes < 2s; test coverage ≥ 90%; zero critical defects per release._
+
+## MVP Scope
+- Link to tracked **User Stories** in GitHub Issues (Now/Next/Later).
+- Each story includes **acceptance criteria** written in Given/When/Then and mirrored in tests.
+
+## Process (TDD + Agent-in-the-loop)
+1. Write a **failing pytest** from the story’s acceptance criteria.
+2. Use **Claude Code** with **Claude Context (MCP)** to implement only what’s needed.
+3. Make tests **green**, then **refactor**.
+4. Update docs + ADRs; commit with **Conventional Commits**.
+5. Open PR; CI runs (**pytest**, **ruff**, **mypy**). Merge when green.
+
+> See `CLAUDE.md` and `CONTRIBUTING.md` for exact prompts and guardrails.
