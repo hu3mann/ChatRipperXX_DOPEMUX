@@ -1,13 +1,19 @@
-    #!/usr/bin/env bash
-    set -euo pipefail
+#!/usr/bin/env bash
+set -euo pipefail
 
-    # Validate that all tracked text files are valid UTF-8.
-    # Excludes common binary extensions.
-    mapfile -d '' files < <(git ls-files -z)
-    bad=()
-    for f in "${files[@]}"; do
+# Validate that all tracked text files are valid UTF-8.
+# Excludes common binary extensions.
+files=()
+while IFS= read -r -d '' file; do
+  files+=("$file")
+done < <(git ls-files -z)
+bad=()
+for f in "${files[@]}"; do
       case "$f" in
         *.png|*.jpg|*.jpeg|*.gif|*.ico|*.pdf|*.zip|*.gz|*.7z|*.bz2|*.xz|*.tar|*.tgz|*.woff|*.woff2|*.ttf|*.otf|*.mp4|*.mov|*.webm|*.so|*.dylib|*.a|*.bin|*.ico|*.icns)
+          continue
+          ;;
+        archive/*/objects/*|archive/*/index|archive/*/logs/*)
           continue
           ;;
       esac
