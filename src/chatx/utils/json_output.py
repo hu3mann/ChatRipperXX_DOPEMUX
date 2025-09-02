@@ -2,12 +2,11 @@
 
 import json
 from pathlib import Path
-from typing import List, Optional
 
 from chatx.schemas.message import CanonicalMessage
 
 
-def write_messages_with_validation(messages: List[CanonicalMessage], output_path: Path) -> None:
+def write_messages_with_validation(messages: list[CanonicalMessage], output_path: Path) -> None:
     """Write messages to JSON file with schema validation.
     
     Args:
@@ -23,13 +22,13 @@ def write_messages_with_validation(messages: List[CanonicalMessage], output_path
     # Validate messages, quarantining any invalid ones
     quarantine_dir = output_path.parent / "quarantine"
     quarantine_path = quarantine_dir / "messages_bad.jsonl"
-    messages_data: List[dict] = []
+    messages_data: list[dict] = []
     bad_count = 0
 
     for i, msg in enumerate(messages):
         try:
             # Pydantic validation happens automatically
-            msg_dict = msg.model_dump(mode="json")
+            msg_dict = msg.model_dump(mode="json", by_alias=True)
             messages_data.append(msg_dict)
         except Exception as e:  # pragma: no cover - triggered only by malformed data
             # Lazily create quarantine dir and append the bad record with reason
