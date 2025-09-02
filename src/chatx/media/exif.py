@@ -15,7 +15,7 @@ def read_exif(path: str | Path) -> dict[str, object]:
 
     try:
         from PIL import ExifTags, Image  # type: ignore
-    except Exception:  # pragma: no cover - dependency missing
+    except ImportError:  # pragma: no cover - dependency missing
         return {}
 
     p = Path(path)
