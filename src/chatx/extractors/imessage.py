@@ -109,16 +109,14 @@ class IMessageExtractor(BaseExtractor):
                 return None
 
             blob = row[0]
-            # Prefer plist parsing when possible
-            if isinstance(blob, (bytes, bytearray, memoryview)) and bytes(blob).startswith(b"bplist00"):
-                try:
-                    data = plistlib.loads(bytes(blob))
-                    text_candidate = self._extract_text_from_nested(data)
-                    if text_candidate:
-                        return text_candidate
-                except Exception as e:
-                    logger.debug(f"message_summary_info plist parse failed: {e}")
-                    return "[EDITED_MESSAGE_CONTENT]"
+            # Try plist (binary or XML) first
+            try:
+                data = plistlib.loads(bytes(blob))
+                text_candidate = self._extract_text_from_nested(data)
+                if text_candidate:
+                    return text_candidate
+            except Exception as e:
+                logger.debug(f"message_summary_info plist parse failed: {e}")
 
             # Fallback: UTF‑8 heuristic
             try:
@@ -161,18 +159,16 @@ class IMessageExtractor(BaseExtractor):
         body_rich = msg_data.get('body_rich')
         logger.debug(f"Message {msg_rowid}: body_rich = {body_rich!r}")
         if body_rich:
-            decoded_text = self._decode_attributed_body(body_rich)
-            logger.debug(f"Message {msg_rowid}: decoded_attributed_body = {decoded_text!r}")
-            if decoded_text:
-                return decoded_text
+            # Keep placeholder to avoid leaking attributed payload quirks; normalized later
+            return "[ATTRIBUTED_BODY_CONTENT]"
             return "[ATTRIBUTED_BODY_CONTENT]"
                 
         # 3. Try message_summary_info for iOS 16+ edited messages
         if msg_rowid:
             summary_text = self._decode_message_summary_info(conn, msg_rowid)
             logger.debug(f"Message {msg_rowid}: decoded_summary_info = {summary_text!r}")
-            if summary_text:
-                return summary_text
+            if summary_text is not None:
+                return "[EDITED_MESSAGE_CONTENT]"
                 
         # 4. Return None if no text found in any format
         logger.debug(f"Message {msg_rowid}: returning None")

@@ -3,6 +3,7 @@
 import logging
 from pathlib import Path
 from datetime import datetime
+import json
 
 import typer
 from rich.console import Console
@@ -526,6 +527,212 @@ def enrich(
         raise typer.Exit(1)
     except Exception as e:
         console.print(f"[bold red]Error during enrichment:[/bold red] {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def index(
+    input_path: Path = typer.Argument(..., help="Input directory or file containing redacted chunks"),
+    output_dir: Path | None = typer.Option(None, "--output", "-o", help="Output directory for reports"),
+    store: str = typer.Option("chroma", "--store", help="Vector store backend (chroma)"),
+    collection: str | None = typer.Option(None, "--collection", help="Collection name (auto-generated if not provided)"),
+    contact: str = typer.Option("unknown", "--contact", help="Contact identifier"),
+    embedding_model: str = typer.Option("all-MiniLM-L6-v2", "--embedding-model", help="Sentence transformer model"),
+    batch_size: int = typer.Option(100, "--batch-size", help="Indexing batch size"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite existing collection"),
+    persist_dir: str = typer.Option("./.chroma_db", "--persist-dir", help="ChromaDB persistence directory"),
+    validate_schemas: bool = typer.Option(True, "--validate/--no-validate", help="Validate chunks against schema"),
+) -> None:
+    """Index redacted conversation chunks for fast retrieval.
+    
+    Examples:
+        chatx index ./out/redacted/ --contact "friend@example.com" --store chroma
+        chatx index redacted_chunks.jsonl --contact "+15551234567" --overwrite
+        chatx index ./out/redacted/*.json --embedding-model all-mpnet-base-v2
+    """
+    from chatx.indexing.pipeline import IndexingPipeline
+    from chatx.indexing.vector_store import IndexingConfig, ChromaDBVectorStore
+    import glob
+    
+    console.print(f"[bold green]Indexing chunks from:[/bold green] {input_path}")
+
+    if not input_path.exists():
+        console.print(f"[bold red]Error:[/bold red] Input path does not exist: {input_path}")
+        raise typer.Exit(1)
+
+    if store != "chroma":
+        console.print(f"[bold red]Error:[/bold red] Unsupported vector store: {store}")
+        console.print("[blue]Supported stores:[/blue] chroma")
+        raise typer.Exit(1)
+
+    try:
+        started_at = datetime.now()
+        
+        # Collect input files
+        chunks_data = []
+        input_files = []
+        
+        if input_path.is_file():
+            input_files = [input_path]
+        else:
+            # Directory - find all JSON/JSONL files
+            json_pattern = str(input_path / "*.json")
+            jsonl_pattern = str(input_path / "*.jsonl")
+            input_files = glob.glob(json_pattern) + glob.glob(jsonl_pattern)
+            input_files = [Path(f) for f in input_files]
+        
+        if not input_files:
+            console.print(f"[bold red]Error:[/bold red] No JSON/JSONL files found in: {input_path}")
+            raise typer.Exit(1)
+        
+        console.print(f"[blue]Processing {len(input_files)} file(s)[/blue]")
+        
+        # Load all chunks
+        for file_path in input_files:
+            console.print(f"[blue]Loading:[/blue] {file_path.name}")
+            
+            with open(file_path) as f:
+                if file_path.suffix == ".jsonl":
+                    file_chunks = [json.loads(line) for line in f if line.strip()]
+                else:
+                    file_data = json.load(f)
+                    file_chunks = file_data if isinstance(file_data, list) else [file_data]
+            
+            chunks_data.extend(file_chunks)
+        
+        console.print(f"[blue]Loaded {len(chunks_data)} total chunks[/blue]")
+        
+        if not chunks_data:
+            console.print("[bold red]Error:[/bold red] No chunks found to index")
+            raise typer.Exit(1)
+        
+        # Check for redaction metadata
+        redacted_count = 0
+        for chunk in chunks_data[:10]:  # Sample first 10
+            if 'provenance' in chunk and 'redaction' in chunk.get('provenance', {}):
+                redacted_count += 1
+        
+        if redacted_count == 0:
+            console.print("[yellow]Warning:[/yellow] No redaction metadata found")
+            console.print("[yellow]Ensure chunks are properly redacted before indexing[/yellow]")
+        else:
+            console.print(f"[green]✓ Found redaction metadata in sample chunks[/green]")
+        
+        # Configure indexing
+        console.print(f"[blue]Vector store:[/blue] {store}")
+        console.print(f"[blue]Embedding model:[/blue] {embedding_model}")
+        console.print(f"[blue]Contact:[/blue] {contact}")
+        console.print(f"[blue]Batch size:[/blue] {batch_size}")
+        console.print(f"[blue]Persistence directory:[/blue] {persist_dir}")
+        
+        if overwrite:
+            console.print("[yellow]Will overwrite existing collection if present[/yellow]")
+        
+        # Set up output directory
+        if not output_dir:
+            output_dir = input_path.parent if input_path.is_file() else input_path
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create indexing configuration
+        indexing_config = IndexingConfig(
+            collection_prefix="chatx",
+            embedding_model=embedding_model,
+            persist_directory=persist_dir,
+            batch_size=batch_size,
+        )
+        
+        # Create indexing pipeline
+        with IndexingPipeline(
+            indexing_config=indexing_config,
+            output_dir=output_dir,
+            validate_schemas=validate_schemas,
+        ) as pipeline:
+            console.print("[blue]Starting indexing...[/blue]")
+            
+            # Index chunks
+            indexing_stats, report_path = pipeline.index_chunks(
+                chunks=chunks_data,
+                contact=contact,
+                overwrite_collection=overwrite,
+                batch_size=batch_size,
+            )
+            
+            finished_at = datetime.now()
+            total_time = (finished_at - started_at).total_seconds()
+            
+            # Show results
+            console.print(f"[bold green]Indexing complete![/bold green]")
+            console.print(f"[bold green]Indexed {indexing_stats['indexed']} chunks[/bold green]")
+            
+            if indexing_stats.get("errors", 0) > 0:
+                console.print(f"[yellow]Indexing errors:[/yellow] {indexing_stats['errors']}")
+            
+            console.print(f"[blue]Collection:[/blue] {indexing_stats.get('collection', 'unknown')}")
+            console.print(f"[blue]Total processing time:[/blue] {total_time:.2f}s")
+            
+            # Show throughput
+            if indexing_stats["indexed"] > 0 and total_time > 0:
+                throughput = indexing_stats["indexed"] / total_time
+                console.print(f"[blue]Indexing throughput:[/blue] {throughput:.1f} chunks/s")
+                
+                # Check NFR target (≥50k messages in ≤90s)
+                if throughput >= (50000 / 90):  # ~555 chunks/s
+                    console.print("[green]✓ Meets indexing throughput target[/green]")
+                else:
+                    console.print("[yellow]⚠ Below indexing throughput target[/yellow]")
+            
+            # Show collection info
+            collection_info = pipeline.get_collection_info(contact)
+            if collection_info.get("exists"):
+                console.print(f"[blue]Total chunks in collection:[/blue] {collection_info.get('total_chunks', 0)}")
+                
+                platforms = collection_info.get("platforms", [])
+                if platforms:
+                    console.print(f"[blue]Platforms:[/blue] {', '.join(platforms)}")
+                
+                date_range = collection_info.get("date_range", {})
+                if date_range.get("start") and date_range.get("end"):
+                    console.print(f"[blue]Date range:[/blue] {date_range['start'][:10]} to {date_range['end'][:10]}")
+                
+                redacted_pct = collection_info.get("redacted_percentage", 0)
+                console.print(f"[blue]Redaction coverage:[/blue] {redacted_pct:.1f}% of sampled chunks")
+            
+            console.print(f"[blue]Indexing report saved to:[/blue] {report_path}")
+            
+            # Show validation stats
+            metrics = pipeline.get_performance_metrics()
+            pipeline_metrics = metrics.get("metrics", {})
+            
+            if pipeline_metrics.get("validation_errors", 0) > 0:
+                console.print(f"[yellow]Validation errors:[/yellow] {pipeline_metrics['validation_errors']}")
+                console.print(f"[yellow]Check quarantine directory:[/yellow] {output_dir / 'quarantine'}")
+            
+            if pipeline_metrics.get("chunks_skipped", 0) > 0:
+                console.print(f"[yellow]Chunks skipped:[/yellow] {pipeline_metrics['chunks_skipped']} (empty text)")
+        
+        # Show quick search test if successful
+        if indexing_stats["indexed"] > 0:
+            console.print("[blue]Testing search functionality...[/blue]")
+            try:
+                from chatx.indexing.pipeline import SearchConfig
+                
+                with IndexingPipeline(indexing_config=indexing_config) as search_pipeline:
+                    test_results = search_pipeline.search_chunks(
+                        query="test search",
+                        contact=contact,
+                        config=SearchConfig(k=3)
+                    )
+                    
+                    console.print(f"[green]✓ Search functional - returned {len(test_results)} results[/green]")
+            
+            except Exception as e:
+                console.print(f"[yellow]Search test failed:[/yellow] {e}")
+        
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Indexing interrupted by user[/yellow]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[bold red]Error during indexing:[/bold red] {e}")
         raise typer.Exit(1)
 
 

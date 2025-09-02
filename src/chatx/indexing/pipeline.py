@@ -3,13 +3,13 @@
 import json
 import logging
 import uuid
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from dataclasses import dataclass, asdict
+from pathlib import Path
+from typing import Any
 
 from chatx.indexing.vector_store import ChromaDBVectorStore, IndexingConfig, SearchResult
-from chatx.schemas.validator import validate_data, quarantine_invalid_data
+from chatx.schemas.validator import quarantine_invalid_data
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class IndexingMetrics:
     collections_created: int = 0
     embeddings_generated: int = 0
     
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get metrics summary."""
         success_rate = (
             self.chunks_indexed / self.chunks_processed
@@ -50,10 +50,10 @@ class SearchConfig:
     """Configuration for search operations."""
     k: int = 10  # Number of results
     score_threshold: float = 0.0  # Minimum similarity score
-    date_range_days: Optional[int] = None  # Restrict to recent days
-    include_labels: Optional[List[str]] = None  # Include chunks with these labels
-    exclude_labels: Optional[List[str]] = None  # Exclude chunks with these labels
-    platform_filter: Optional[str] = None  # Filter by platform
+    date_range_days: int | None = None  # Restrict to recent days
+    include_labels: list[str] | None = None  # Include chunks with these labels
+    exclude_labels: list[str] | None = None  # Exclude chunks with these labels
+    platform_filter: str | None = None  # Filter by platform
     redacted_only: bool = True  # Only search redacted content
 
 
@@ -62,9 +62,9 @@ class IndexingPipeline:
     
     def __init__(
         self,
-        vector_store: Optional[ChromaDBVectorStore] = None,
-        indexing_config: Optional[IndexingConfig] = None,
-        output_dir: Optional[Path] = None,
+        vector_store: ChromaDBVectorStore | None = None,
+        indexing_config: IndexingConfig | None = None,
+        output_dir: Path | None = None,
         validate_schemas: bool = True,
     ):
         """Initialize indexing pipeline.
@@ -102,7 +102,7 @@ class IndexingPipeline:
         if self.vector_store:
             self.vector_store.close()
     
-    def _validate_and_filter_chunks(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _validate_and_filter_chunks(self, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Validate chunks and filter invalid ones."""
         if not self.validate_schemas:
             return chunks
@@ -120,7 +120,7 @@ class IndexingPipeline:
         
         return valid_chunks
     
-    def _filter_chunks_for_indexing(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _filter_chunks_for_indexing(self, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Filter chunks suitable for indexing."""
         filtered_chunks = []
         
@@ -139,7 +139,8 @@ class IndexingPipeline:
             redaction_info = provenance.get("redaction", {})
             coverage = redaction_info.get("coverage", 0.0)
             if coverage < 0.99:  # Less than 99% redaction coverage
-                logger.warning(f"Chunk {chunk.get('chunk_id', 'unknown')} has low redaction coverage: {coverage:.2%}")
+                chunk_id = chunk.get('chunk_id', 'unknown')
+                logger.warning(f"Chunk {chunk_id} has low redaction coverage: {coverage:.2%}")
             
             filtered_chunks.append(chunk)
         
@@ -148,11 +149,11 @@ class IndexingPipeline:
     
     def index_chunks(
         self,
-        chunks: List[Dict[str, Any]],
+        chunks: list[dict[str, Any]],
         contact: str,
         overwrite_collection: bool = False,
-        batch_size: Optional[int] = None
-    ) -> Tuple[Dict[str, Any], Path]:
+        batch_size: int | None = None
+    ) -> tuple[dict[str, Any], Path]:
         """Index conversation chunks for search.
         
         Args:
@@ -183,7 +184,7 @@ class IndexingPipeline:
             if overwrite_collection:
                 logger.info(f"Overwriting existing collection for contact: {contact}")
             
-            collection = self.vector_store.create_collection(contact, overwrite=overwrite_collection)
+            self.vector_store.create_collection(contact, overwrite=overwrite_collection)
             self.metrics.collections_created = 1
             
             # Index chunks
@@ -219,7 +220,9 @@ class IndexingPipeline:
             # Save report
             report_path = self._save_indexing_report(enhanced_stats)
             
-            logger.info(f"Indexing complete: {self.metrics.chunks_indexed} chunks indexed in {self.metrics.processing_time_seconds:.2f}s")
+            indexed = self.metrics.chunks_indexed
+        time_sec = self.metrics.processing_time_seconds
+        logger.info(f"Indexing complete: {indexed} chunks indexed in {time_sec:.2f}s")
             
             return enhanced_stats, report_path
             
@@ -232,8 +235,8 @@ class IndexingPipeline:
         self,
         query: str,
         contact: str,
-        config: Optional[SearchConfig] = None
-    ) -> List[SearchResult]:
+        config: SearchConfig | None = None
+    ) -> list[SearchResult]:
         """Search for relevant chunks.
         
         Args:
@@ -298,9 +301,9 @@ class IndexingPipeline:
     
     def update_chunk_enrichments(
         self,
-        enrichments: List[Dict[str, Any]],
+        enrichments: list[dict[str, Any]],
         contact: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Update chunks with enrichment metadata.
         
         Args:
@@ -361,7 +364,7 @@ class IndexingPipeline:
         logger.info(f"Enrichment update complete: {stats}")
         return stats
     
-    def get_collection_info(self, contact: str) -> Dict[str, Any]:
+    def get_collection_info(self, contact: str) -> dict[str, Any]:
         """Get information about a collection.
         
         Args:
@@ -372,7 +375,7 @@ class IndexingPipeline:
         """
         return self.vector_store.get_collection_stats(contact)
     
-    def list_all_collections(self) -> List[Dict[str, Any]]:
+    def list_all_collections(self) -> list[dict[str, Any]]:
         """List all indexed collections.
         
         Returns:
@@ -380,7 +383,7 @@ class IndexingPipeline:
         """
         return self.vector_store.list_collections()
     
-    def _save_indexing_report(self, stats: Dict[str, Any]) -> Path:
+    def _save_indexing_report(self, stats: dict[str, Any]) -> Path:
         """Save indexing report to file.
         
         Args:
@@ -416,7 +419,7 @@ class IndexingPipeline:
         logger.info(f"Indexing report saved to: {report_file}")
         return report_file
     
-    def get_performance_metrics(self) -> Dict[str, Any]:
+    def get_performance_metrics(self) -> dict[str, Any]:
         """Get performance metrics for the indexing pipeline.
         
         Returns:
