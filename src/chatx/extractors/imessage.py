@@ -5,7 +5,7 @@ import shutil
 import sqlite3
 import tempfile
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -75,15 +75,16 @@ class IMessageExtractor(BaseExtractor):
             return None
 
         try:
-            # Try binary plist path first
-            if attributed_body.startswith(b"bplist00"):
-                try:
-                    data = plistlib.loads(attributed_body)
-                    text_candidate = self._extract_text_from_nested(data)
-                    if text_candidate:
-                        return text_candidate
-                except Exception as e:
-                    logger.debug(f"attributedBody plist parse failed: {e}")
+            # Try plist parsing first (handles both binary and XML plists)
+            try:
+                data = plistlib.loads(attributed_body)
+                text_candidate = self._extract_text_from_nested(data)
+                if text_candidate:
+                    return text_candidate
+            except Exception as e:
+                logger.debug(f"attributedBody plist parse failed: {e}")
+                if attributed_body.startswith(b"bplist00"):
+                    return "[ATTRIBUTED_BODY_CONTENT]"
 
             # Heuristic UTF‑8 scan as fallback
             decoded = attributed_body.decode("utf-8", errors="ignore")
@@ -108,19 +109,21 @@ class IMessageExtractor(BaseExtractor):
                 return None
 
             blob = row[0]
-            # Prefer plist parsing when possible
-            if isinstance(blob, (bytes, bytearray)) and bytes(blob).startswith(b"bplist00"):
-                try:
-                    data = plistlib.loads(bytes(blob))
-                    text_candidate = self._extract_text_from_nested(data)
-                    if text_candidate:
-                        return text_candidate
-                except Exception as e:
-                    logger.debug(f"message_summary_info plist parse failed: {e}")
+            raw = bytes(blob) if isinstance(blob, bytes | bytearray) else str(blob).encode("utf-8")
+            # Prefer plist parsing when possible (handles binary and XML)
+            try:
+                data = plistlib.loads(raw)
+                text_candidate = self._extract_text_from_nested(data)
+                if text_candidate:
+                    return text_candidate
+            except Exception as e:
+                logger.debug(f"message_summary_info plist parse failed: {e}")
+                if raw.startswith(b"bplist00"):
+                    return "[EDITED_MESSAGE_CONTENT]"
 
             # Fallback: UTF‑8 heuristic
             try:
-                decoded = bytes(blob).decode("utf-8", errors="ignore")
+                decoded = raw.decode("utf-8", errors="ignore")
                 cleaned = ' '.join(decoded.split())
                 return cleaned if cleaned else None
             except Exception:
@@ -214,7 +217,7 @@ class IMessageExtractor(BaseExtractor):
                     res = self._extract_text_from_nested(v)
                     if isinstance(res, str):
                         consider(res)
-            elif isinstance(obj, (list, tuple, set)):
+            elif isinstance(obj, list | tuple | set):
                 for v in obj:
                     res = self._extract_text_from_nested(v)
                     if isinstance(res, str):
