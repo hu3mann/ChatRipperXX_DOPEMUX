@@ -123,7 +123,7 @@ chatx enrich messages --backend hybrid --allow-cloud --contact "friend@example.c
 
 ### Platform Support
 - ✅ **iMessage** (macOS local disk)
-- ✅ **iPhone backups (iMessage)** — Initial support (read-only via Manifest.db)
+- ✅ **iPhone backups (iMessage)** — Initial support (stage sms.db via Manifest.db; copy attachments via fileID; transcription from backup)
 - ✅ **Instagram** — Initial extractor (official data ZIP)
 - ⏳ **WhatsApp** — Planned
 - ⏳ **iCloud Messages** — Research phase

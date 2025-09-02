@@ -634,6 +634,14 @@ def imessage_pull(
             except Exception:
                 # Do not fail on metrics write errors
                 pass
+            # Write manifest for reproducibility (non-fatal)
+            try:
+                from chatx.obs.run_artifacts import write_manifest
+                db_input = staged_db_path if from_backup else db
+                manifest_path = write_manifest(out_dir=out, db_path=db_input)
+                console.print(f"[blue]Manifest written to:[/blue] {manifest_path}")
+            except Exception:
+                pass
         except Exception:
             # Do not fail extraction if metrics writing fails
             pass
