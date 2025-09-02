@@ -1,4 +1,5 @@
 # Changelog
+_Last updated: 2025-09-02 UTC_
 
 Managed by Commitizen/semantic release.
 

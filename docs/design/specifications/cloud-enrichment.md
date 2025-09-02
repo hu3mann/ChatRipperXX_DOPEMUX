@@ -1,5 +1,5 @@
 Title: Cloud Enrichment Spec
-Status: Draft | Owner: XtractXact | Last Updated: 2025-08-16 PT
+Status: Draft | Owner: XtractXact | Last Updated: 2025-09-02 PT
 
 ## Context & Purpose
 This document defines the **cloud LLM enrichment** contract for ChatX/XtractXact. It specifies **what** gets sent to cloud, **what** comes back, and the **rules** that govern privacy, safety, determinism, and reproducibility. Cloud is **optional** and is only used after a local-first pass fails confidence gates.

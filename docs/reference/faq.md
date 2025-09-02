@@ -1,4 +1,5 @@
 # FAQ
+_Last updated: 2025-09-02 UTC_
 
 ### Why does ChatX run locally?
 To keep your saucy secrets on your own machine where they belong.
