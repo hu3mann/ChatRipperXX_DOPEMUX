@@ -1,9 +1,12 @@
 """Test configuration and fixtures."""
 
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from chatx.schemas.message import CanonicalMessage, SourceRef
 from tests.fixtures import create_imessage_test_db, get_expected_messages
