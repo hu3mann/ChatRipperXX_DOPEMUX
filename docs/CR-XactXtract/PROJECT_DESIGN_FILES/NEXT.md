@@ -1,5 +1,5 @@
 Title: NEXT
-Status: Draft | Owner: You | Last Updated: 2025-08-16 PT
+Status: Draft | Owner: You | Last Updated: 2025-09-02 PT
 
 ## Open Questions
 
@@ -15,7 +15,6 @@ Status: Draft | Owner: You | Last Updated: 2025-08-16 PT
 
 ## Next Actions
 
-* Implement iMessage extractor slices (DB copy/read-only; joins/timestamps/provenance; fold reactions; replies).
 * Implement attachments metadata + `--copy-binaries` and completeness report.
 * Implement `--transcribe-audio local` path with deterministic, local transcription (mock in tests, engine chosen via ADR).
 * Wire schema validation & quarantine; perf smoke; CI gates per TEST_STRATEGY.md.
@@ -23,6 +22,7 @@ Status: Draft | Owner: You | Last Updated: 2025-08-16 PT
 
 ## Changes Since Last Update
 
+* 2025-09-02: Implemented initial iMessage extractor with reaction folding, reply resolution, and attachment metadata; added unit and integration tests.
 * 2025-08-16: **CLOUD_ENRICHMENT.md** expanded with `provenance`, `shield`, and confidence calibration details; added field-visibility matrix.
 * 2025-08-16: **INTERFACES.md** updated to mirror enrichment fields, error codes, and visibility rules; enriched CLI contracts clarified.
 * 2025-08-16: **ACCEPTANCE_CRITERIA.md** extended with Gherkin for chunking, relationship labels, idempotency, and minimal-context checks.
