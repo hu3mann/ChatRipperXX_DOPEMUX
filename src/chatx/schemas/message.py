@@ -1,7 +1,7 @@
 """Pydantic schemas for canonical message format."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -24,16 +24,16 @@ class Attachment(BaseModel):
         ..., description="Attachment type"
     )
     filename: str = Field(..., description="Attachment filename")
-    abs_path: Optional[str] = Field(None, description="Absolute path when available (local only)")
-    mime_type: Optional[str] = Field(None, description="MIME type")
-    uti: Optional[str] = Field(None, description="Apple UTI when available")
-    transfer_name: Optional[str] = Field(None, description="Transfer name")
+    abs_path: str | None = Field(None, description="Absolute path when available (local only)")
+    mime_type: str | None = Field(None, description="MIME type")
+    uti: str | None = Field(None, description="Apple UTI when available")
+    transfer_name: str | None = Field(None, description="Transfer name")
 
 
 class SourceRef(BaseModel):
     """Source reference for traceability."""
     
-    guid: Optional[str] = Field(None, description="Conversation GUID (iMessage) or equivalent")
+    guid: str | None = Field(None, description="Conversation GUID (iMessage) or equivalent")
     path: str = Field(..., description="Original source path (e.g., chat.db)")
 
 
@@ -54,14 +54,14 @@ class CanonicalMessage(BaseModel):
     sender: str = Field(..., description="Displayable sender name or address; 'Me' permitted")
     sender_id: str = Field(..., description="Stable sender id: 'me' or normalized handle")
     is_me: bool = Field(..., description="Whether this message was sent by the user")
-    text: Optional[str] = Field(None, description="Raw message body; may be empty or null")
-    reply_to_msg_id: Optional[str] = Field(
+    text: str | None = Field(None, description="Raw message body; may be empty or null")
+    reply_to_msg_id: str | None = Field(
         None, description="Parent message ID if this is a reply"
     )
-    reactions: List[Reaction] = Field(default_factory=list, description="Message reactions")
-    attachments: List[Attachment] = Field(default_factory=list, description="Message attachments")
+    reactions: list[Reaction] = Field(default_factory=list, description="Message reactions")
+    attachments: list[Attachment] = Field(default_factory=list, description="Message attachments")
     source_ref: SourceRef = Field(..., description="Source reference for traceability")
-    source_meta: Dict[str, Any] = Field(
+    source_meta: dict[str, Any] = Field(
         default_factory=dict,
         description="Platform-specific raw fields; NEVER sent to cloud"
     )

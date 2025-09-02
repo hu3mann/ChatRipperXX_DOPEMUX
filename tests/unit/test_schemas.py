@@ -1,11 +1,11 @@
 """Tests for Pydantic schemas."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
-from chatx.schemas.message import Attachment, CanonicalMessage, Reaction, SourceRef
 from chatx.schemas.enrichment import Certainty, Directness, EnrichmentMessage, Provenance
+from chatx.schemas.message import Attachment, CanonicalMessage, Reaction, SourceRef
 from chatx.schemas.redaction import PolicyRule, PrivacyPolicy, RedactionReport
 
 
@@ -16,9 +16,9 @@ class TestCanonicalMessage:
         """Test creating a message with minimal required fields."""
         msg = CanonicalMessage(
             msg_id="123",
-            conv_id="conv_456", 
+            conv_id="conv_456",
             platform="imessage",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             sender="John Doe",
             sender_id="john@example.com",
             is_me=False,
@@ -37,15 +37,15 @@ class TestCanonicalMessage:
         reaction = Reaction(
             from_="Jane",
             kind="love",
-            ts=datetime.now(timezone.utc)
+            ts=datetime.now(UTC)
         )
         
         msg = CanonicalMessage(
             msg_id="123",
             conv_id="conv_456",
             platform="imessage",
-            timestamp=datetime.now(timezone.utc),
-            sender="John Doe", 
+            timestamp=datetime.now(UTC),
+            sender="John Doe",
             sender_id="john@example.com",
             is_me=False,
             reactions=[reaction],
@@ -67,8 +67,8 @@ class TestCanonicalMessage:
         msg = CanonicalMessage(
             msg_id="123",
             conv_id="conv_456",
-            platform="imessage", 
-            timestamp=datetime.now(timezone.utc),
+            platform="imessage",
+            timestamp=datetime.now(UTC),
             sender="John Doe",
             sender_id="john@example.com",
             is_me=False,
@@ -87,9 +87,9 @@ class TestCanonicalMessage:
                 msg_id="123",
                 conv_id="conv_456",
                 platform="invalid_platform",  # Should fail validation
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 sender="John Doe",
-                sender_id="john@example.com", 
+                sender_id="john@example.com",
                 is_me=False,
                 source_ref=SourceRef(path="/path/to/chat.db")
             )
@@ -103,7 +103,7 @@ class TestEnrichmentMessage:
         provenance = Provenance(
             schema_v="1.0",
             run_id="run_123",
-            model_id="gpt-4", 
+            model_id="gpt-4",
             prompt_hash="abc123"
         )
         
@@ -137,7 +137,7 @@ class TestEnrichmentMessage:
             EnrichmentMessage(
                 msg_id="123",
                 speech_act="inform",
-                intent="share information", 
+                intent="share information",
                 stance="invalid_stance",  # Should fail
                 tone="casual",
                 emotion_primary="neutral",
@@ -200,7 +200,7 @@ class TestPrivacyPolicy:
         rule = PolicyRule(
             rule_id="phone_numbers",
             description="Redact phone numbers",
-            pattern=r"\b\d{3}-\d{3}-\d{4}\b", 
+            pattern=r"\b\d{3}-\d{3}-\d{4}\b",
             replacement="[PHONE]",
             severity="high"
         )

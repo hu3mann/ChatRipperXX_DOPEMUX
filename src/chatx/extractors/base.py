@@ -1,9 +1,8 @@
 """Base extractor interface for chat platforms."""
 
-import logging
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Union
 
 from chatx.schemas.message import CanonicalMessage
 from chatx.utils.logging import get_logger
@@ -19,10 +18,10 @@ class ExtractionReport:
         self.reactions_folded: int = 0
         self.attachments_found: int = 0
         self.unresolved_replies: int = 0
-        self.errors: List[str] = []
-        self.warnings: List[str] = []
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
     
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         """Convert report to dictionary for serialization."""
         return {
             "messages_extracted": self.messages_extracted,
@@ -42,7 +41,7 @@ class BaseExtractor(ABC):
     original data in source_meta for lossless extraction.
     """
     
-    def __init__(self, source_path: Union[str, Path]) -> None:
+    def __init__(self, source_path: str | Path) -> None:
         """Initialize extractor with source path.
         
         Args:
@@ -82,8 +81,8 @@ class BaseExtractor(ABC):
         pass
     
     def extract_to_file(
-        self, 
-        output_path: Union[str, Path],
+        self,
+        output_path: str | Path,
         validate_output: bool = True
     ) -> ExtractionReport:
         """Extract messages and write to JSONL file.
@@ -140,7 +139,7 @@ class ExtractionError(Exception):
     pass
 
 
-def detect_platform(source_path: Union[str, Path]) -> Optional[str]:
+def detect_platform(source_path: str | Path) -> str | None:
     """Detect platform type from source path.
     
     Args:

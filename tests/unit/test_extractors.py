@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from chatx.extractors.base import BaseExtractor, detect_platform, ExtractionError
+from chatx.extractors.base import BaseExtractor, detect_platform
 from chatx.extractors.imessage import IMessageExtractor
 
 
@@ -40,7 +40,7 @@ class TestPlatformDetection:
     def test_detect_imessage(self):
         """Test iMessage detection."""
         assert detect_platform(Path("chat.db")) == "imessage"
-        assert detect_platform(Path("sms.db")) == "imessage" 
+        assert detect_platform(Path("sms.db")) == "imessage"
         assert detect_platform(Path("/path/to/chat.db")) == "imessage"
     
     def test_detect_instagram(self):
@@ -118,7 +118,7 @@ class TestIMessageExtractor:
             # Test None timestamp
             assert extractor._convert_apple_timestamp(None) is None
             
-            # Test zero timestamp  
+            # Test zero timestamp
             assert extractor._convert_apple_timestamp(0) is None
             
             # Test nanosecond timestamp (large number)
@@ -127,5 +127,5 @@ class TestIMessageExtractor:
             assert result is not None
             
             # Test second timestamp (smaller number)
-            result = extractor._convert_apple_timestamp(123456789)  
+            result = extractor._convert_apple_timestamp(123456789)
             assert result is not None
