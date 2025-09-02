@@ -208,13 +208,22 @@ def extract_messages_for_conversation(
             
             # Create reaction object
             from chatx.schemas.message import Reaction
+            from_name = reaction_data['handle_address'] or f"unknown_{reaction_data['handle_id']}" if not reaction_data['is_from_me'] else "me"
+            ts_val = (
+                datetime.fromisoformat((to_iso_utc(reaction_data['timestamp']) or datetime.now(timezone.utc).isoformat()).replace('Z', '+00:00'))
+                if reaction_data['timestamp'] else datetime.now(timezone.utc)
+            )
+            # De-duplicate: skip if an identical reaction already exists
+            dup = any(
+                (r.kind == reaction_data['reaction_type'] and r.from_ == from_name and int(r.ts.timestamp()) == int(ts_val.timestamp()))
+                for r in target_message.reactions
+            )
+            if dup:
+                continue
             reaction = Reaction(
                 kind=reaction_data['reaction_type'],
-                **{"from": reaction_data['handle_address'] or f"unknown_{reaction_data['handle_id']}" if not reaction_data['is_from_me'] else "me"},
-                ts=(
-                    datetime.fromisoformat((to_iso_utc(reaction_data['timestamp']) or datetime.now(timezone.utc).isoformat()).replace('Z', '+00:00'))
-                    if reaction_data['timestamp'] else datetime.now(timezone.utc)
-                )
+                **{"from": from_name},
+                ts=ts_val,
             )
             
             # Add to target message reactions list

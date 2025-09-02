@@ -159,16 +159,17 @@ class IMessageExtractor(BaseExtractor):
         body_rich = msg_data.get('body_rich')
         logger.debug(f"Message {msg_rowid}: body_rich = {body_rich!r}")
         if body_rich:
-            # Do not leak binary plist blobs; emit placeholder until full parser lands
-            return "[ATTRIBUTED_BODY_CONTENT]"
+            decoded_text = self._decode_attributed_body(body_rich)
+            logger.debug(f"Message {msg_rowid}: decoded_attributed_body = {decoded_text!r}")
+            if decoded_text:
+                return decoded_text
                 
         # 3. Try message_summary_info for iOS 16+ edited messages
         if msg_rowid:
-            # Do not leak raw edited blobs; emit placeholder
             summary_text = self._decode_message_summary_info(conn, msg_rowid)
             logger.debug(f"Message {msg_rowid}: decoded_summary_info = {summary_text!r}")
-            if summary_text is not None:
-                return "[EDITED_MESSAGE_CONTENT]"
+            if summary_text:
+                return summary_text
                 
         # 4. Return None if no text found in any format
         logger.debug(f"Message {msg_rowid}: returning None")

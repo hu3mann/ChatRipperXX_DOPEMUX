@@ -21,13 +21,23 @@ CLI Examples
 - Include attachments: `chatx imessage pull --contact "friend@example.com" --include-attachments --out ./out`
 - Copy binaries: `chatx imessage pull --contact "friend@example.com" --include-attachments --copy-binaries --out ./out`
 - Transcribe voice notes locally: `chatx imessage pull --contact "friend@example.com" --include-attachments --transcribe-audio local --out ./out`
+ - Backup mode (read-only sms.db): `chatx imessage pull --contact "<id>" --from-backup "~/Library/Application Support/MobileSync/Backup/<UDID>" --out ./out`
+ - Backup mode + transcription without copying: `chatx imessage pull --contact "<id>" --from-backup "<BackupPath>" --include-attachments --transcribe-audio local --out ./out`
+ - Backup mode + copy binaries: `chatx imessage pull --contact "<id>" --from-backup "<BackupPath>" --include-attachments --copy-binaries --out ./out`
  - Instagram (author filter): `chatx instagram pull --zip ./instagram.zip --user "Your Name" --author-only "FriendA" --out ./out`
 
 Artifacts
 - Messages: `out/messages_<contact>.json`
-- Missing attachments report: `out/missing_attachments.json`
+- Missing attachments report: `out/missing_attachments_report.json`
 - Quarantine (invalid messages): `out/quarantine/messages_bad.jsonl`
 - Run report (metrics): `out/run_report.json`
+
+Backup Mode Notes
+- Backups live under `~/Library/Application Support/MobileSync/Backup/<UDID>` on macOS. Use `--from-backup` to enable this path; if encrypted, pass `--backup-password`.
+- Attachments in backups are stored as hashed fileIDs. The tool resolves them via `Manifest.db` and can:
+  - transcribe audio directly (without `--copy-binaries`), or
+  - copy to `out/attachments/**` with `--copy-binaries`.
+  In both cases, no data is sent to cloud.
 
 Perf Smoke
 - Disabled by default. To run locally: `CHATX_RUN_PERF=1 pytest -m perf -q`
