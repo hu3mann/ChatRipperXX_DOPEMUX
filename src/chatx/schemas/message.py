@@ -27,6 +27,9 @@ class Attachment(BaseModel):
     mime_type: str | None = Field(None, description="MIME type")
     uti: str | None = Field(None, description="Apple UTI when available")
     transfer_name: str | None = Field(None, description="Transfer name")
+    source_meta: dict[str, Any] = Field(
+        default_factory=dict, description="Attachment-specific metadata"
+    )
 
 
 class SourceRef(BaseModel):

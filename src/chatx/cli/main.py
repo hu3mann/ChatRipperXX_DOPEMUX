@@ -246,14 +246,14 @@ def redact(
         shield = PolicyShield(policy=policy, salt_file=salt_file)
         
         # Redact chunks
-        console.print(f"[blue]Starting redaction...[/blue]")
+        console.print("[blue]Starting redaction...[/blue]")
         redacted_chunks, redaction_report = shield.redact_chunks(chunks)
         
         finished_at = datetime.now()
         elapsed = (finished_at - started_at).total_seconds()
         
         # Show results
-        console.print(f"[bold green]Redaction complete![/bold green]")
+        console.print("[bold green]Redaction complete![/bold green]")
         console.print(f"[blue]Coverage achieved:[/blue] {redaction_report.coverage:.1%}")
         console.print(f"[blue]Tokens redacted:[/blue] {redaction_report.tokens_redacted}")
         console.print(f"[blue]Processing time:[/blue] {elapsed:.2f}s")
@@ -580,6 +580,7 @@ def imessage_pull(
     out: Path = typer.Option(Path("./out"), "--out", help="Output directory", show_default=True, metavar="<DIR>", rich_help_panel="Output"),
     include_attachments: bool = typer.Option(False, "--include-attachments", help="Extract attachment metadata", rich_help_panel="Attachments"),
     copy_binaries: bool = typer.Option(False, "--copy-binaries", help="Copy attachment files to output", rich_help_panel="Attachments"),
+    thumbnails: bool = typer.Option(False, "--thumbnails", help="Generate thumbnails for image attachments", rich_help_panel="Attachments"),
     transcribe_audio: str = typer.Option(
         "off",
         "--transcribe-audio",
@@ -668,6 +669,7 @@ def imessage_pull(
                     contact=contact,
                     include_attachments=include_attachments,
                     copy_binaries=copy_binaries,
+                    thumbnails=thumbnails,
                     transcribe_audio=transcribe_audio,
                     out_dir=out,
                     backup_dir=from_backup,
@@ -678,6 +680,7 @@ def imessage_pull(
                 contact=contact,
                 include_attachments=include_attachments,
                 copy_binaries=copy_binaries,
+                thumbnails=thumbnails,
                 transcribe_audio=transcribe_audio,
                 out_dir=out,
             ))
@@ -749,6 +752,22 @@ def imessage_pull(
             from chatx.utils.run_report import write_extract_run_report
             # Compute simple counters
             attachments_total = sum(len(m.attachments) for m in messages)
+            image_attachments = [
+                att for m in messages for att in m.attachments if att.type == "image"
+            ]
+            images_total = len(image_attachments)
+            unique_hashes = {}
+            bytes_copied = 0
+            for att in image_attachments:
+                h = att.source_meta.get("hash", {}).get("sha256")
+                p = att.abs_path
+                if h and p and h not in unique_hashes:
+                    unique_hashes[h] = p
+                    try:
+                        bytes_copied += Path(p).stat().st_size
+                    except OSError:
+                        pass
+            images_copied = len(unique_hashes)
             elapsed = max((finished_at - started_at).total_seconds(), 0.0)
             rate = (len(messages) / elapsed * 60.0) if elapsed > 0 else 0.0
 
@@ -779,6 +798,9 @@ def imessage_pull(
                 finished_at=finished_at,
                 messages_total=len(messages),
                 attachments_total=attachments_total,
+                images_total=images_total,
+                images_copied=images_copied,
+                bytes_copied=bytes_copied,
                 throughput_msgs_min=rate,
                 artifacts=artifacts,
                 warnings=warn_msgs,
@@ -792,6 +814,9 @@ def imessage_pull(
                 counters = {
                     "messages_total": len(messages),
                     "attachments_total": attachments_total,
+                    "images_total": images_total,
+                    "images_copied": images_copied,
+                    "bytes_copied": bytes_copied,
                     "throughput_msgs_min": rate,
                 }
                 metrics_path = append_metrics_event(
@@ -994,23 +1019,4 @@ def imessage_pdf(
         console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
     except Exception as e:
         console.print(f"[bold red]PDF ingestion failed:[/bold red] {e}")
-        raise typer.Exit(1)
-
-    out.mkdir(parents=True, exist_ok=True)
-
-    try:
-        messages = extract_messages_from_zip(
-            zip,
-            include_threads_with=[user],
-            authors_only=author_only or None,
-            me_username=user,
-        )
-        output_file = out / "instagram_messages.json"
-        write_messages_with_validation(messages, output_file)
-        console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
-    except ValueError as ve:
-        console.print(f"[bold red]ZIP validation error:[/bold red] {ve}")
-        raise typer.Exit(1)
-    except Exception as e:
-        console.print(f"[bold red]Error during extraction:[/bold red] {e}")
         raise typer.Exit(1)

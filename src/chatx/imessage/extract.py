@@ -18,6 +18,7 @@ def extract_messages(
     *,
     include_attachments: bool = False,
     copy_binaries: bool = False,
+    thumbnails: bool = False,
     transcribe_audio: str = "off",
     out_dir: Path,
     backup_dir: Optional[Path] = None,
@@ -54,8 +55,15 @@ def extract_messages(
             # Extract messages for each conversation
             for conv_guid in conv_guids:
                 yield from extract_messages_for_conversation(
-                    conn, conv_guid, str(db_path), include_attachments, copy_binaries,
-                    transcribe_audio, out_dir, backup_dir
+                    conn,
+                    conv_guid,
+                    str(db_path),
+                    include_attachments,
+                    copy_binaries,
+                    thumbnails,
+                    transcribe_audio,
+                    out_dir,
+                    backup_dir,
                 )
                 
         finally:
@@ -64,10 +72,11 @@ def extract_messages(
 
 def extract_messages_for_conversation(
     conn: sqlite3.Connection,
-    conv_guid: str, 
+    conv_guid: str,
     original_db_path: str,
     include_attachments: bool,
     copy_binaries: bool,
+    thumbnails: bool,
     transcribe_audio: str,
     out_dir: Path,
     backup_dir: Optional[Path] = None,
@@ -240,6 +249,7 @@ def extract_messages_for_conversation(
         from chatx.imessage.attachments import (
             extract_attachment_metadata,
             copy_attachment_files,
+            generate_thumbnail_files,
         )
         from chatx.imessage.transcribe import (
             is_audio_attachment,
@@ -249,28 +259,30 @@ def extract_messages_for_conversation(
         
         attachments_with_transcripts = 0
         failed_transcriptions = 0
-        
+        dedupe_map: Dict[str, str] = {}
+
         for message, _ in regular_messages:
             # Extract attachment metadata
             attachments = extract_attachment_metadata(conn, message.source_meta["rowid"]) 
             
             # Copy binary files if requested
             if copy_binaries and attachments:
-                attachments = copy_attachment_files(attachments, out_dir)
+                attachments, dedupe_map = copy_attachment_files(
+                    attachments, out_dir, dedupe_map=dedupe_map
+                )
                 # Emit attachment hashes into source_meta for observability/dedupe
                 infos = []
                 for att in attachments:
                     if att.abs_path:
-                        try:
-                            name = Path(att.abs_path).name
-                            file_hash = name.split("_", 1)[0]
-                            infos.append({
-                                "filename": att.filename,
-                                "hash": file_hash,
-                                "path": att.abs_path,
-                            })
-                        except Exception:
-                            pass
+                        file_hash = att.source_meta.get("hash", {}).get("sha256")
+                        if file_hash:
+                            infos.append(
+                                {
+                                    "filename": att.filename,
+                                    "hash": file_hash,
+                                    "path": att.abs_path,
+                                }
+                            )
                 if infos:
                     message.source_meta.setdefault("attachments_info", infos)
             
