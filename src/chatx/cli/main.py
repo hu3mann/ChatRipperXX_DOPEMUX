@@ -367,6 +367,30 @@ def imessage_pull(
                 warnings=warn_msgs,
             )
             console.print(f"[blue]Run report written to:[/blue] {report_path}")
+
+            # Emit metrics JSONL for observability
+            try:
+                from chatx.utils.run_report import append_metrics_event
+
+                counters = {
+                    "messages_total": len(messages),
+                    "attachments_total": attachments_total,
+                    "throughput_msgs_min": rate,
+                }
+                metrics_path = append_metrics_event(
+                    out_dir=out,
+                    component="extract",
+                    started_at=started_at,
+                    finished_at=finished_at,
+                    counters=counters,
+                    warnings=warn_msgs,
+                    errors=[],
+                    artifacts=artifacts,
+                )
+                console.print(f"[blue]Metrics appended:[/blue] {metrics_path}")
+            except Exception:
+                # Do not fail on metrics write errors
+                pass
         except Exception:
             # Do not fail extraction if metrics writing fails
             pass

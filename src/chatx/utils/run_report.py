@@ -113,3 +113,39 @@ def validate_run_report(report_path: Path) -> bool:
         return True
     except (jsonschema.ValidationError, json.JSONDecodeError, OSError):
         return False
+
+
+def append_metrics_event(
+    *,
+    out_dir: Path,
+    component: str,
+    started_at: datetime,
+    finished_at: datetime,
+    counters: Dict[str, Any],
+    warnings: Optional[List[str]] = None,
+    errors: Optional[List[str]] = None,
+    artifacts: Optional[List[str]] = None,
+) -> Path:
+    """Append a single component metrics payload to metrics.jsonl.
+
+    Returns the metrics.jsonl path.
+    """
+    run_id = os.environ.get("CHATX_RUN_ID") or str(uuid.uuid4())
+    payload: Dict[str, Any] = {
+        "component": component,
+        "run_id": run_id,
+        "started_at": started_at.astimezone(timezone.utc).isoformat(),
+        "finished_at": finished_at.astimezone(timezone.utc).isoformat(),
+        "duration_s": max((finished_at - started_at).total_seconds(), 0.0),
+        "counters": counters,
+        "warnings": warnings or [],
+        "errors": errors or [],
+        "artifacts": artifacts or [],
+    }
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    metrics_path = out_dir / "metrics.jsonl"
+    with open(metrics_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(payload) + "\n")
+
+    return metrics_path
