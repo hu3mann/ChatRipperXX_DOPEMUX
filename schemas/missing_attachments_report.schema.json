@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xtractxact.dev/schemas/missing_attachments_report.schema.json",
+  "title": "Missing Attachments Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items"],
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "contact": { "type": ["string", "null"] },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["conv_guid", "msg_id", "filename"],
+        "properties": {
+          "conv_guid": { "type": "string" },
+          "msg_id":    { "type": "string" },
+          "filename":  { "type": "string" }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total_missing", "per_conversation"],
+      "properties": {
+        "total_missing": { "type": "integer", "minimum": 0 },
+        "per_conversation": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}
