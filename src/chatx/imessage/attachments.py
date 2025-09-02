@@ -234,7 +234,7 @@ def copy_attachment_files(
                 dest_subdir.mkdir(parents=True, exist_ok=True)
                 
                 # Create final destination path
-                dest_filename = f"{file_hash}_{attachment.filename}"
+                dest_filename = f"{file_hash}_{Path(attachment.filename).name}"
                 dest_path = dest_subdir / dest_filename
                 
                 # Copy file if not already exists

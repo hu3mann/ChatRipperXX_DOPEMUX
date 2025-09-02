@@ -181,13 +181,27 @@ def transform(
 
 @app.command()
 def redact(
-    input_file: Path = typer.Argument(..., help="Input file to redact"),
+    input_file: Path = typer.Argument(..., help="Input file containing chunks to redact"),
     output: Path | None = typer.Option(None, "--output", "-o", help="Output file path"),
-    policy: Path | None = typer.Option(None, "--policy", help="Privacy policy file"),
-    strict: bool = typer.Option(True, "--strict/--no-strict", help="Enable strict redaction"),
-    report: bool = typer.Option(True, "--report/--no-report", help="Generate redaction report"),
+    salt_file: Path | None = typer.Option(None, "--salt-file", help="Salt file for consistent tokenization"),
+    threshold: float = typer.Option(0.995, "--threshold", help="Redaction coverage threshold (0.0-1.0)"),
+    strict: bool = typer.Option(False, "--strict", help="Enable strict mode (99.9% threshold)"),
+    pseudonymize: bool = typer.Option(True, "--pseudonymize/--no-pseudonymize", help="Use consistent pseudonymization"),
+    detect_names: bool = typer.Option(True, "--detect-names/--no-detect-names", help="Detect common names as PII"),
+    report_file: Path | None = typer.Option(None, "--report", help="Redaction report output file"),
+    preflight: bool = typer.Option(False, "--preflight", help="Run preflight check for cloud readiness"),
 ) -> None:
-    """Apply privacy redaction using Policy Shield."""
+    """Apply privacy redaction using Policy Shield.
+    
+    Examples:
+        chatx redact chunks.jsonl --threshold 0.995 --salt-file ./salt.key
+        chatx redact chunks.json --strict --preflight --report ./redaction_report.json
+        chatx redact chunks.jsonl --no-pseudonymize --threshold 0.999
+    """
+    from datetime import datetime
+    import json
+    from chatx.redaction.policy_shield import PolicyShield, PrivacyPolicy
+    
     console.print(f"[bold green]Redacting:[/bold green] {input_file}")
 
     if not input_file.exists():
@@ -195,10 +209,117 @@ def redact(
         raise typer.Exit(1)
 
     if strict:
-        console.print("[blue]Using strict redaction mode[/blue]")
+        console.print("[blue]Using strict redaction mode (99.9% threshold)[/blue]")
+    else:
+        console.print(f"[blue]Coverage threshold:[/blue] {threshold:.1%}")
 
-    # TODO: Implement redaction logic
-    console.print("[yellow]Redaction not yet implemented[/yellow]")
+    try:
+        started_at = datetime.now()
+        
+        # Load chunks
+        console.print(f"[blue]Loading chunks from:[/blue] {input_file}")
+        with open(input_file) as f:
+            if input_file.suffix == ".jsonl":
+                chunks = [json.loads(line) for line in f if line.strip()]
+            else:
+                chunks = json.load(f)
+        
+        console.print(f"[blue]Loaded {len(chunks)} chunks[/blue]")
+        
+        # Create privacy policy
+        policy = PrivacyPolicy(
+            threshold=threshold,
+            strict_mode=strict,
+            pseudonymize=pseudonymize,
+            detect_names=detect_names,
+        )
+        
+        # Initialize Policy Shield
+        shield = PolicyShield(policy=policy, salt_file=salt_file)
+        
+        # Redact chunks
+        console.print(f"[blue]Starting redaction...[/blue]")
+        redacted_chunks, redaction_report = shield.redact_chunks(chunks)
+        
+        finished_at = datetime.now()
+        elapsed = (finished_at - started_at).total_seconds()
+        
+        # Show results
+        console.print(f"[bold green]Redaction complete![/bold green]")
+        console.print(f"[blue]Coverage achieved:[/blue] {redaction_report.coverage:.1%}")
+        console.print(f"[blue]Tokens redacted:[/blue] {redaction_report.tokens_redacted}")
+        console.print(f"[blue]Processing time:[/blue] {elapsed:.2f}s")
+        
+        # Show PII type breakdown
+        if redaction_report.placeholders:
+            pii_summary = ", ".join(f"{k}: {v}" for k, v in redaction_report.placeholders.items())
+            console.print(f"[blue]PII types found:[/blue] {pii_summary}")
+        
+        # Check threshold
+        effective_threshold = policy.get_effective_threshold()
+        if redaction_report.coverage >= effective_threshold:
+            console.print(f"[green]✓ Coverage meets {effective_threshold:.1%} threshold[/green]")
+        else:
+            console.print(f"[yellow]⚠ Coverage below {effective_threshold:.1%} threshold[/yellow]")
+        
+        # Check hard-fail
+        if redaction_report.hardfail_triggered:
+            console.print("[red]⚠ Hard-fail classes detected[/red]")
+        
+        # Save redacted chunks
+        if not output:
+            timestamp = started_at.strftime("%Y%m%d_%H%M%S")
+            output = input_file.parent / f"redacted_{input_file.stem}_{timestamp}{input_file.suffix}"
+        
+        output.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(output, "w") as f:
+            if output.suffix == ".jsonl":
+                for chunk in redacted_chunks:
+                    f.write(json.dumps(chunk, ensure_ascii=False) + "\n")
+            else:
+                json.dump(redacted_chunks, f, indent=2, ensure_ascii=False)
+        
+        console.print(f"[bold green]Redacted chunks saved to:[/bold green] {output}")
+        
+        # Save redaction report
+        if not report_file:
+            report_file = output.parent / "redaction_report.json"
+        
+        shield.save_redaction_report(redaction_report, report_file)
+        console.print(f"[blue]Redaction report saved to:[/blue] {report_file}")
+        
+        # Show tokenizer statistics
+        tokenizer_stats = shield.get_tokenizer_stats()
+        console.print(f"[blue]Tokenizer stats:[/blue] {tokenizer_stats['total_tokens']} unique tokens")
+        
+        # Run preflight check if requested
+        if preflight:
+            console.print("[blue]Running preflight check for cloud readiness...[/blue]")
+            passed, issues = shield.preflight_cloud_check(redacted_chunks, redaction_report)
+            
+            if passed:
+                console.print("[green]✓ Preflight check passed - ready for cloud processing[/green]")
+            else:
+                console.print("[red]✗ Preflight check failed[/red]")
+                for issue in issues:
+                    console.print(f"[red]  - {issue}[/red]")
+                
+                if redaction_report.hardfail_triggered or redaction_report.coverage < effective_threshold:
+                    console.print("[red]Cloud processing blocked due to policy violations[/red]")
+                    raise typer.Exit(1)
+        
+        # Show warnings
+        if redaction_report.notes:
+            console.print("[yellow]Warnings:[/yellow]")
+            for note in redaction_report.notes[:3]:  # Show first 3 warnings
+                console.print(f"[yellow]  - {note}[/yellow]")
+            if len(redaction_report.notes) > 3:
+                console.print(f"[yellow]  ... and {len(redaction_report.notes) - 3} more warnings[/yellow]")
+        
+    except Exception as e:
+        console.print(f"[bold red]Error during redaction:[/bold red] {e}")
+        raise typer.Exit(1)
 
 
 @app.command()
