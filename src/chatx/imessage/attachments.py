@@ -235,9 +235,6 @@ def copy_attachment_files(
     Uses content hashing for deduplication and collision avoidance:
     out_dir/attachments/<sha256[:2]>/<sha256>/<original_basename>
     """
-    # Typical macOS attachment path
-    attachments_dir = Path.home() / "Library" / "Messages" / "Attachments"
-
     updated_attachments = []
     dedupe: Dict[str, str] = dedupe_map or {}
 
