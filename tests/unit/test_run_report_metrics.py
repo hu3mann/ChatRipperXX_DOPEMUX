@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from chatx.utils.run_report import write_extract_run_report, validate_run_report, append_metrics_event
+from chatx.utils.run_report import (
+    append_metrics_event,
+    validate_run_report,
+    write_extract_run_report,
+)
 
 
 def test_run_report_and_metrics_schema(tmp_path: Path) -> None:
     out = tmp_path / "out"
     out.mkdir(parents=True, exist_ok=True)
 
-    started = datetime.now(timezone.utc)
+    started = datetime.now(UTC)
     finished = started + timedelta(seconds=2)
 
     # Write run report
@@ -21,6 +25,9 @@ def test_run_report_and_metrics_schema(tmp_path: Path) -> None:
         finished_at=finished,
         messages_total=10,
         attachments_total=3,
+        images_total=3,
+        images_copied=2,
+        bytes_copied=456,
         throughput_msgs_min=300.0,
         artifacts=[str(out / "messages.json")],
         warnings=["warn"],
@@ -37,6 +44,9 @@ def test_run_report_and_metrics_schema(tmp_path: Path) -> None:
         counters={
             "messages_total": 10,
             "attachments_total": 3,
+            "images_total": 3,
+            "images_copied": 2,
+            "bytes_copied": 456,
             "throughput_msgs_min": 300.0,
         },
         warnings=["warn"],
@@ -51,5 +61,6 @@ def test_run_report_and_metrics_schema(tmp_path: Path) -> None:
     assert obj["component"] == "extract"
     assert obj["counters"]["messages_total"] == 10
     assert obj["counters"]["attachments_total"] == 3
+    assert obj["counters"]["images_total"] == 3
     assert obj["counters"]["throughput_msgs_min"] == 300.0
 

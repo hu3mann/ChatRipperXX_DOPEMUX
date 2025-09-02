@@ -1,10 +1,13 @@
-"""Stub tests for media.hash."""
+"""Tests for media.hash utilities."""
 
-import pytest
+import hashlib
+from pathlib import Path
 
 from chatx.media.hash import sha256_stream
 
 
-@pytest.mark.xfail(raises=NotImplementedError, strict=True, reason="stub")
-def test_sha256_stream_unimplemented():
-    sha256_stream("/dev/null")
+def test_sha256_stream(tmp_path: Path) -> None:
+    data = b"sexy hash"
+    f = tmp_path / "blob.bin"
+    f.write_bytes(data)
+    assert sha256_stream(f) == hashlib.sha256(data).hexdigest()

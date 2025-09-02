@@ -259,38 +259,32 @@ def extract_messages_for_conversation(
         
         attachments_with_transcripts = 0
         failed_transcriptions = 0
-        
+        dedupe_map: Dict[str, str] = {}
+
         for message, _ in regular_messages:
             # Extract attachment metadata
             attachments = extract_attachment_metadata(conn, message.source_meta["rowid"]) 
             
-            thumb_paths: dict[str, str] = {}
-            if attachments:
-                if copy_binaries:
-                    attachments = copy_attachment_files(attachments, out_dir, backup_dir)
-                    # Emit attachment hashes into source_meta for observability/dedupe
-                    infos = []
-                    for att in attachments:
-                        if att.abs_path:
-                            try:
-                                name = Path(att.abs_path).name
-                                file_hash = name.split("_", 1)[0]
-                                infos.append(
-                                    {
-                                        "filename": att.filename,
-                                        "hash": file_hash,
-                                        "path": att.abs_path,
-                                    }
-                                )
-                            except Exception:
-                                pass
-                    if infos:
-                        message.source_meta.setdefault("attachments_info", infos)
-
-                if thumbnails:
-                    thumb_paths = generate_thumbnail_files(attachments, out_dir, backup_dir)
-                    if thumb_paths:
-                        message.source_meta.setdefault("image", {})["thumb_paths"] = thumb_paths
+            # Copy binary files if requested
+            if copy_binaries and attachments:
+                attachments, dedupe_map = copy_attachment_files(
+                    attachments, out_dir, dedupe_map=dedupe_map
+                )
+                # Emit attachment hashes into source_meta for observability/dedupe
+                infos = []
+                for att in attachments:
+                    if att.abs_path:
+                        file_hash = att.source_meta.get("hash", {}).get("sha256")
+                        if file_hash:
+                            infos.append(
+                                {
+                                    "filename": att.filename,
+                                    "hash": file_hash,
+                                    "path": att.abs_path,
+                                }
+                            )
+                if infos:
+                    message.source_meta.setdefault("attachments_info", infos)
             
             # Process audio transcription if enabled
             if transcribe_audio != "off" and attachments:
