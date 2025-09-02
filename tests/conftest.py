@@ -1,7 +1,7 @@
 """Test configuration and fixtures."""
 
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, timezone
 
 import pytest
 
@@ -15,7 +15,7 @@ def sample_message() -> CanonicalMessage:
         msg_id="123",
         conv_id="conv_456",
         platform="imessage",
-        timestamp=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        timestamp=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
         sender="Test User",
         sender_id="test@example.com",
         is_me=False,
@@ -27,7 +27,7 @@ def sample_message() -> CanonicalMessage:
     )
 
 
-@pytest.fixture 
+@pytest.fixture
 def temp_chat_db(tmp_path: Path) -> Path:
     """Create a temporary SQLite database file for testing."""
     db_path = tmp_path / "test_chat.db"

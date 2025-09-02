@@ -2,7 +2,6 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -10,9 +9,9 @@ from pydantic import BaseModel, Field
 class LLMConfig(BaseModel):
     """LLM provider configuration."""
     provider: str = Field(..., description="LLM provider name")
-    model: Optional[str] = Field(None, description="Model identifier")
-    api_key: Optional[str] = Field(None, description="API key (use env var in production)")
-    base_url: Optional[str] = Field(None, description="Base URL for API")
+    model: str | None = Field(None, description="Model identifier")
+    api_key: str | None = Field(None, description="API key (use env var in production)")
+    base_url: str | None = Field(None, description="Base URL for API")
     max_retries: int = Field(3, description="Maximum retry attempts")
     timeout: int = Field(60, description="Request timeout in seconds")
 
@@ -20,7 +19,7 @@ class LLMConfig(BaseModel):
 class RedactionConfig(BaseModel):
     """Privacy redaction configuration."""
     strict_mode: bool = Field(True, description="Enable strict redaction mode")
-    policy_file: Optional[Path] = Field(None, description="Path to privacy policy file")
+    policy_file: Path | None = Field(None, description="Path to privacy policy file")
     generate_report: bool = Field(True, description="Generate redaction reports")
     fail_on_leak: bool = Field(True, description="Fail if privacy leaks detected")
 
@@ -31,7 +30,7 @@ class Config(BaseModel):
     # General settings
     verbose: bool = Field(False, description="Enable verbose output")
     output_dir: Path = Field(Path("./output"), description="Default output directory")
-    temp_dir: Optional[Path] = Field(None, description="Temporary directory")
+    temp_dir: Path | None = Field(None, description="Temporary directory")
     
     # LLM settings
     llm: LLMConfig = Field(
@@ -50,7 +49,7 @@ class Config(BaseModel):
     max_workers: int = Field(4, description="Maximum parallel workers")
     
     @classmethod
-    def load(cls, config_path: Union[str, Path]) -> "Config":
+    def load(cls, config_path: str | Path) -> "Config":
         """Load configuration from file.
         
         Args:
@@ -77,7 +76,7 @@ class Config(BaseModel):
         except Exception as e:
             raise ValueError(f"Error loading config: {e}") from e
     
-    def save(self, config_path: Union[str, Path]) -> None:
+    def save(self, config_path: str | Path) -> None:
         """Save configuration to file.
         
         Args:
@@ -99,7 +98,7 @@ class Config(BaseModel):
         return cls()
 
 
-def load_config(config_path: Optional[Union[str, Path]] = None) -> Config:
+def load_config(config_path: str | Path | None = None) -> Config:
     """Load configuration from file or create default.
     
     Args:

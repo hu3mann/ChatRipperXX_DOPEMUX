@@ -1,15 +1,13 @@
 """Logging utilities for ChatX."""
 
 import logging
-import sys
-from typing import Optional
 
 from rich.logging import RichHandler
 
 
 def setup_logging(
     level: int = logging.INFO,
-    logger_name: Optional[str] = None,
+    logger_name: str | None = None,
     show_time: bool = True,
     show_path: bool = False,
 ) -> logging.Logger:

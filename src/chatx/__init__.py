@@ -14,10 +14,7 @@ __author__ = "Dopemux-ChatRipperXX Contributors"
 __email__ = ""
 __license__ = "MIT"
 
-from chatx.schemas.message import CanonicalMessage
 from chatx.schemas.enrichment import EnrichmentMessage
+from chatx.schemas.message import CanonicalMessage
 
-__all__ = [
-    "CanonicalMessage",
-    "EnrichmentMessage",
-]
+__all__ = ["CanonicalMessage", "EnrichmentMessage"]

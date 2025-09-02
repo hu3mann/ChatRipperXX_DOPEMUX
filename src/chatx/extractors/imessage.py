@@ -3,9 +3,10 @@
 import shutil
 import sqlite3
 import tempfile
-from datetime import datetime, timezone, timedelta
+from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any
 
 from chatx.extractors.base import BaseExtractor, ExtractionError
 from chatx.schemas.message import Attachment, CanonicalMessage, Reaction, SourceRef
@@ -14,12 +15,12 @@ from chatx.utils.logging import get_logger
 logger = get_logger(__name__)
 
 # Apple epoch starts at 2001-01-01T00:00:00Z
-APPLE_EPOCH = datetime(2001, 1, 1, tzinfo=timezone.utc)
+APPLE_EPOCH = datetime(2001, 1, 1, tzinfo=UTC)
 
 # Reaction type mappings
 REACTION_TYPES = {
     2000: "love",
-    2001: "like", 
+    2001: "like",
     2002: "dislike",
     2003: "laugh",
     2004: "emphasize",
@@ -37,31 +38,33 @@ class IMessageExtractor(BaseExtractor):
     - Attachment metadata extraction
     - Lossless source_meta preservation
     """
-    
+
     @property
     def platform(self) -> str:
         return "imessage"
-    
+
     def validate_source(self) -> bool:
         """Validate that source is an iMessage database."""
         if not self.source_path.suffix == '.db':
             return False
-            
+
         try:
             with sqlite3.connect(self.source_path) as conn:
                 cursor = conn.cursor()
                 # Check for required iMessage tables
-                cursor.execute("""
-                    SELECT name FROM sqlite_master 
+                cursor.execute(
+                    """
+                    SELECT name FROM sqlite_master
                     WHERE type='table' AND name IN ('message', 'chat', 'handle')
-                """)
+                    """
+                )
                 tables = {row[0] for row in cursor.fetchall()}
                 return {'message', 'chat', 'handle'}.issubset(tables)
         except Exception as e:
             logger.warning(f"Failed to validate iMessage database: {e}")
             return False
-    
-    def _convert_apple_timestamp(self, timestamp: Optional[float]) -> Optional[datetime]:
+
+    def _convert_apple_timestamp(self, timestamp: float | None) -> datetime | None:
         """Convert Apple epoch timestamp to UTC datetime.
         
         Args:
@@ -72,7 +75,7 @@ class IMessageExtractor(BaseExtractor):
         """
         if timestamp is None or timestamp == 0:
             return None
-            
+
         # Determine if timestamp is in nanoseconds or seconds
         if abs(timestamp) >= 1e11:
             # Nanoseconds - divide by 1 billion
@@ -83,7 +86,7 @@ class IMessageExtractor(BaseExtractor):
         except (ValueError, OSError, OverflowError) as e:
             logger.warning(f"Failed to convert timestamp {timestamp}: {e}")
             return None
-    
+
     def _copy_database(self) -> Path:
         """Copy database to temporary location to avoid file locks.
         
@@ -92,25 +95,25 @@ class IMessageExtractor(BaseExtractor):
         """
         temp_dir = Path(tempfile.mkdtemp(prefix="chatx_imessage_"))
         temp_db = temp_dir / "chat.db"
-        
+
         # Copy main database
         shutil.copy2(self.source_path, temp_db)
-        
+
         # Copy WAL file if present
         wal_path = self.source_path.with_suffix('.db-wal')
         if wal_path.exists():
-            temp_wal = temp_db.with_suffix('.db-wal') 
+            temp_wal = temp_db.with_suffix('.db-wal')
             shutil.copy2(wal_path, temp_wal)
-        
+
         # Copy SHM file if present
         shm_path = self.source_path.with_suffix('.db-shm')
         if shm_path.exists():
             temp_shm = temp_db.with_suffix('.db-shm')
             shutil.copy2(shm_path, temp_shm)
-            
+
         return temp_db
-    
-    def _fetch_raw_messages(self, conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+
+    def _fetch_raw_messages(self, conn: sqlite3.Connection) -> list[dict[str, Any]]:
         """Fetch all messages with joins to related tables.
         
         Args:
@@ -120,7 +123,7 @@ class IMessageExtractor(BaseExtractor):
             List of raw message dictionaries
         """
         query = """
-        SELECT 
+        SELECT
           m.ROWID as msg_rowid,
           m.guid as msg_guid,
           m.text as body,
@@ -136,19 +139,19 @@ class IMessageExtractor(BaseExtractor):
           c.guid as chat_guid,
           h.id as handle_id_resolved
         FROM message m
-        LEFT JOIN chat_message_join cmj ON cmj.message_id = m.ROWID  
+        LEFT JOIN chat_message_join cmj ON cmj.message_id = m.ROWID
         LEFT JOIN chat c ON c.ROWID = cmj.chat_id
         LEFT JOIN handle h ON h.ROWID = m.handle_id
         ORDER BY m.date ASC
         """
-        
+
         cursor = conn.cursor()
         cursor.execute(query)
-        
+
         columns = [description[0] for description in cursor.description]
-        return [dict(zip(columns, row)) for row in cursor.fetchall()]
-    
-    def _fetch_attachments(self, conn: sqlite3.Connection, msg_rowid: int) -> List[Attachment]:
+        return [dict(zip(columns, row, strict=False)) for row in cursor.fetchall()]
+
+    def _fetch_attachments(self, conn: sqlite3.Connection, msg_rowid: int) -> list[Attachment]:
         """Fetch attachments for a specific message.
         
         Args:
@@ -172,14 +175,23 @@ class IMessageExtractor(BaseExtractor):
         JOIN attachment a ON maj.attachment_id = a.ROWID
         WHERE maj.message_id = ?
         """
-        
+
         cursor = conn.cursor()
         cursor.execute(query, (msg_rowid,))
-        
+
         attachments = []
         for row in cursor.fetchall():
-            filename, uti, mime_type, transfer_name, total_bytes, created_date, start_date, user_info = row
-            
+            (
+                filename,
+                uti,
+                mime_type,
+                transfer_name,
+                total_bytes,
+                created_date,
+                start_date,
+                user_info,
+            ) = row
+
             # Determine attachment type from UTI or filename
             att_type = "unknown"
             if uti:
@@ -196,12 +208,12 @@ class IMessageExtractor(BaseExtractor):
                 if ext in {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'heic'}:
                     att_type = "image"
                 elif ext in {'mp4', 'mov', 'avi', 'mkv', 'wmv', 'm4v'}:
-                    att_type = "video" 
+                    att_type = "video"
                 elif ext in {'mp3', 'wav', 'aac', 'm4a', 'flac', 'ogg'}:
                     att_type = "audio"
                 else:
                     att_type = "file"
-            
+
             attachment = Attachment(
                 type=att_type,  # type: ignore
                 filename=filename or transfer_name or "unknown",
@@ -210,10 +222,12 @@ class IMessageExtractor(BaseExtractor):
                 transfer_name=transfer_name,
             )
             attachments.append(attachment)
-            
+
         return attachments
-    
-    def _group_reactions(self, raw_messages: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, List[Reaction]]]:
+
+    def _group_reactions(
+        self, raw_messages: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], dict[str, list[Reaction]]]:
         """Group reactions by target message and filter out reaction rows.
         
         Args:
@@ -222,48 +236,48 @@ class IMessageExtractor(BaseExtractor):
         Returns:
             Tuple of (non-reaction messages, reactions grouped by target guid)
         """
-        reactions_by_target: Dict[str, List[Reaction]] = {}
+        reactions_by_target: dict[str, list[Reaction]] = {}
         non_reaction_messages = []
-        
+
         for msg in raw_messages:
             assoc_type = msg.get('assoc_type')
             assoc_guid = msg.get('assoc_guid')
-            
+
             # Check if this is a reaction (tapback)
             if assoc_type in REACTION_TYPES and assoc_guid:
                 # This is a reaction - fold it into target message
                 reaction_kind = REACTION_TYPES[assoc_type]
-                
+
                 # Determine sender
                 if msg['is_me']:
                     sender = "Me"
                 else:
                     sender = msg.get('handle_id_resolved', 'Unknown')
-                
+
                 # Convert timestamp
                 timestamp = self._convert_apple_timestamp(msg['date_raw'])
                 if timestamp is None:
-                    timestamp = datetime.now(timezone.utc)
-                    
+                    timestamp = datetime.now(UTC)
+
                 reaction = Reaction(
                     from_=sender,
                     kind=reaction_kind,
                     ts=timestamp
                 )
-                
+
                 if assoc_guid not in reactions_by_target:
                     reactions_by_target[assoc_guid] = []
                 reactions_by_target[assoc_guid].append(reaction)
-                
+
                 self.report.reactions_folded += 1
-                
+
             else:
                 # Regular message
                 non_reaction_messages.append(msg)
-                
+
         return non_reaction_messages, reactions_by_target
-    
-    def _build_guid_to_rowid_map(self, messages: List[Dict[str, Any]]) -> Dict[str, str]:
+
+    def _build_guid_to_rowid_map(self, messages: list[dict[str, Any]]) -> dict[str, str]:
         """Build mapping from message GUID to ROWID for reply resolution.
         
         Args:
@@ -273,36 +287,36 @@ class IMessageExtractor(BaseExtractor):
             Dictionary mapping GUID to string ROWID
         """
         return {msg['msg_guid']: str(msg['msg_rowid']) for msg in messages if msg.get('msg_guid')}
-    
+
     def extract_messages(self) -> Iterator[CanonicalMessage]:
         """Extract messages from iMessage database."""
         if not self.validate_source():
             raise ExtractionError(f"Invalid iMessage database: {self.source_path}")
-        
+
         # Copy database to temporary location
         temp_db = self._copy_database()
-        
+
         try:
             with sqlite3.connect(temp_db) as conn:
                 # Fetch all raw messages
                 raw_messages = self._fetch_raw_messages(conn)
                 logger.info(f"Found {len(raw_messages)} raw messages")
-                
+
                 # Group reactions and filter out reaction messages
                 messages, reactions_by_target = self._group_reactions(raw_messages)
                 logger.info(f"Grouped {self.report.reactions_folded} reactions")
-                
-                # Build GUID to ROWID mapping for reply resolution  
+
+                # Build GUID to ROWID mapping for reply resolution
                 guid_to_rowid = self._build_guid_to_rowid_map(messages)
-                
+
                 # Process each message
                 for msg in messages:
                     try:
                         # Convert timestamp
                         timestamp = self._convert_apple_timestamp(msg['date_raw'])
                         if timestamp is None:
-                            timestamp = datetime.now(timezone.utc)
-                            
+                            timestamp = datetime.now(UTC)
+
                         # Determine sender
                         if msg['is_me']:
                             sender = "Me"
@@ -311,12 +325,12 @@ class IMessageExtractor(BaseExtractor):
                             handle = msg.get('handle_id_resolved', 'Unknown')
                             sender = handle
                             sender_id = handle.lower()
-                            
+
                         # Handle replies
                         reply_to_msg_id = None
                         assoc_guid = msg.get('assoc_guid')
                         assoc_type = msg.get('assoc_type')
-                        
+
                         if assoc_guid and assoc_type not in REACTION_TYPES:
                             # This might be a reply
                             if assoc_guid in guid_to_rowid:
@@ -324,13 +338,13 @@ class IMessageExtractor(BaseExtractor):
                             else:
                                 # Unresolved reply - track in source_meta
                                 self.report.unresolved_replies += 1
-                                
+
                         # Get reactions for this message
                         msg_reactions = reactions_by_target.get(msg['msg_guid'], [])
-                        
+
                         # Fetch attachments
                         attachments = self._fetch_attachments(conn, msg['msg_rowid'])
-                        
+
                         # Build source_meta with all original fields
                         source_meta = {
                             'msg_rowid': msg['msg_rowid'],
@@ -341,10 +355,10 @@ class IMessageExtractor(BaseExtractor):
                             'balloon_bundle_id': msg.get('balloon_bundle_id'),
                             'body_rich': msg.get('body_rich'),
                         }
-                        
+
                         # Remove None values
                         source_meta = {k: v for k, v in source_meta.items() if v is not None}
-                        
+
                         # Create canonical message
                         canonical_msg = CanonicalMessage(
                             msg_id=str(msg['msg_rowid']),
@@ -364,15 +378,17 @@ class IMessageExtractor(BaseExtractor):
                             ),
                             source_meta=source_meta
                         )
-                        
+
                         yield canonical_msg
-                        
+
                     except Exception as e:
-                        error_msg = f"Failed to process message {msg.get('msg_rowid', 'unknown')}: {e}"
+                        error_msg = (
+                            f"Failed to process message {msg.get('msg_rowid', 'unknown')}: {e}"
+                        )
                         logger.error(error_msg)
                         self.report.errors.append(error_msg)
                         continue
-                        
+
         finally:
             # Clean up temporary database
             try:
