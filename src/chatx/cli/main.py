@@ -11,7 +11,15 @@ from chatx.utils.logging import setup_logging
 
 app = typer.Typer(
     name="chatx",
-    help="Privacy-focused, local-first CLI tool for forensic chat analysis",
+    help=(
+        "Privacy-focused, local-first CLI for chat analysis.\n\n"
+        "Examples:\n"
+        "  chatx imessage pull --contact \"+15551234567\" --out ./out\n"
+        "  chatx imessage pull --contact \"+15551234567\" \\\n+          --from-backup \"~/Library/Application Support/MobileSync/Backup/<UDID>\" --out ./out\n"
+        "  chatx instagram pull --zip ./instagram.zip --user \"Your Name\" --out ./out\n"
+        "  chatx imessage audit --db ~/Library/Messages/chat.db --out ./out\n"
+        "  chatx imessage pdf --pdf ./conversation.pdf --me \"Your Name\" --out ./out\n"
+    ),
     add_completion=False,
 )
 console = Console()
@@ -183,7 +191,17 @@ def imessage_pull(
     ),
     report_missing: bool = typer.Option(True, "--report-missing/--no-report-missing", help="Generate missing attachments report"),
 ) -> None:
-    """Extract iMessage conversations for a contact."""
+    """Extract iMessage conversations for a contact.
+
+    Examples:
+      chatx imessage pull --contact "+15551234567" --out ./out
+      chatx imessage pull --contact "+15551234567" \
+        --from-backup "~/Library/Application Support/MobileSync/Backup/<UDID>" --out ./out
+
+    Notes:
+      - For backup mode, encrypted backups require a password. We do not bypass or crack it.
+      - Grant Full Disk Access to your terminal to read Messages on macOS.
+    """
     from chatx.imessage import extract_messages
     from chatx.imessage.backup import (
         ensure_backup_accessible,
@@ -450,7 +468,16 @@ def instagram_pull(
     user: str = typer.Option(..., "--user", help="Your Instagram display name (filters threads; also marks is_me)"),
     author_only: list[str] = typer.Option([], "--author-only", help="Include only messages authored by these usernames (repeatable)"),
 ) -> None:
-    """Extract Instagram DMs from the official data ZIP export."""
+    """Extract Instagram DMs from the official data ZIP export.
+
+    Examples:
+      chatx instagram pull --zip ./instagram.zip --user "Your Name" --out ./out
+      chatx instagram pull --zip ./instagram.zip --user "Your Name" \
+        --author-only "FriendA" --out ./out
+
+    Security:
+      - ZIP traversal is blocked; media are referenced only, not uploaded.
+    """
     from chatx.instagram.extract import extract_messages_from_zip
     from chatx.utils.json_output import write_messages_with_validation
 
@@ -473,9 +500,15 @@ def imessage_audit(
     out: Path = typer.Option(Path("./out"), "--out", help="Output directory"),
     contact: str | None = typer.Option(None, "--contact", help="Optional contact filter"),
 ) -> None:
-    """Scan the database for missing/evicted attachment files and produce a guidance report.
+    """Scan the database for missing/evicted attachment files and produce guidance.
 
-    This does not attempt any automation. Exit status is 0 even when missing files are found.
+    Examples:
+      chatx imessage audit --db ~/Library/Messages/chat.db --out ./out
+      chatx imessage audit --db ~/Library/Messages/chat.db --contact "+15551234567" --out ./out
+
+    Notes:
+      - Report is written to out/missing_attachments.json and exit code is 0.
+      - Guidance reflects Apple’s per-conversation Download button (no automation).
     """
     from chatx.imessage.db import copy_db_for_readonly, open_ro
     from chatx.imessage.report import generate_missing_attachments_report
@@ -524,7 +557,15 @@ def imessage_pdf(
     me: str = typer.Option(..., "--me", help="Your display name as it appears in the PDF"),
     ocr: bool = typer.Option(False, "--ocr", help="Enable OCR fallback when no text layer"),
 ) -> None:
-    """Ingest a conversation PDF (text-first; OCR fallback) to canonical JSON."""
+    """Ingest a conversation PDF (text-first; OCR fallback) to canonical JSON.
+
+    Examples:
+      chatx imessage pdf --pdf ./conversation.pdf --me "Your Name" --out ./out
+      chatx imessage pdf --pdf ./img_only.pdf --me "Your Name" --ocr --out ./out
+
+    Notes:
+      - Prefers text layer when present; optional OCR for image-only PDFs.
+    """
     from chatx.pdf_ingest.reader import PDFIngestOptions, extract_messages_from_pdf
     from chatx.utils.json_output import write_messages_with_validation
 

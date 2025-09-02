@@ -66,42 +66,37 @@ class IMessageExtractor(BaseExtractor):
             return False
     
     def _decode_attributed_body(self, attributed_body: bytes | None) -> str | None:
-        """Decode macOS Ventura+ attributedBody hex blob to extract message text.
-        
-        In macOS Ventura and later, message text is stored as NSMutableAttributedString
-        encoded with NSArchiver in the attributedBody column instead of plain text.
-        
-        Args:
-            attributed_body: Binary data from attributedBody column
-            
-        Returns:
-            Decoded message text or None if decoding fails
+        """Best‑effort decode of attributedBody to extract plain text.
+
+        Attempts binary plist parsing first, then falls back to a UTF‑8 heuristic.
+        Returns None if no plausible text is found.
         """
         if not attributed_body:
             return None
-            
+
         try:
-            # For now, return a placeholder indicating attributed body content was found
-            # TODO: Implement full NSArchiver/pytypedstream decoding
-            logger.debug("Found attributedBody content, decoding not yet implemented")
-            return "[ATTRIBUTED_BODY_CONTENT]"
+            # Try binary plist path first
+            if attributed_body.startswith(b"bplist00"):
+                try:
+                    data = plistlib.loads(attributed_body)
+                    text_candidate = self._extract_text_from_nested(data)
+                    if text_candidate:
+                        return text_candidate
+                except Exception as e:
+                    logger.debug(f"attributedBody plist parse failed: {e}")
+
+            # Heuristic UTF‑8 scan as fallback
+            decoded = attributed_body.decode("utf-8", errors="ignore")
+            # Normalize whitespace and filter out control characters
+            cleaned = ' '.join(''.join(ch if ch.isprintable() else ' ' for ch in decoded).split())
+            if cleaned:
+                return cleaned
         except Exception as e:
             logger.warning(f"Failed to decode attributedBody: {e}")
-            return None
+        return None
     
     def _decode_message_summary_info(self, conn: sqlite3.Connection, msg_rowid: int) -> str | None:
-        """Decode iOS 16+ message_summary_info for edited messages.
-        
-        In iOS 16+, edited messages have their text moved to message_summary_info
-        table as binary plist containing edit history.
-        
-        Args:
-            conn: SQLite connection
-            msg_rowid: Message ROWID to look up
-            
-        Returns:
-            Decoded message text or None if not found/decoding fails
-        """
+        """Best‑effort decode of iOS 16+ message_summary_info (edited messages)."""
         try:
             cursor = conn.cursor()
             cursor.execute(
@@ -111,17 +106,25 @@ class IMessageExtractor(BaseExtractor):
             row = cursor.fetchone()
             if not row or not row[0]:
                 return None
-                
-            # Try to decode as binary plist; return placeholder even if parsing fails
+
+            blob = row[0]
+            # Prefer plist parsing when possible
+            if isinstance(blob, (bytes, bytearray)) and bytes(blob).startswith(b"bplist00"):
+                try:
+                    data = plistlib.loads(bytes(blob))
+                    text_candidate = self._extract_text_from_nested(data)
+                    if text_candidate:
+                        return text_candidate
+                except Exception as e:
+                    logger.debug(f"message_summary_info plist parse failed: {e}")
+
+            # Fallback: UTF‑8 heuristic
             try:
-                plistlib.loads(row[0])
-                logger.debug(
-                    "Found message_summary_info content, full parsing not yet implemented"
-                )
-            except Exception as e:
-                logger.debug(f"message_summary_info is not a valid plist: {e}")
-            return "[EDITED_MESSAGE_CONTENT]"
-                
+                decoded = bytes(blob).decode("utf-8", errors="ignore")
+                cleaned = ' '.join(decoded.split())
+                return cleaned if cleaned else None
+            except Exception:
+                return None
         except Exception as e:
             logger.warning(f"Failed to decode message_summary_info: {e}")
             return None
@@ -203,6 +206,46 @@ class IMessageExtractor(BaseExtractor):
             seconds = value / 1_000_000_000.0
 
         return APPLE_EPOCH + timedelta(seconds=seconds)
+
+    def _extract_text_from_nested(self, obj: Any) -> str | None:
+        """Search nested structures for plausible text and return the longest string.
+
+        Traverses dicts/lists and prefers common text keys when available.
+        """
+        best: str | None = None
+
+        def consider(s: str | None) -> None:
+            nonlocal best
+            if not s:
+                return
+            s_trim = ' '.join(s.split())
+            if not s_trim:
+                return
+            if best is None or len(s_trim) > len(best):
+                best = s_trim
+
+        try:
+            if isinstance(obj, str):
+                consider(obj)
+            elif isinstance(obj, dict):
+                # Check likely keys first
+                for k in ("string", "text", "body", "summary", "NS.string"):
+                    v = obj.get(k)
+                    if isinstance(v, str):
+                        consider(v)
+                for v in obj.values():
+                    res = self._extract_text_from_nested(v)
+                    if isinstance(res, str):
+                        consider(res)
+            elif isinstance(obj, (list, tuple, set)):
+                for v in obj:
+                    res = self._extract_text_from_nested(v)
+                    if isinstance(res, str):
+                        consider(res)
+        except Exception:
+            pass
+
+        return best
     
     def _copy_database(self) -> Path:
         """Copy database to temporary location to avoid file locks.
