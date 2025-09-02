@@ -1,9 +1,9 @@
 """Tests for attachment metadata extraction utilities."""
 
-import pytest
-
 from chatx.imessage.attachments import (
-    determine_attachment_type, UTI_TYPE_MAP, MIME_TYPE_MAP
+    MIME_TYPE_MAP,
+    UTI_TYPE_MAP,
+    determine_attachment_type,
 )
 
 
@@ -36,7 +36,7 @@ class TestAttachmentTypeMapping:
         """Test MIME type fallback when UTI is unavailable."""
         # UTI unknown, fallback to MIME type
         assert determine_attachment_type(None, "image/jpeg", None) == "image"
-        assert determine_attachment_type(None, "video/mp4", None) == "video" 
+        assert determine_attachment_type(None, "video/mp4", None) == "video"
         assert determine_attachment_type(None, "audio/mpeg", None) == "audio"
         assert determine_attachment_type(None, "application/pdf", None) == "file"
         
@@ -48,7 +48,7 @@ class TestAttachmentTypeMapping:
         # UTI and MIME both unknown, fallback to extension
         assert determine_attachment_type(None, None, "photo.jpg") == "image"
         assert determine_attachment_type(None, None, "video.mp4") == "video"
-        assert determine_attachment_type(None, None, "song.mp3") == "audio" 
+        assert determine_attachment_type(None, None, "song.mp3") == "audio"
         assert determine_attachment_type(None, None, "doc.pdf") == "file"
         
         # Case insensitive
