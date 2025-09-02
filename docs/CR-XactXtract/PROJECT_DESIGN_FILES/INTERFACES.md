@@ -4,7 +4,7 @@ Status: Master | Owner: You | Last Updated: 2025-08-16 PT
 Principles
 - Local-first operation; deterministic transforms; strict provenance.
 - Mandatory **Policy Shield** pre-cloud redaction with coverage thresholds (default 0.995; strict 0.999).
-- Cloud is **disabled by default** and MAY only be used after a passing preflight on **redacted** inputs. **Attachments are NEVER uploaded.**
+- Cloud is **disabled by default** and MAY only be used after a successful preflight on **redacted** inputs. **Attachments are NEVER uploaded.**
 - Coarse label taxonomy is shared to cloud when needed; fine-grained labels remain local-only.
 - Evidence-based outputs: answers MUST include citations to retrieved chunks/messages.
 - Local model default: gemma-2-9b (quantized, deterministic: streaming off; fixed seed).
@@ -13,13 +13,14 @@ Principles
 CLI (explicit pipeline — canonical)
 ```
 # Extraction
-chatx imessage pull --contact "<phone|email|name>" [--db ~/Library/Messages/chat.db] [--include-attachments] [--out ./out]
+chatx imessage pull --contact "<phone|email|name>" [--db ~/Library/Messages/chat.db] [--include-attachments] [--copy-binaries] [--transcribe-audio local|off] [--out ./out]
 chatx instagram pull --contact "<username>" --zip ./instagram.zip [--include-attachments] [--out ./out]
 chatx whatsapp pull --input ./export.json|.txt [--out ./out]
 
 # Transform & Redact
-chatx transform --input ./out/raw/*.json --to jsonl [--chunk turns:20|daily] [--stride 10] [--contact "<key>"]
-...
+chatx transform --input ./out/messages.jsonl --to jsonl --chunk turns:40 --stride 10 --contact "<id>"
+chatx redact --input ./out/chunks.jsonl --pseudonymize --opaque --threshold 0.995 --salt-file ./salt.key --report ./out/redaction_report.json
+chatx preflight cloud --input ./out/redacted/*.json --threshold 0.995 --hardfail-classes csam
 # Enrichment backends
 chatx enrich messages --contact "<key>" --backend local|cloud|hybrid \
   --local-model "gemma-2-9b-q4_K_M" --tau 0.7 --tau-low 0.62 --tau-high 0.78 \
