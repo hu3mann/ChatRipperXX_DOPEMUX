@@ -9,7 +9,26 @@ Setup
 	•	Copy .env.example to .env (do not commit). Cloud disabled by default.
 
 Running the Pipeline (iMessage-first)
-	1.	Extract: chatx imessage pull --contact "<id>" --db ~/Library/Messages/chat.db --out ./out
+1.	Extract: chatx imessage pull --contact "<id>" --db ~/Library/Messages/chat.db --out ./out
+
+Full Disk Access (FDA)
+- On macOS, grant Full Disk Access to your terminal: System Settings → Privacy & Security → Full Disk Access → enable for your terminal app. This allows reading `~/Library/Messages/chat.db` and `~/Library/Messages/Attachments/**`.
+
+CLI Examples
+- Metadata only: `chatx imessage pull --contact "+15551234567" --out ./out`
+- Include attachments: `chatx imessage pull --contact "friend@example.com" --include-attachments --out ./out`
+- Copy binaries: `chatx imessage pull --contact "friend@example.com" --include-attachments --copy-binaries --out ./out`
+- Transcribe voice notes locally: `chatx imessage pull --contact "friend@example.com" --include-attachments --transcribe-audio local --out ./out`
+
+Artifacts
+- Messages: `out/messages_<contact>.json`
+- Missing attachments report: `out/missing_attachments_report.json`
+- Quarantine (invalid messages): `out/quarantine/messages_bad.jsonl`
+- Run report (metrics): `out/run_report.json`
+
+Perf Smoke
+- Disabled by default. To run locally: `CHATX_RUN_PERF=1 pytest -m perf -q`
+- Optional soft floor warning in CLI: set `CHATX_SOFT_FLOOR_MSGS_MIN=5000` to warn if throughput is below 5k msgs/min.
 	2.	Transform: chatx transform --input ./out/raw/*.json --to jsonl --chunk turns:20 --stride 10 --contact CN_xxx
 	3.	Redact: chatx redact --input ./out/chunks/*.json --pseudonymize --opaque --threshold 0.995 --salt-file ./salt.key --report ./out/redaction_report.json
 	4.	Index: chatx index --input ./out/redacted/*.json --store chroma --collection chatx_<contact>

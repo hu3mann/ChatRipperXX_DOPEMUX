@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from datetime import datetime
 
 import typer
 from rich.console import Console
@@ -163,7 +164,11 @@ def imessage_pull(
     out: Path = typer.Option(Path("./out"), "--out", help="Output directory"),
     include_attachments: bool = typer.Option(False, "--include-attachments", help="Extract attachment metadata"),
     copy_binaries: bool = typer.Option(False, "--copy-binaries", help="Copy attachment files to output"),
-    transcribe_audio: str = typer.Option("off", "--transcribe-audio", help="Audio transcription mode (local|off)"),
+    transcribe_audio: str = typer.Option(
+        "off",
+        "--transcribe-audio",
+        help="Audio transcription mode (local|off). Example: --transcribe-audio local",
+    ),
     report_missing: bool = typer.Option(True, "--report-missing/--no-report-missing", help="Generate missing attachments report"),
 ) -> None:
     """Extract iMessage conversations for a contact."""
@@ -182,6 +187,7 @@ def imessage_pull(
     out.mkdir(parents=True, exist_ok=True)
     
     try:
+        started_at = datetime.now()
         # Extract messages
         messages = list(extract_messages(
             db_path=db,
@@ -191,6 +197,7 @@ def imessage_pull(
             transcribe_audio=transcribe_audio,
             out_dir=out,
         ))
+        finished_at = datetime.now()
         
         message_count = len(messages)
         console.print(f"[bold green]Extracted {message_count} messages[/bold green]")
@@ -252,6 +259,50 @@ def imessage_pull(
                         console.print("[green]All attachment files found on disk[/green]")
                 finally:
                     conn.close()
+
+        # Compute and emit run report + perf soft floor warning
+        try:
+            from chatx.utils.run_report import write_extract_run_report
+            # Compute simple counters
+            attachments_total = sum(len(m.attachments) for m in messages)
+            elapsed = max((finished_at - started_at).total_seconds(), 0.0)
+            rate = (len(messages) / elapsed * 60.0) if elapsed > 0 else 0.0
+
+            # Artifacts
+            artifacts = [str(out / f"messages_{contact.replace('@', '_at_').replace('+', '_plus_')}.json")]
+            missing_path = out / 'missing_attachments_report.json'
+            if missing_path.exists():
+                artifacts.append(str(missing_path))
+
+            # Optional soft floor warning via env var
+            import os
+            warn_msgs = []
+            soft_floor = os.environ.get("CHATX_SOFT_FLOOR_MSGS_MIN")
+            if soft_floor:
+                try:
+                    floor = float(soft_floor)
+                    if rate < floor:
+                        warn = f"Throughput below soft floor: {rate:.0f} < {floor:.0f} msgs/min"
+                        console.print(f"[yellow]{warn}[/yellow]")
+                        warn_msgs.append(warn)
+                except ValueError:
+                    # Ignore invalid value
+                    pass
+
+            report_path = write_extract_run_report(
+                out_dir=out,
+                started_at=started_at,
+                finished_at=finished_at,
+                messages_total=len(messages),
+                attachments_total=attachments_total,
+                throughput_msgs_min=rate,
+                artifacts=artifacts,
+                warnings=warn_msgs,
+            )
+            console.print(f"[blue]Run report written to:[/blue] {report_path}")
+        except Exception:
+            # Do not fail extraction if metrics writing fails
+            pass
         
     except Exception as e:
         console.print(f"[bold red]Error during extraction:[/bold red] {e}")
