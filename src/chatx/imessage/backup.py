@@ -13,6 +13,7 @@ from shutil import copy2
 from tempfile import TemporaryDirectory
 from typing import Iterator, Optional
 import plistlib
+import re
 
 
 @dataclass
@@ -34,7 +35,7 @@ def _manifest_db_path(backup_dir: Path) -> Path:
     if not path.exists():
         raise FileNotFoundError(
             f"Manifest.db not found in backup directory: {backup_dir}. "
-            "Hint: macOS Finder backups live at ~/Library/Application Support/MobileSync/Backup/ <UDID>"
+            f"Hint: {canonical_mobilesync_hint()}"
         )
     return path
 
@@ -58,6 +59,47 @@ def backup_is_encrypted(backup_dir: Path) -> Optional[bool]:
                 # Ignore parse errors; fall through
                 pass
     return None
+
+
+def canonical_mobilesync_hint() -> str:
+    """Return canonical macOS MobileSync backup dir hint string."""
+    return "~/Library/Application Support/MobileSync/Backup/<UDID>"
+
+
+def preflight_backup_structure(backup_dir: Path) -> dict:
+    """Basic structure checks for a MobileSync backup directory.
+
+    Returns a dict with presence flags; raises FileNotFoundError if critical
+    artifacts are missing (Manifest.db).
+    """
+    result = {
+        "manifest": False,
+        "info_plist": False,
+        "status_plist": False,
+        "shards_present": False,
+    }
+    # Manifest (critical)
+    _ = _manifest_db_path(backup_dir)
+    result["manifest"] = True
+
+    # Plists (optional but useful)
+    if (backup_dir / "Info.plist").exists():
+        result["info_plist"] = True
+    if (backup_dir / "Status.plist").exists():
+        result["status_plist"] = True
+
+    # Shard dirs (00..ff)
+    hex2 = re.compile(r"^[0-9a-fA-F]{2}$")
+    for child in backup_dir.iterdir():
+        if child.is_dir() and hex2.match(child.name):
+            result["shards_present"] = True
+            break
+
+    if not result["shards_present"]:
+        # Non-fatal: some backups may be flat, but warn via raised exception here for clarity
+        # Callers may choose to catch and present as a warning.
+        pass
+    return result
 
 
 def _query_manifest_fileid(backup_dir: Path, domain: str, relative_path: str) -> Optional[str]:
@@ -139,10 +181,9 @@ def ensure_backup_accessible(backup_dir: Path, backup_password: Optional[str] = 
     - Ensure Manifest.db exists
     - If determinably encrypted and no password provided, raise a helpful error
     """
-    _manifest_db_path(backup_dir)  # will raise if missing
+    preflight_backup_structure(backup_dir)  # will raise if missing manifest
     enc = backup_is_encrypted(backup_dir)
     if enc is True and not backup_password:
         raise PermissionError(
             "Encrypted backup detected. Provide --backup-password, or create a new unencrypted backup in Finder/iTunes."
         )
-

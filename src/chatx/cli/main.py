@@ -164,7 +164,7 @@ def imessage_pull(
     from_backup: Path | None = typer.Option(
         None,
         "--from-backup",
-        help="Path to iPhone backup directory (Finder/iTunes MobileSync)"
+        help="Path to iPhone backup directory (Finder/iTunes MobileSync). Example: ~/Library/Application Support/MobileSync/Backup/<UDID>"
     ),
     backup_password: str | None = typer.Option(
         None,
@@ -185,11 +185,25 @@ def imessage_pull(
 ) -> None:
     """Extract iMessage conversations for a contact."""
     from chatx.imessage import extract_messages
-    from chatx.imessage.backup import ensure_backup_accessible, stage_sms_db
+    from chatx.imessage.backup import (
+        ensure_backup_accessible,
+        stage_sms_db,
+        backup_is_encrypted,
+        preflight_backup_structure,
+        canonical_mobilesync_hint,
+    )
     
     console.print(f"[bold green]Extracting iMessage conversations for:[/bold green] {contact}")
+    def _redact_path(p: Path) -> str:
+        try:
+            home = Path.home()
+            s = str(p)
+            return s.replace(str(home), "~")
+        except Exception:
+            return str(p)
+
     if from_backup:
-        console.print(f"[blue]Backup dir:[/blue] {from_backup}")
+        console.print(f"[blue]Backup dir:[/blue] {_redact_path(from_backup)}")
     else:
         console.print(f"[blue]Database:[/blue] {db}")
     console.print(f"[blue]Output:[/blue] {out}")
@@ -198,9 +212,22 @@ def imessage_pull(
     staged_db_path: Path | None = None
     if from_backup:
         if not from_backup.exists() or not from_backup.is_dir():
-            console.print(f"[bold red]Error:[/bold red] Backup directory not found: {from_backup}")
+            console.print(f"[bold red]Error:[/bold red] Backup directory not found: {_redact_path(from_backup)}")
+            console.print(f"[yellow]Hint:[/yellow] {canonical_mobilesync_hint()}")
             raise typer.Exit(1)
         try:
+            # Preflight checks (non-fatal info may be derived)
+            try:
+                preflight_backup_structure(from_backup)
+            except FileNotFoundError as e:
+                console.print(f"[bold red]Preflight failed:[/bold red] {e}")
+                raise typer.Exit(1)
+
+            # Prompt for password if encrypted and none provided
+            enc = backup_is_encrypted(from_backup)
+            if enc is True and not backup_password:
+                backup_password = typer.prompt("Encrypted backup password", hide_input=True)
+
             ensure_backup_accessible(from_backup, backup_password)
         except Exception as e:
             console.print(f"[bold red]Backup validation failed:[/bold red] {e}")
