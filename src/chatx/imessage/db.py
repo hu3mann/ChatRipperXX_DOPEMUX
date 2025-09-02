@@ -55,8 +55,8 @@ def open_ro(db_path: Path) -> sqlite3.Connection:
     Raises:
         sqlite3.OperationalError: If database cannot be opened
     """
-    # Open with read-only URI
-    uri = f"file:{db_path}?mode=ro"
+    # Open with read-only immutable URI to avoid locks/writes
+    uri = f"file:{db_path}?mode=ro&immutable=1"
     conn = sqlite3.connect(uri, uri=True)
     
     # Additional read-only safety pragmas

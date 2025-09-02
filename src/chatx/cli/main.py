@@ -161,6 +161,18 @@ def imessage_pull(
         "--db",
         help="Path to Messages database"
     ),
+    from_backup: Path | None = typer.Option(
+        None,
+        "--from-backup",
+        help="Path to iPhone backup directory (Finder/iTunes MobileSync)"
+    ),
+    backup_password: str | None = typer.Option(
+        None,
+        "--backup-password",
+        help="Password for encrypted backups (input is not echoed)",
+        prompt=False,
+        hide_input=True,
+    ),
     out: Path = typer.Option(Path("./out"), "--out", help="Output directory"),
     include_attachments: bool = typer.Option(False, "--include-attachments", help="Extract attachment metadata"),
     copy_binaries: bool = typer.Option(False, "--copy-binaries", help="Copy attachment files to output"),
@@ -173,30 +185,58 @@ def imessage_pull(
 ) -> None:
     """Extract iMessage conversations for a contact."""
     from chatx.imessage import extract_messages
+    from chatx.imessage.backup import ensure_backup_accessible, stage_sms_db
     
     console.print(f"[bold green]Extracting iMessage conversations for:[/bold green] {contact}")
-    console.print(f"[blue]Database:[/blue] {db}")
+    if from_backup:
+        console.print(f"[blue]Backup dir:[/blue] {from_backup}")
+    else:
+        console.print(f"[blue]Database:[/blue] {db}")
     console.print(f"[blue]Output:[/blue] {out}")
     
-    if not db.exists():
-        console.print(f"[bold red]Error:[/bold red] Messages database not found: {db}")
-        console.print("[yellow]Tip:[/yellow] Grant Full Disk Access to your terminal in System Settings > Privacy & Security")
-        raise typer.Exit(1)
+    # Preflight
+    staged_db_path: Path | None = None
+    if from_backup:
+        if not from_backup.exists() or not from_backup.is_dir():
+            console.print(f"[bold red]Error:[/bold red] Backup directory not found: {from_backup}")
+            raise typer.Exit(1)
+        try:
+            ensure_backup_accessible(from_backup, backup_password)
+        except Exception as e:
+            console.print(f"[bold red]Backup validation failed:[/bold red] {e}")
+            raise typer.Exit(1)
+    else:
+        if not db.exists():
+            console.print(f"[bold red]Error:[/bold red] Messages database not found: {db}")
+            console.print("[yellow]Tip:[/yellow] Grant Full Disk Access to your terminal in System Settings > Privacy & Security")
+            raise typer.Exit(1)
     
     # Create output directory
     out.mkdir(parents=True, exist_ok=True)
     
     try:
         started_at = datetime.now()
-        # Extract messages
-        messages = list(extract_messages(
-            db_path=db,
-            contact=contact,
-            include_attachments=include_attachments,
-            copy_binaries=copy_binaries,
-            transcribe_audio=transcribe_audio,
-            out_dir=out,
-        ))
+        # Stage DB if reading from backup, else use provided db
+        if from_backup:
+            with stage_sms_db(from_backup) as staged_db:
+                staged_db_path = staged_db
+                messages = list(extract_messages(
+                    db_path=staged_db,
+                    contact=contact,
+                    include_attachments=include_attachments,
+                    copy_binaries=copy_binaries,
+                    transcribe_audio=transcribe_audio,
+                    out_dir=out,
+                ))
+        else:
+            messages = list(extract_messages(
+                db_path=db,
+                contact=contact,
+                include_attachments=include_attachments,
+                copy_binaries=copy_binaries,
+                transcribe_audio=transcribe_audio,
+                out_dir=out,
+            ))
         finished_at = datetime.now()
         
         message_count = len(messages)

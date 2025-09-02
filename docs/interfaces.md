@@ -1,5 +1,5 @@
 Title: Interfaces & Contracts
-Status: Master | Owner: You | Last Updated: 2025-08-16 PT
+Status: Master | Owner: You | Last Updated: 2025-09-02 PT
 
 Principles
 - Local-first operation; deterministic transforms; strict provenance.
@@ -13,7 +13,7 @@ Principles
 CLI (explicit pipeline — canonical)
 ```
 # Extraction
-chatx imessage pull --contact "<phone|email|name>" [--db ~/Library/Messages/chat.db] [--include-attachments] [--copy-binaries] [--transcribe-audio local|off] [--out ./out]
+chatx imessage pull --contact "<phone|email|name>" [--db ~/Library/Messages/chat.db] [--include-attachments] [--copy-binaries] [--transcribe-audio local|off] [--report-missing|--no-report-missing] [--out ./out]
 chatx instagram pull --contact "<username>" --zip ./instagram.zip [--include-attachments] [--out ./out]
 chatx whatsapp pull --input ./export.json|.txt [--out ./out]
 
@@ -69,7 +69,7 @@ Canonical Schemas (reference)
   "timestamp":"ISO-8601","sender":"string","sender_id":"string","is_me":true,
   "text":"string","reply_to_msg_id":"string|null",
   "reactions":[{"from":"string","kind":"love|like|...","ts":"ISO-8601"}],
-  "attachments":[{"type":"image|video|audio|file","filename":"...","abs_path":"..."}],
+  "attachments":[{"type":"image|video|audio|file","filename":"...","abs_path":"...","mime_type":"...","uti":"..."}],
   "source_ref":{"guid":"string","path":"string"}
 }
 ```
@@ -240,6 +240,7 @@ SLAs & Limits
 Change Log (since 2025-08-15)
 - Normalized CLI section and deprecated aliases.
 - Finalized HTTP request/response shapes, validation rules, and error catalog; confirmed 60s/streaming SLA.
+- iMessage CLI: added `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing` options; `missing_attachments_report.json` defined with non-error exit semantics when attachments are missing.
 
 ## CLI: Index Metadata Update (no re-embedding)
 - **Name | Command | Purpose**

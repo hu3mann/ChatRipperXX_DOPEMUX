@@ -105,12 +105,12 @@ chatx enrich messages --backend hybrid --allow-cloud --contact "friend@example.c
 
 ### Current Milestone: iMessage Extractor Foundation
 - ✅ Architecture and specifications complete
-- 🚧 Core extraction implementation (PR-1: Foundation)
-- ⏳ Reactions and replies (PR-2)
-- ⏳ Attachments and binary copying (PR-3)
-- ⏳ Missing attachment reporting (PR-4)
-- ⏳ Local transcription (PR-5)
-- ⏳ Validation and performance (PR-6)
+- ✅ Core extraction implementation (PR-1: Foundation)
+- ✅ Reactions and replies (PR-2)
+- ✅ Attachments and binary copying (PR-3)
+- ✅ Missing attachment reporting (PR-4)
+- ✅ Local transcription (PR-5)
+- 🚧 Validation and performance (PR-6)
 
 ### Platform Support
 - ✅ **iMessage** (macOS local disk) — In development
