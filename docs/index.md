@@ -3,10 +3,10 @@
 **Last updated:** 2025-09-02 UTC
 
 ## Vision (1‑pager)
-- **Problem:** _Fill in succinctly:_ What pain does this CLI solve?
-- **Audience:** _Who uses it?_
-- **Non‑Goals:** _What this project will not do (for now)._
-- **Success Metrics:** _e.g., CLI task completes < 2s; test coverage ≥ 90%; zero critical defects per release._
+- **Problem:** Manual chat forensics is slow, inconsistent, and often leaks sensitive data.
+- **Audience:** Digital forensics investigators and privacy‑minded power users.
+- **Non‑Goals:** Real‑time surveillance, cloud‑first processing, or vendor‑locked features.
+- **Success Metrics:** Pipeline handles 100 messages in <2 s, test coverage ≥90%, zero P1 issues per release.
 
 ## MVP Scope
 - Link to tracked **User Stories** in GitHub Issues (Now/Next/Later).

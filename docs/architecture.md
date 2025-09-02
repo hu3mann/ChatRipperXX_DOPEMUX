@@ -1,8 +1,8 @@
 # Architecture
 
 ## Context
-- CLI entrypoint, core modules, adapters (I/O, API), and persistence (if any).
-- Non‑Functional Requirements: performance, robustness, security, observability.
+- Privacy‑first CLI that ingests chat exports and runs an offline pipeline.
+- Non‑Functional Requirements: local processing only, predictable runtime, strong redaction guarantees, and observable behavior.
 
 ## Module Boundaries
 - **cli/** — argument parsing, commands
@@ -11,9 +11,15 @@
 - **tests/** — unit + integration tests
 
 ## Data & Flows (sketch)
-- Describe request/response, error flows, and where side effects occur.
+- **Extract → Transform → Redact → Enrich → Analyze**.
+- Extractors pull platform data into canonical JSON.
+- Transformers normalize fields and validate against schemas.
+- Redaction removes PII before any optional cloud work.
+- Enrichment augments messages with LLM‑generated metadata.
+- Analysis modules generate reports from enriched artifacts.
 
 ## Observability
-- Logging levels and structure, metrics (if any).
+- Structured JSON logs at INFO level by default, DEBUG for troubleshooting.
+- Hook points for metrics backends to track pipeline duration and message counts.
 
 > Update this file when boundaries or flows change. Record critical decisions in ADRs.
