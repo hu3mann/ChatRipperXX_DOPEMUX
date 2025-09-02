@@ -28,7 +28,7 @@ CLI Examples
 
 Artifacts
 - Messages: `out/messages_<contact>.json`
-- Missing attachments report: `out/missing_attachments_report.json`
+- Missing attachments report: `out/missing_attachments.json`
 - Quarantine (invalid messages): `out/quarantine/messages_bad.jsonl`
 - Run report (metrics): `out/run_report.json`
 

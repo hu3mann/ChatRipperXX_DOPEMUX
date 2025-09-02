@@ -221,8 +221,8 @@ class IndexingPipeline:
             report_path = self._save_indexing_report(enhanced_stats)
             
             indexed = self.metrics.chunks_indexed
-        time_sec = self.metrics.processing_time_seconds
-        logger.info(f"Indexing complete: {indexed} chunks indexed in {time_sec:.2f}s")
+            time_sec = self.metrics.processing_time_seconds
+            logger.info(f"Indexing complete: {indexed} chunks indexed in {time_sec:.2f}s")
             
             return enhanced_stats, report_path
             

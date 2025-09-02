@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from chatx.schemas.message import CanonicalMessage
+from chatx.validate.jsonschema import validate_message_dict, append_quarantine_record
 
 
 def write_messages_with_validation(messages: List[CanonicalMessage], output_path: Path) -> None:
@@ -26,19 +27,34 @@ def write_messages_with_validation(messages: List[CanonicalMessage], output_path
     messages_data: List[dict] = []
     bad_count = 0
 
+    # Locate schema dir for jsonschema validation
+    schema_dir = output_path.parent.parent / "schemas"
+    if not schema_dir.exists():
+        # Fallback to project root schemas
+        schema_dir = Path(__file__).parent.parent.parent / "schemas"
+
     for i, msg in enumerate(messages):
         try:
             # Pydantic validation happens automatically
             msg_dict = msg.model_dump(mode="json")
-            messages_data.append(msg_dict)
+            # JSON Schema validation (secondary) — quarantine on failure
+            ok, err = validate_message_dict(msg_dict, schema_dir)
+            if ok:
+                messages_data.append(msg_dict)
+            else:
+                quarantine_dir.mkdir(parents=True, exist_ok=True)
+                append_quarantine_record(
+                    quarantine_path,
+                    {"index": i, "error": f"jsonschema: {err}", "row": msg_dict},
+                )
+                bad_count += 1
         except Exception as e:  # pragma: no cover - triggered only by malformed data
             # Lazily create quarantine dir and append the bad record with reason
             quarantine_dir.mkdir(parents=True, exist_ok=True)
-            with open(quarantine_path, "a", encoding="utf-8") as qf:
-                qf.write(json.dumps({
-                    "index": i,
-                    "error": str(e),
-                }) + "\n")
+            append_quarantine_record(
+                quarantine_path,
+                {"index": i, "error": f"pydantic: {e}"},
+            )
             bad_count += 1
     
     # Write to file with pretty formatting

@@ -335,7 +335,8 @@ class ChromaDBVectorStore:
                     search_results.append(result)
             
             query_preview = query[:50]
-            logger.debug(f"Search returned {len(search_results)} results for query: {query_preview}...")
+            results_count = len(search_results)
+            logger.debug(f"Search returned {results_count} results for query: {query_preview}...")
             return search_results
             
         except Exception as e:
