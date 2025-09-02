@@ -1,10 +1,9 @@
-@README_PROJECT.md
-@ARCHITECTURE.md
-@INTERFACES.md
-@ACCEPTANCE_CRITERIA.md
-@TEST_STRATEGY.md
-@CI_ARCHITECTURE_GATES.md
-@NON_FUNCTIONAL.md
+@docs/README.md
+@docs/architecture.md
+@docs/interfaces.md
+@docs/acceptance-criteria.md
+@docs/development/test-strategy.md
+@docs/operations/non-functional-requirements.md
 
 # CLAUDE.md — ChatX/ChatRipper + MCP Playbook
 Status: Draft | Owner: <TBD> | Last Updated: 2025-09-02
