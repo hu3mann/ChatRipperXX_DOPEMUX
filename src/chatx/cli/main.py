@@ -147,6 +147,62 @@ def analyze(
     console.print("[yellow]Analysis not yet implemented[/yellow]")
 
 
+# iMessage Commands
+imessage_app = typer.Typer(help="iMessage extraction commands")
+app.add_typer(imessage_app, name="imessage")
+
+
+@imessage_app.command("pull")
+def imessage_pull(
+    contact: str = typer.Option(..., "--contact", help="Contact identifier (phone, email, or name)"),
+    db: Path = typer.Option(
+        Path.home() / "Library/Messages/chat.db",
+        "--db",
+        help="Path to Messages database"
+    ),
+    out: Path = typer.Option(Path("./out"), "--out", help="Output directory"),
+    include_attachments: bool = typer.Option(False, "--include-attachments", help="Extract attachment metadata"),
+    copy_binaries: bool = typer.Option(False, "--copy-binaries", help="Copy attachment files to output"),
+    transcribe_audio: str = typer.Option("off", "--transcribe-audio", help="Audio transcription mode (local|off)"),
+) -> None:
+    """Extract iMessage conversations for a contact."""
+    from chatx.imessage import extract_messages
+    
+    console.print(f"[bold green]Extracting iMessage conversations for:[/bold green] {contact}")
+    console.print(f"[blue]Database:[/blue] {db}")
+    console.print(f"[blue]Output:[/blue] {out}")
+    
+    if not db.exists():
+        console.print(f"[bold red]Error:[/bold red] Messages database not found: {db}")
+        console.print("[yellow]Tip:[/yellow] Grant Full Disk Access to your terminal in System Settings > Privacy & Security")
+        raise typer.Exit(1)
+    
+    # Create output directory
+    out.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        # Extract messages (placeholder - will be implemented in PR-1)
+        messages = extract_messages(
+            db_path=db,
+            contact=contact,
+            include_attachments=include_attachments,
+            copy_binaries=copy_binaries,
+            transcribe_audio=transcribe_audio,
+            out_dir=out,
+        )
+        
+        # This will fail for now since extract_messages raises NotImplementedError
+        message_count = len(list(messages))
+        console.print(f"[bold green]Extracted {message_count} messages[/bold green]")
+        
+    except NotImplementedError:
+        console.print("[yellow]iMessage extraction implementation in progress (PR-1)[/yellow]")
+        console.print("[yellow]See docs/design/specifications/imessage-extractor.md for full spec[/yellow]")
+    except Exception as e:
+        console.print(f"[bold red]Error during extraction:[/bold red] {e}")
+        raise typer.Exit(1)
+
+
 @app.command()
 def pipeline(
     source: Path = typer.Argument(..., help="Source path to process"),
