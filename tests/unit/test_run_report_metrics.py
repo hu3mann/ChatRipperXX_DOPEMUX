@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from chatx.utils.run_report import write_extract_run_report, validate_run_report, append_metrics_event
+from chatx.utils.run_report import (
+    append_metrics_event,
+    validate_run_report,
+    write_extract_run_report,
+)
 
 
 def test_run_report_and_metrics_schema(tmp_path: Path) -> None:
     out = tmp_path / "out"
     out.mkdir(parents=True, exist_ok=True)
 
-    started = datetime.now(timezone.utc)
+    started = datetime.now(UTC)
     finished = started + timedelta(seconds=2)
 
     # Write run report
