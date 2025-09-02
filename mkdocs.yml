@@ -17,3 +17,6 @@ nav:
   - Architecture: architecture.md
   - ADRs:
       - ADR Index: adr/index.md
+  - Additional Docs:
+      - README: README.md
+      - LLM Context: CR-XactXtract/llm-context.md

@@ -1,6 +1,5 @@
 """Pydantic schemas for redaction reports and policy data."""
 
-from typing import Dict, List
 
 from pydantic import BaseModel, Field
 
@@ -14,7 +13,7 @@ class RedactionReport(BaseModel):
     """
     
     coverage: float = Field(
-        ..., ge=0.0, le=1.0, 
+        ..., ge=0.0, le=1.0,
         description="Observed redaction coverage over target fields"
     )
     strict: bool = Field(..., description="Whether strict redaction mode was used")
@@ -25,19 +24,19 @@ class RedactionReport(BaseModel):
     tokens_redacted: int = Field(
         ..., ge=0, description="Total number of tokens that were redacted"
     )
-    placeholders: Dict[str, int] = Field(
+    placeholders: dict[str, int] = Field(
         default_factory=dict,
         description="Counts by placeholder ID (e.g., SUBSTANCE_USE_PSYCHEDELICS)"
     )
-    coarse_label_counts: Dict[str, int] = Field(
+    coarse_label_counts: dict[str, int] = Field(
         default_factory=dict,
         description="Counts by coarse label categories"
     )
-    visibility_leaks: List[str] = Field(
+    visibility_leaks: list[str] = Field(
         default_factory=list,
         description="Non-empty if any visibility violations detected"
     )
-    notes: List[str] = Field(
+    notes: list[str] = Field(
         default_factory=list,
         description="Additional notes about the redaction process"
     )
@@ -60,8 +59,8 @@ class PrivacyPolicy(BaseModel):
     policy_id: str = Field(..., description="Policy identifier")
     version: str = Field(..., description="Policy version")
     description: str = Field(..., description="Policy description")
-    rules: List[PolicyRule] = Field(..., description="List of redaction rules")
+    rules: list[PolicyRule] = Field(..., description="List of redaction rules")
     strict_mode: bool = Field(
-        default=True, 
+        default=True,
         description="Whether to use strict redaction mode"
     )

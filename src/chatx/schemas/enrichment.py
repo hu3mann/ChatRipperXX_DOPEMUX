@@ -1,6 +1,6 @@
 """Pydantic schemas for LLM enrichment data."""
 
-from typing import Dict, List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -49,31 +49,31 @@ class EnrichmentMessage(BaseModel):
     inferred_meaning: str = Field(
         ..., max_length=200, description="Inferred semantic meaning"
     )
-    map_refs: List[str] = Field(default_factory=list, description="Reference mappings")
-    coarse_labels: List[str] = Field(default_factory=list, description="Coarse-grained labels")
-    fine_labels_local: List[str] = Field(
-        default_factory=list, 
+    map_refs: list[str] = Field(default_factory=list, description="Reference mappings")
+    coarse_labels: list[str] = Field(default_factory=list, description="Coarse-grained labels")
+    fine_labels_local: list[str] = Field(
+        default_factory=list,
         description="LOCAL-ONLY fine labels; MUST NOT be sent to cloud"
     )
-    influence_class: Optional[str] = Field(
+    influence_class: str | None = Field(
         None, description="Cloud-safe influence classification"
     )
-    influence_score: Optional[float] = Field(
+    influence_score: float | None = Field(
         None, ge=0.0, le=1.0, description="Influence score (0-1)"
     )
-    relationship_structure: List[str] = Field(
+    relationship_structure: list[str] = Field(
         default_factory=list, description="Relationship structure indicators"
     )
-    relationship_dynamic: List[str] = Field(
+    relationship_dynamic: list[str] = Field(
         default_factory=list, description="Relationship dynamic indicators"
     )
-    notes: Optional[str] = Field(None, description="Additional analysis notes")
+    notes: str | None = Field(None, description="Additional analysis notes")
     confidence_llm: float = Field(
         ..., ge=0.0, le=1.0, description="LLM confidence score (0-1)"
     )
     source: Literal["local", "cloud"] = Field(..., description="Enrichment source")
     provenance: Provenance = Field(..., description="Enrichment provenance")
-    shield: Dict[str, object] = Field(
+    shield: dict[str, object] = Field(
         default_factory=dict,
         description="Optional record of preflight/coverage context"
     )

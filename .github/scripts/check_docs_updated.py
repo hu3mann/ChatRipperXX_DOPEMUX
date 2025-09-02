@@ -20,8 +20,13 @@ def changed_files(base, head):
     return [line.strip() for line in out.splitlines() if line.strip()]
 
 files = changed_files(BASE_SHA, HEAD_SHA)
-code_changed = any(f.startswith(("src/", "cli/",)) or f.endswith(".py") for f in files)
-docs_changed = any(f.startswith(("docs/",)) or f in ("README.md", "CLAUDE.md", "mkdocs.yml") for f in files)
+code_changed = any(
+    f.startswith(("src/", "cli/",)) or f.endswith(".py") for f in files
+)
+docs_changed = any(
+    f.startswith(("docs/",)) or f in ("README.md", "CLAUDE.md", "mkdocs.yml")
+    for f in files
+)
 
 if code_changed and not docs_changed:
     print("❌ Code changed but docs were not updated. Please update docs/ or README/CLAUDE.md.")
