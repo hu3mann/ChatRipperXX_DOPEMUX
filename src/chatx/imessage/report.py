@@ -170,7 +170,7 @@ def generate_missing_attachments_report(
     }
     
     # Write report to file
-    report_path = out_dir / "missing_attachments_report.json"
+    report_path = out_dir / "missing_attachments.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     
     with open(report_path, 'w', encoding='utf-8') as f:

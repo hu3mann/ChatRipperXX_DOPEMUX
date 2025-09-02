@@ -179,7 +179,7 @@ class TestMissingAttachmentsReport:
             assert "iMessage;-;+15551234567" in missing_counts
             
             # Report file should exist
-            report_path = out_dir / "missing_attachments_report.json"
+            report_path = out_dir / "missing_attachments.json"
             assert report_path.exists()
             
             # Verify report structure
@@ -244,7 +244,7 @@ class TestMissingAttachmentsReport:
         assert len(missing_counts) == 0
         
         # Report should still be generated
-        report_path = out_dir / "missing_attachments_report.json"
+        report_path = out_dir / "missing_attachments.json"
         assert report_path.exists()
         
         with open(report_path) as f:

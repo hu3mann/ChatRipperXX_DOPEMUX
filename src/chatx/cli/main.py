@@ -321,7 +321,7 @@ def imessage_pull(
                     
                     if total_missing > 0:
                         console.print(f"[yellow]Found {total_missing} missing attachment(s) across {len(missing_counts)} conversation(s)[/yellow]")
-                        console.print(f"[yellow]Report written to:[/yellow] {out / 'missing_attachments_report.json'}")
+                        console.print(f"[yellow]Report written to:[/yellow] {out / 'missing_attachments.json'}")
                     else:
                         console.print("[green]All attachment files found on disk[/green]")
                 finally:
@@ -337,7 +337,7 @@ def imessage_pull(
 
             # Artifacts
             artifacts = [str(out / f"messages_{contact.replace('@', '_at_').replace('+', '_plus_')}.json")]
-            missing_path = out / 'missing_attachments_report.json'
+            missing_path = out / 'missing_attachments.json'
             if missing_path.exists():
                 artifacts.append(str(missing_path))
 
