@@ -33,8 +33,9 @@ def main(
 
     setup_logging(log_level)
 
-    if config:
-        console.print(f"Using config: {config}")
+    # TODO: Fix config parameter bug - currently prints Option object instead of value
+    # if config:
+    #     console.print(f"Using config: {config}")
 
 
 @app.command()

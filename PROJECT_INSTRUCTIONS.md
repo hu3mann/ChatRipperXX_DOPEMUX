@@ -208,7 +208,7 @@ Install hooks that block non-UTF-8 files from being committed and also run durin
 ```zsh
 zsh scripts/git-hooks/install_utf8_hooks.zsh
 ```
-These install `hooks/pre-commit` and `hooks/pre-applypatch` into `.git/hooks/` (symlinks). To bypass intentionally, use `git commit --no-verify` (rare).
+These install `scripts/git-hooks/pre-commit` and `scripts/git-hooks/pre-applypatch` into `.git/hooks/` (symlinks). To bypass intentionally, use `git commit --no-verify` (rare).
 
 #### CI enforcement (GitHub Actions)
 A UTF-8 validation job runs on push/PR:

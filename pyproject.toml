@@ -65,7 +65,7 @@ Repository = "https://github.com/hue/Dopemux-ChatRipperXX.git"
 Issues = "https://github.com/hue/Dopemux-ChatRipperXX/issues"
 
 [project.scripts]
-chatx = "chatx.cli:main"
+chatx = "chatx.cli.main:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/chatx"]

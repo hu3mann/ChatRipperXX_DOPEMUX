@@ -1,6 +1,6 @@
-# CR-XactXtract_workspace — Project Overview
+# ChatX — Project Overview
 
-**Last updated:** 2025-08-30 UTC
+**Last updated:** 2025-09-02 UTC
 
 ## Vision (1‑pager)
 - **Problem:** _Fill in succinctly:_ What pain does this CLI solve?
