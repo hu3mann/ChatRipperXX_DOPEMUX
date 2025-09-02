@@ -290,9 +290,7 @@ def extract_messages_for_conversation(
                 if thumbnails:
                     thumb_paths = generate_thumbnail_files(attachments, out_dir, backup_dir)
                     if thumb_paths:
-                        message.source_meta.setdefault("image", {})["thumb_path"] = next(
-                            iter(thumb_paths.values())
-                        )
+                        message.source_meta.setdefault("image", {})["thumb_paths"] = thumb_paths
             
             # Process audio transcription if enabled
             if transcribe_audio != "off" and attachments:
