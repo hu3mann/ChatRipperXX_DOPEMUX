@@ -1,12 +1,14 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 set -euo pipefail
-
 
 # Block commits that include staged files which are not valid UTF-8.
 # Uses iconv to validate; any failure aborts the commit.
 
-# Get staged files directly into array
-mapfile -d '' files < <(git diff --cached --name-only --diff-filter=ACMRT -z)
+# Get staged files into array (zsh compatible)
+files=()
+while IFS= read -r -d '' file; do
+  files+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACMRT -z)
 
 # Exit early if no staged files
 if [[ ${#files[@]} -eq 0 ]]; then
