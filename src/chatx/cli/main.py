@@ -77,19 +77,106 @@ def extract(
 
 @app.command()
 def transform(
-    input_dir: Path = typer.Argument(..., help="Directory containing extracted data"),
+    input_file: Path = typer.Argument(..., help="Input file containing messages (JSON/JSONL)"),
     output: Path | None = typer.Option(None, "--output", "-o", help="Output file path"),
-    format_type: str = typer.Option("json", "--format", help="Output format (json, jsonl)"),
+    format_type: str = typer.Option("jsonl", "--format", help="Output format (json, jsonl)"),
+    method: str = typer.Option("turns", "--chunk", help="Chunking method (turns, daily, fixed)"),
+    contact: str = typer.Option("unknown", "--contact", help="Contact identifier"),
+    turns_per_chunk: int = typer.Option(40, "--turns", help="Messages per chunk (turns method)"),
+    stride: int = typer.Option(10, "--stride", help="Overlap between chunks (turns method)"),
+    char_limit: int = typer.Option(4000, "--char-limit", help="Character limit (fixed method)"),
+    validate_schemas: bool = typer.Option(True, "--validate/--no-validate", help="Validate against schemas"),
 ) -> None:
-    """Transform extracted data into canonical format."""
-    console.print(f"[bold green]Transforming:[/bold green] {input_dir}")
+    """Transform extracted messages into conversation chunks.
+    
+    Examples:
+        chatx transform messages.json --contact "friend@example.com" --chunk turns --turns 40 --stride 10
+        chatx transform messages.jsonl --chunk daily --contact "+15551234567"
+        chatx transform messages.json --chunk fixed --char-limit 3000
+    """
+    from datetime import datetime
+    import json
+    from chatx.schemas.message import CanonicalMessage
+    from chatx.transformers.pipeline import TransformationPipeline
+    from chatx.transformers.chunker import ChunkMethod
+    
+    console.print(f"[bold green]Transforming:[/bold green] {input_file}")
 
-    if not input_dir.exists() or not input_dir.is_dir():
-        console.print(f"[bold red]Error:[/bold red] Input directory does not exist: {input_dir}")
+    if not input_file.exists():
+        console.print(f"[bold red]Error:[/bold red] Input file does not exist: {input_file}")
         raise typer.Exit(1)
 
-    # TODO: Implement transformation logic
-    console.print("[yellow]Transformation not yet implemented[/yellow]")
+    if method not in ["turns", "daily", "fixed"]:
+        console.print(f"[bold red]Error:[/bold red] Invalid chunking method: {method}")
+        console.print("[blue]Valid methods:[/blue] turns, daily, fixed")
+        raise typer.Exit(1)
+
+    try:
+        started_at = datetime.now()
+        
+        # Load messages
+        console.print(f"[blue]Loading messages from:[/blue] {input_file}")
+        with open(input_file) as f:
+            if input_file.suffix == ".jsonl":
+                messages_data = [json.loads(line) for line in f if line.strip()]
+            else:
+                messages_data = json.load(f)
+        
+        # Convert to CanonicalMessage objects
+        messages = [CanonicalMessage(**msg_data) for msg_data in messages_data]
+        console.print(f"[blue]Loaded {len(messages)} messages[/blue]")
+        
+        # Initialize pipeline
+        output_dir = output.parent if output else input_file.parent / "out"
+        pipeline = TransformationPipeline(
+            output_dir=output_dir,
+            validate_schemas=validate_schemas,
+        )
+        
+        # Set method-specific parameters
+        chunk_params = {}
+        if method == "turns":
+            chunk_params["turns_per_chunk"] = turns_per_chunk
+            chunk_params["stride"] = stride
+        elif method == "fixed":
+            chunk_params["char_limit"] = char_limit
+        
+        # Run transformation
+        console.print(f"[blue]Chunking method:[/blue] {method}")
+        console.print(f"[blue]Contact:[/blue] {contact}")
+        if chunk_params:
+            param_str = ", ".join(f"{k}={v}" for k, v in chunk_params.items())
+            console.print(f"[blue]Parameters:[/blue] {param_str}")
+        
+        chunks, output_path = pipeline.transform(
+            messages=messages,
+            method=ChunkMethod(method),
+            contact=contact,
+            format_type=format_type,
+            output_file=output,
+            **chunk_params,
+        )
+        
+        finished_at = datetime.now()
+        elapsed = (finished_at - started_at).total_seconds()
+        
+        console.print(f"[bold green]Created {len(chunks)} chunks[/bold green]")
+        console.print(f"[bold green]Output saved to:[/bold green] {output_path}")
+        console.print(f"[blue]Processing time:[/blue] {elapsed:.2f}s")
+        
+        # Show chunk statistics
+        if chunks:
+            total_chars = sum(len(chunk.text) for chunk in chunks)
+            avg_chars = total_chars // len(chunks)
+            
+            date_range = f"{chunks[0].meta.date_start.date()} to {chunks[-1].meta.date_end.date()}"
+            console.print(f"[blue]Date range:[/blue] {date_range}")
+            console.print(f"[blue]Average chunk size:[/blue] {avg_chars} characters")
+            console.print(f"[blue]Total messages processed:[/blue] {sum(len(c.meta.message_ids) for c in chunks)}")
+        
+    except Exception as e:
+        console.print(f"[bold red]Error during transformation:[/bold red] {e}")
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -272,6 +359,7 @@ def imessage_pull(
                     copy_binaries=copy_binaries,
                     transcribe_audio=transcribe_audio,
                     out_dir=out,
+                    backup_dir=from_backup,
                 ))
         else:
             messages = list(extract_messages(

@@ -20,6 +20,7 @@ def extract_messages(
     copy_binaries: bool = False,
     transcribe_audio: str = "off",
     out_dir: Path,
+    backup_dir: Optional[Path] = None,
 ) -> Iterator[CanonicalMessage]:
     """Extract iMessage conversations for a contact.
     
@@ -54,7 +55,7 @@ def extract_messages(
             for conv_guid in conv_guids:
                 yield from extract_messages_for_conversation(
                     conn, conv_guid, str(db_path), include_attachments, copy_binaries,
-                    transcribe_audio, out_dir
+                    transcribe_audio, out_dir, backup_dir
                 )
                 
         finally:
@@ -68,7 +69,8 @@ def extract_messages_for_conversation(
     include_attachments: bool,
     copy_binaries: bool,
     transcribe_audio: str,
-    out_dir: Path
+    out_dir: Path,
+    backup_dir: Optional[Path] = None,
 ) -> Iterator[CanonicalMessage]:
     """Extract messages for a specific conversation."""
     from chatx.schemas.message import SourceRef
@@ -151,8 +153,8 @@ def extract_messages_for_conversation(
         # Handle text content (attributed body takes precedence if present)
         message_text = text
         if attributed_body and not text:
-            # For now, just indicate attributed content exists (proper parsing in future PR)
-            message_text = "[Rich text content]"
+            # Placeholder for attributed content until full parser lands
+            message_text = "[ATTRIBUTED_BODY_CONTENT]"
         
         # Determine reply threading (will be resolved after all messages collected)
         reply_to_guid = None

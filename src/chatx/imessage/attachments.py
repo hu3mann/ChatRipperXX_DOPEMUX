@@ -176,7 +176,8 @@ def extract_attachment_metadata(
 
 def copy_attachment_files(
     attachments: List[Attachment],
-    out_dir: Path
+    out_dir: Path,
+    backup_dir: Optional[Path] = None,
 ) -> List[Attachment]:
     """Copy attachment files to output directory with content hashing.
     
@@ -199,17 +200,28 @@ def copy_attachment_files(
         # Try to find source file
         source_path = None
         if attachment.filename:
-            # Try common attachment paths
-            potential_paths = [
-                attachments_dir / attachment.filename,
-                attachments_dir / "Attachments" / attachment.filename,  # Nested structure
-                Path(attachment.filename)  # Absolute path case
-            ]
-            
-            for path in potential_paths:
-                if path.exists():
-                    source_path = path
-                    break
+            # If a MobileSync backup is provided, attempt to resolve via Manifest.db
+            if backup_dir:
+                try:
+                    # Normalize to relative path under Library/SMS/Attachments
+                    rel = _relative_sms_attachments_path(attachment.filename)
+                    if rel:
+                        # Lazy import to avoid cycles
+                        from chatx.imessage.backup import resolve_backup_file
+                        source_path = resolve_backup_file(backup_dir, "HomeDomain", rel)
+                except Exception:
+                    source_path = None
+            # Fallback to local macOS attachments path
+            if source_path is None:
+                potential_paths = [
+                    attachments_dir / attachment.filename,
+                    attachments_dir / "Attachments" / attachment.filename,  # Nested structure
+                    Path(attachment.filename)  # Absolute path case
+                ]
+                for path in potential_paths:
+                    if path.exists():
+                        source_path = path
+                        break
         
         # Copy file if found
         if source_path and source_path.exists():
@@ -239,6 +251,27 @@ def copy_attachment_files(
         updated_attachments.append(attachment)
     
     return updated_attachments
+
+
+def _relative_sms_attachments_path(filename: str) -> Optional[str]:
+    """Extract relative 'Library/SMS/Attachments/..' path from any filename string.
+
+    Accepts absolute paths and returns the subpath starting at 'Library/SMS/Attachments'.
+    Returns None if the pattern is not present and the filename is not a relative SMS path.
+    """
+    try:
+        if not filename:
+            return None
+        marker = "Library/SMS/Attachments"
+        if marker in filename:
+            idx = filename.index(marker)
+            return filename[idx:]
+        # If already looks relative to Library/SMS/Attachments, accept it
+        if filename.startswith("Library/SMS/Attachments/"):
+            return filename
+    except Exception:
+        return None
+    return None
 
 
 def compute_file_hash(file_path: Path) -> str:

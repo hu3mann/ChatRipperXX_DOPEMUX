@@ -49,6 +49,14 @@ llm = [
 local-llm = [
     "ollama>=0.1.0",
 ]
+wave3 = [
+    "chromadb>=0.4.15",
+    "ollama>=0.1.7", 
+    "sentence-transformers>=2.2.2",
+    "torch>=2.0.0",
+    "numpy>=1.24.0",
+    "scikit-learn>=1.3.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
