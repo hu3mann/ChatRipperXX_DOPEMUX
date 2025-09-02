@@ -156,11 +156,20 @@ def extract_messages_for_conversation(
             sender = handle_address or f"Unknown_{handle_id}"
             sender_id = handle_address or f"unknown_{handle_id}"
         
-        # Handle text content (attributed body takes precedence if present)
+        # Handle text content (normalize attributed body if present and no plain text)
         message_text = text
+        raw_attr_b64: str | None = None
         if attributed_body and not text:
-            # Placeholder for attributed content until full parser lands
-            message_text = "[ATTRIBUTED_BODY_CONTENT]"
+            try:
+                from chatx.imessage.body_normalize import normalize_attributed_body
+                normalized = normalize_attributed_body(attributed_body)
+                if normalized:
+                    message_text = normalized
+                import base64
+                raw_attr_b64 = base64.b64encode(attributed_body).decode("ascii")
+            except Exception:
+                # Keep placeholder on failure
+                message_text = message_text or "[ATTRIBUTED_BODY_CONTENT]"
         
         # Determine reply threading (will be resolved after all messages collected)
         reply_to_guid = None
@@ -194,6 +203,11 @@ def extract_messages_for_conversation(
                 "has_attributed_body": bool(attributed_body)
             }
         )
+        # Preserve raw attributedBody for provenance
+        if raw_attr_b64:
+            message.source_meta.setdefault("raw", {})
+            message.source_meta["raw"]["attributed_body"] = raw_attr_b64
+
         # Add pseudonymous sender token (does not change sender_id to keep compatibility)
         try:
             from chatx.identity.normalize import load_local_salt, pseudonymize
@@ -338,6 +352,17 @@ def extract_messages_for_conversation(
             
             # Add attachments to message
             message.attachments = attachments
+            # Generate thumbnails on demand
+            if thumbnails and attachments:
+                try:
+                    from chatx.imessage.attachments import generate_thumbnail_files
+                    thumb_map = generate_thumbnail_files(attachments, out_dir, backup_dir)
+                    # Record a representative thumbnail path for observability
+                    if thumb_map:
+                        first_path = next(iter(thumb_map.values()))
+                        message.source_meta.setdefault("image", {})["thumb_path"] = first_path
+                except Exception:
+                    pass
     
     # Yield all regular messages (now with reactions, replies, and attachments resolved)
     for message, _ in regular_messages:
