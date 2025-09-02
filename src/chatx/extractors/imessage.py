@@ -84,6 +84,7 @@ class IMessageExtractor(BaseExtractor):
                         return text_candidate
                 except Exception as e:
                     logger.debug(f"attributedBody plist parse failed: {e}")
+                    return None
 
             # Heuristic UTF‑8 scan as fallback
             decoded = attributed_body.decode("utf-8", errors="ignore")
@@ -109,7 +110,7 @@ class IMessageExtractor(BaseExtractor):
 
             blob = row[0]
             # Prefer plist parsing when possible
-            if isinstance(blob, (bytes, bytearray)) and bytes(blob).startswith(b"bplist00"):
+            if isinstance(blob, (bytes, bytearray, memoryview)) and bytes(blob).startswith(b"bplist00"):
                 try:
                     data = plistlib.loads(bytes(blob))
                     text_candidate = self._extract_text_from_nested(data)
@@ -117,14 +118,15 @@ class IMessageExtractor(BaseExtractor):
                         return text_candidate
                 except Exception as e:
                     logger.debug(f"message_summary_info plist parse failed: {e}")
+                    return "[EDITED_MESSAGE_CONTENT]"
 
             # Fallback: UTF‑8 heuristic
             try:
                 decoded = bytes(blob).decode("utf-8", errors="ignore")
                 cleaned = ' '.join(decoded.split())
-                return cleaned if cleaned else None
+                return cleaned if cleaned else "[EDITED_MESSAGE_CONTENT]"
             except Exception:
-                return None
+                return "[EDITED_MESSAGE_CONTENT]"
         except Exception as e:
             logger.warning(f"Failed to decode message_summary_info: {e}")
             return None
@@ -163,6 +165,7 @@ class IMessageExtractor(BaseExtractor):
             logger.debug(f"Message {msg_rowid}: decoded_attributed_body = {decoded_text!r}")
             if decoded_text:
                 return decoded_text
+            return "[ATTRIBUTED_BODY_CONTENT]"
                 
         # 3. Try message_summary_info for iOS 16+ edited messages
         if msg_rowid:

@@ -11,18 +11,19 @@
     "started_at": { "type": "string", "format": "date-time" },
     "finished_at": { "type": "string", "format": "date-time" },
     "duration_s": { "type": "number", "minimum": 0 },
-    "counters": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "messages_total": { "type": "integer", "minimum": 0 },
-        "chunks_total": { "type": "integer", "minimum": 0 },
-        "attachments_total": { "type": "integer", "minimum": 0 },
-        "redaction_tokens": { "type": "integer", "minimum": 0 },
-        "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
-        "embeddings_written": { "type": "integer", "minimum": 0 },
-        "index_upserts": { "type": "integer", "minimum": 0 },
-        "enrichment_items": { "type": "integer", "minimum": 0 },
+        "counters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "messages_total": { "type": "integer", "minimum": 0 },
+            "chunks_total": { "type": "integer", "minimum": 0 },
+            "attachments_total": { "type": "integer", "minimum": 0 },
+            "images_total": { "type": "integer", "minimum": 0 },
+            "redaction_tokens": { "type": "integer", "minimum": 0 },
+            "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
+            "embeddings_written": { "type": "integer", "minimum": 0 },
+            "index_upserts": { "type": "integer", "minimum": 0 },
+            "enrichment_items": { "type": "integer", "minimum": 0 },
         "throughput_msgs_min": { "type": "number", "minimum": 0 }
       }
     },

@@ -1,10 +1,12 @@
-"""Stub tests for media.exif."""
-
-import pytest
+"""Tests for EXIF parsing utilities."""
 
 from chatx.media.exif import read_exif
 
 
-@pytest.mark.xfail(raises=NotImplementedError, strict=True, reason="stub")
-def test_read_exif_unimplemented():
-    read_exif("/dev/null")
+def test_read_exif_returns_metadata(jpeg_file):
+    exif = read_exif(str(jpeg_file))
+    assert exif.get("Make") == "ChatX"
+
+
+def test_read_exif_missing_returns_empty(png_file):
+    assert read_exif(str(png_file)) == {}

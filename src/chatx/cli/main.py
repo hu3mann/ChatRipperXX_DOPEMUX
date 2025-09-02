@@ -749,6 +749,9 @@ def imessage_pull(
             from chatx.utils.run_report import write_extract_run_report
             # Compute simple counters
             attachments_total = sum(len(m.attachments) for m in messages)
+            images_total = sum(
+                1 for m in messages for a in m.attachments if a.type == "image"
+            )
             elapsed = max((finished_at - started_at).total_seconds(), 0.0)
             rate = (len(messages) / elapsed * 60.0) if elapsed > 0 else 0.0
 
@@ -779,6 +782,7 @@ def imessage_pull(
                 finished_at=finished_at,
                 messages_total=len(messages),
                 attachments_total=attachments_total,
+                images_total=images_total,
                 throughput_msgs_min=rate,
                 artifacts=artifacts,
                 warnings=warn_msgs,
@@ -792,6 +796,7 @@ def imessage_pull(
                 counters = {
                     "messages_total": len(messages),
                     "attachments_total": attachments_total,
+                    "images_total": images_total,
                     "throughput_msgs_min": rate,
                 }
                 metrics_path = append_metrics_event(

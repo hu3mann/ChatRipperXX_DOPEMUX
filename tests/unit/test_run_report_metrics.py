@@ -21,6 +21,7 @@ def test_run_report_and_metrics_schema(tmp_path: Path) -> None:
         finished_at=finished,
         messages_total=10,
         attachments_total=3,
+        images_total=2,
         throughput_msgs_min=300.0,
         artifacts=[str(out / "messages.json")],
         warnings=["warn"],
@@ -37,6 +38,7 @@ def test_run_report_and_metrics_schema(tmp_path: Path) -> None:
         counters={
             "messages_total": 10,
             "attachments_total": 3,
+            "images_total": 2,
             "throughput_msgs_min": 300.0,
         },
         warnings=["warn"],
@@ -52,4 +54,5 @@ def test_run_report_and_metrics_schema(tmp_path: Path) -> None:
     assert obj["counters"]["messages_total"] == 10
     assert obj["counters"]["attachments_total"] == 3
     assert obj["counters"]["throughput_msgs_min"] == 300.0
+    assert obj["counters"]["images_total"] == 2
 

@@ -74,6 +74,10 @@ PY
       - name: Metrics summary
         run: |
           chatx metrics summarize --inputs ./out/metrics/*.jsonl --out ./out/reports/run_report.json || true
+      - name: Run report schema
+        run: |
+          test -f ./out/reports/run_report.json
+          jsonschema -i ./out/reports/run_report.json ./schemas/run_report.schema.json
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

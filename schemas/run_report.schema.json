@@ -13,16 +13,17 @@
       "type": "array",
       "items": { "$ref": "metrics.schema.json" }
     },
-    "summary": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "messages_total": { "type": "integer", "minimum": 0 },
-        "chunks_total": { "type": "integer", "minimum": 0 },
-        "coverage_min": { "type": "number", "minimum": 0, "maximum": 1 },
-        "coverage_max": { "type": "number", "minimum": 0, "maximum": 1 },
-        "duration_s": { "type": "number", "minimum": 0 }
-      }
-    }
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "messages_total": { "type": "integer", "minimum": 0 },
+            "chunks_total": { "type": "integer", "minimum": 0 },
+            "images_total": { "type": "integer", "minimum": 0 },
+            "coverage_min": { "type": "number", "minimum": 0, "maximum": 1 },
+            "coverage_max": { "type": "number", "minimum": 0, "maximum": 1 },
+            "duration_s": { "type": "number", "minimum": 0 }
+          }
+        }
   }
 }

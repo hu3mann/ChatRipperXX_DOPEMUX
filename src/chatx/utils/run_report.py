@@ -21,6 +21,7 @@ def write_extract_run_report(
     finished_at: datetime,
     messages_total: int,
     attachments_total: int,
+    images_total: int,
     throughput_msgs_min: float,
     artifacts: Optional[List[str]] = None,
     warnings: Optional[List[str]] = None,
@@ -42,6 +43,7 @@ def write_extract_run_report(
         "counters": {
             "messages_total": messages_total,
             "attachments_total": attachments_total,
+            "images_total": images_total,
             "throughput_msgs_min": max(0.0, float(throughput_msgs_min)),
         },
         "warnings": warnings or [],
@@ -57,6 +59,7 @@ def write_extract_run_report(
         "summary": {
             "messages_total": messages_total,
             "chunks_total": 0,
+            "images_total": images_total,
             "coverage_min": 0,
             "coverage_max": 0,
             "duration_s": component["duration_s"],

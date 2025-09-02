@@ -1,10 +1,10 @@
-"""Stub tests for media.hash."""
+"""Tests for media hashing utilities."""
 
-import pytest
+import hashlib
 
 from chatx.media.hash import sha256_stream
 
 
-@pytest.mark.xfail(raises=NotImplementedError, strict=True, reason="stub")
-def test_sha256_stream_unimplemented():
-    sha256_stream("/dev/null")
+def test_sha256_stream_matches_hash(jpeg_file):
+    expected = hashlib.sha256(jpeg_file.read_bytes()).hexdigest()
+    assert sha256_stream(str(jpeg_file)) == expected
