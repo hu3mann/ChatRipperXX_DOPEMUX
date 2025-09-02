@@ -73,7 +73,7 @@ def extract_messages_for_conversation(
     """Extract messages for a specific conversation."""
     from chatx.schemas.message import SourceRef
     
-    # SQL to get messages with handle info - no reactions/replies/attachments yet (PR-2/3)
+    # SQL to get all messages with handle info and reaction/reply metadata
     query = """
     SELECT 
         m.ROWID,
@@ -85,23 +85,57 @@ def extract_messages_for_conversation(
         m.date,
         m.handle_id,
         h.id as handle_address,
-        c.guid as chat_guid
+        c.guid as chat_guid,
+        m.associated_message_guid,
+        m.associated_message_type
     FROM message m
     JOIN chat_message_join cmj ON m.ROWID = cmj.message_id
     JOIN chat c ON cmj.chat_id = c.ROWID
     LEFT JOIN handle h ON m.handle_id = h.ROWID
     WHERE c.guid = ?
-        AND m.associated_message_type = 0  -- Skip reactions for now (PR-2)
     ORDER BY m.date ASC
     """
     
     cursor = conn.execute(query, (conv_guid,))
     
-    for row in cursor:
+    # Collect all message data first for two-pass processing
+    all_rows = cursor.fetchall()
+    
+    # First pass: build lookup tables and separate regular messages from reactions
+    messages_by_guid = {}  # guid -> CanonicalMessage
+    messages_by_rowid = {}  # rowid -> CanonicalMessage  
+    reactions_data = []    # List of reaction data to process
+    regular_messages = []  # List of regular messages to yield
+    
+    for row in all_rows:
         (
             msg_rowid, guid, text, attributed_body, is_from_me, service, date,
-            handle_id, handle_address, chat_guid
+            handle_id, handle_address, chat_guid, associated_message_guid, associated_message_type
         ) = row
+        
+        from chatx.imessage.reactions import is_reaction, is_reply, get_reaction_type
+        
+        # Skip reactions in first pass - we'll fold them into parent messages
+        if is_reaction(associated_message_type or 0):
+            reaction_type = get_reaction_type(associated_message_type)
+            
+            # For custom emoji reactions, use the text field as the reaction content
+            if reaction_type == "custom" and text:
+                reaction_display = text  # The actual emoji
+            else:
+                reaction_display = reaction_type  # Traditional tapback name
+            
+            reactions_data.append({
+                'rowid': msg_rowid,
+                'guid': guid,
+                'is_from_me': is_from_me,
+                'handle_address': handle_address,
+                'handle_id': handle_id,
+                'target_guid': associated_message_guid,
+                'reaction_type': reaction_display,
+                'timestamp': date
+            })
+            continue
         
         # Convert Apple timestamp to ISO-8601 UTC
         timestamp = apple_timestamp_to_iso(date) if date else datetime.now(timezone.utc).isoformat()
@@ -120,8 +154,13 @@ def extract_messages_for_conversation(
             # For now, just indicate attributed content exists (proper parsing in future PR)
             message_text = "[Rich text content]"
         
-        # Create message with basic provenance (no reactions/replies/attachments yet)
-        yield CanonicalMessage(
+        # Determine reply threading (will be resolved after all messages collected)
+        reply_to_guid = None
+        if is_reply(associated_message_type or 0, bool(associated_message_guid)):
+            reply_to_guid = associated_message_guid
+        
+        # Create message with reactions/replies support
+        message = CanonicalMessage(
             msg_id=f"msg_{msg_rowid}",
             conv_id=chat_guid or f"conv_{conv_guid}",
             platform="imessage",
@@ -130,8 +169,8 @@ def extract_messages_for_conversation(
             sender_id=sender_id,
             is_me=bool(is_from_me),
             text=message_text,
-            reply_to_msg_id=None,  # Will be implemented in PR-2
-            reactions=[],  # Will be implemented in PR-2  
+            reply_to_msg_id=None,  # Will be set in third pass
+            reactions=[],  # Will be populated in second pass
             attachments=[],  # Will be implemented in PR-3
             source_ref=SourceRef(
                 guid=guid or f"msg_{msg_rowid}",
@@ -144,6 +183,39 @@ def extract_messages_for_conversation(
                 "has_attributed_body": bool(attributed_body)
             }
         )
+        
+        # Store in lookup tables
+        if guid:
+            messages_by_guid[guid] = message
+        messages_by_rowid[msg_rowid] = message
+        regular_messages.append((message, reply_to_guid))  # Store with reply info
+    
+    # Second pass: fold reactions into parent messages
+    for reaction_data in reactions_data:
+        target_guid = reaction_data['target_guid']
+        if target_guid and target_guid in messages_by_guid:
+            target_message = messages_by_guid[target_guid]
+            
+            # Create reaction object
+            from chatx.schemas.message import Reaction
+            reaction = Reaction(
+                kind=reaction_data['reaction_type'],
+                **{"from": reaction_data['handle_address'] or f"unknown_{reaction_data['handle_id']}" if not reaction_data['is_from_me'] else "me"},
+                ts=datetime.fromisoformat(apple_timestamp_to_iso(reaction_data['timestamp']).replace('Z', '+00:00')) if reaction_data['timestamp'] else datetime.now(timezone.utc)
+            )
+            
+            # Add to target message reactions list
+            target_message.reactions.append(reaction)
+    
+    # Third pass: resolve reply threading
+    for message, reply_to_guid in regular_messages:
+        if reply_to_guid and reply_to_guid in messages_by_guid:
+            target_message = messages_by_guid[reply_to_guid]
+            message.reply_to_msg_id = target_message.msg_id
+    
+    # Yield all regular messages (now with reactions and replies resolved)
+    for message, _ in regular_messages:
+        yield message
 
 
 def get_conversation_guids(conn: sqlite3.Connection, handle_ids: List[int]) -> List[str]:

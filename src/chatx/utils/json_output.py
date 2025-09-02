@@ -26,13 +26,10 @@ def write_messages_with_validation(messages: List[CanonicalMessage], output_path
         except Exception as e:
             raise ValueError(f"Message {i} failed validation: {e}")
     
-    # Convert to JSON-serializable format
+    # Convert to JSON-serializable format using Pydantic serialization mode
     messages_data = []
     for msg in messages:
-        msg_dict = msg.model_dump()
-        # Convert datetime to ISO string for JSON serialization
-        if msg_dict.get('timestamp'):
-            msg_dict['timestamp'] = msg.timestamp.isoformat()
+        msg_dict = msg.model_dump(mode='json')  # This handles datetime serialization
         messages_data.append(msg_dict)
     
     # Write to file with pretty formatting
