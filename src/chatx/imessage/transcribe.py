@@ -170,6 +170,35 @@ def is_audio_file(file_path: Path) -> bool:
     return extension in VOICE_MESSAGE_EXTENSIONS
 
 
+def check_attachment_file_exists(filename: Optional[str]) -> bool:
+    """Check if an attachment file exists in common iMessage locations.
+
+    This mirrors the logic used by the missing-attachments report, but is
+    defined here to avoid circular imports during extraction/transcription.
+
+    Args:
+        filename: Attachment filename
+
+    Returns:
+        True if a plausible attachment path exists on disk.
+    """
+    if not filename:
+        return False
+
+    attachments_dir = Path.home() / "Library" / "Messages" / "Attachments"
+    potential_paths = [
+        attachments_dir / filename,
+        attachments_dir / "Attachments" / filename,
+        Path(filename),
+    ]
+
+    for path in potential_paths:
+        if path.exists():
+            return True
+
+    return False
+
+
 def get_transcription_summary(attachments_with_transcripts: int, failed_transcriptions: int) -> Dict[str, int]:
     """Generate summary statistics for transcription process.
     

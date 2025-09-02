@@ -219,9 +219,10 @@ class TestTranscriptionIntegration:
         audio_message = next((m for m in messages if m.msg_id == "msg_1"), None)
         assert audio_message is not None
         
-        # Should have attachment with copied_path
+        # Should have attachment with copied abs_path
         attachment = audio_message.attachments[0]
-        assert attachment.copied_path is not None
+        assert attachment.abs_path is not None
+        assert Path(attachment.abs_path).exists()
         
         # Should have transcript
         assert "transcripts" in audio_message.source_meta

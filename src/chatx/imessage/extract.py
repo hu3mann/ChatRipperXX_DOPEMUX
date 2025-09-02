@@ -215,8 +215,15 @@ def extract_messages_for_conversation(
     
     # Fourth pass: extract and attach attachment metadata
     if include_attachments:
-        from chatx.imessage.attachments import extract_attachment_metadata, copy_attachment_files
-        from chatx.imessage.transcribe import is_audio_attachment, transcribe_local
+        from chatx.imessage.attachments import (
+            extract_attachment_metadata,
+            copy_attachment_files,
+        )
+        from chatx.imessage.transcribe import (
+            is_audio_attachment,
+            transcribe_local,
+            check_attachment_file_exists,
+        )
         
         attachments_with_transcripts = 0
         failed_transcriptions = 0
@@ -239,16 +246,17 @@ def extract_messages_for_conversation(
                         attachment.filename
                     ):
                         # Determine path for transcription
-                        if copy_binaries and attachment.copied_path:
-                            audio_path = attachment.copied_path
+                        audio_path: Optional[Path] = None
+                        if copy_binaries and attachment.abs_path:
+                            audio_path = Path(attachment.abs_path)
                         else:
                             # Try to find file in default Messages attachments location
-                            from pathlib import Path
                             attachments_dir = Path.home() / "Library" / "Messages" / "Attachments"
-                            audio_path = attachments_dir / attachment.filename
-                        
+                            if check_attachment_file_exists(attachment.filename):
+                                audio_path = attachments_dir / attachment.filename
+
                         # Attempt transcription if file exists
-                        if audio_path.exists():
+                        if audio_path and audio_path.exists():
                             engine = "whisper" if transcribe_audio == "local" else "mock"
                             transcript_result = transcribe_local(audio_path, engine=engine)
                             
