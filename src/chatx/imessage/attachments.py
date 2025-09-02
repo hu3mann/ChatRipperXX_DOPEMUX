@@ -318,7 +318,8 @@ def generate_thumbnail_files(
             except Exception:
                 continue
 
-        thumb_paths[attachment.filename] = str(thumb_path)
+        if attachment.filename is not None:
+            thumb_paths[attachment.filename] = str(thumb_path)
 
     return thumb_paths
 
