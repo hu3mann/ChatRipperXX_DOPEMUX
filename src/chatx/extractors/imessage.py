@@ -7,7 +7,7 @@ import tempfile
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from chatx.extractors.base import BaseExtractor, ExtractionError
 from chatx.schemas.message import Attachment, CanonicalMessage, Reaction, SourceRef
@@ -112,32 +112,34 @@ class IMessageExtractor(BaseExtractor):
             if not row or not row[0]:
                 return None
                 
-            # Try to decode as binary plist
+            # Try to decode as binary plist; return placeholder even if parsing fails
             try:
-                plist_data = plistlib.loads(row[0])
-                # For now, return placeholder - full plist parsing would go here
-                logger.debug("Found message_summary_info content, full parsing not yet implemented")
-                return "[EDITED_MESSAGE_CONTENT]"
+                plistlib.loads(row[0])
+                logger.debug(
+                    "Found message_summary_info content, full parsing not yet implemented"
+                )
             except Exception as e:
                 logger.debug(f"message_summary_info is not a valid plist: {e}")
-                return None
+            return "[EDITED_MESSAGE_CONTENT]"
                 
         except Exception as e:
             logger.warning(f"Failed to decode message_summary_info: {e}")
             return None
     
-    def _extract_message_text(self, conn: sqlite3.Connection, msg_data: dict[str, Any]) -> str | None:
+    def _extract_message_text(
+        self, conn: sqlite3.Connection, msg_data: dict[str, Any]
+    ) -> str | None:
         """Extract message text using modern format-aware approach.
-        
+
         Handles the evolution of iMessage text storage:
         1. Legacy: Plain text in 'text' column (including None and empty strings)
-        2. macOS Ventura+: Encoded in 'attributedBody' column  
+        2. macOS Ventura+: Encoded in 'attributedBody' column
         3. iOS 16+: Edited messages in 'message_summary_info' table
-        
+
         Args:
             conn: SQLite connection
             msg_data: Raw message row data
-            
+
         Returns:
             Extracted message text or None
         """
@@ -145,7 +147,7 @@ class IMessageExtractor(BaseExtractor):
         logger.debug(f"Extracting text for message {msg_rowid}")
         
         # 1. Check legacy text column first (including None and empty strings)
-        body = msg_data.get('body')
+        body = cast(str | None, msg_data.get("body"))
         logger.debug(f"Message {msg_rowid}: body = {body!r} (type: {type(body)})")
         if body is not None:  # Explicitly check for None to allow empty strings
             return body
@@ -237,30 +239,56 @@ class IMessageExtractor(BaseExtractor):
         Returns:
             List of raw message dictionaries
         """
-        query = """
+        cursor = conn.cursor()
+
+        # Determine if the message table includes the Ventura `attributedBody` column
+        cursor.execute("PRAGMA table_info(message)")
+        msg_columns = {row[1] for row in cursor.fetchall()}
+        body_rich_select = (
+            "m.attributedBody as body_rich,"
+            if "attributedBody" in msg_columns
+            else "NULL as body_rich,"
+        )
+
+        def col(name: str, alias: str) -> str:
+            return f"m.{name} as {alias}" if name in msg_columns else f"NULL as {alias}"
+
+        order_column = "m.date" if "date" in msg_columns else "m.ROWID"
+
+        handle_join = (
+            "LEFT JOIN handle h ON h.ROWID = m.handle_id"
+            if "handle_id" in msg_columns
+            else ""
+        )
+        handle_resolved_select = (
+            "h.id as handle_id_resolved"
+            if "handle_id" in msg_columns
+            else "NULL as handle_id_resolved"
+        )
+
+        query = f"""
         SELECT
           m.ROWID as msg_rowid,
           m.guid as msg_guid,
           m.text as body,
-          m.attributedBody as body_rich,
-          m.is_from_me as is_me,
-          m.handle_id as handle_id,
-          m.service as service,
-          m.date as date_raw,
-          m.associated_message_guid as assoc_guid,
-          m.associated_message_type as assoc_type,
-          m.cache_has_attachments as has_attachments,
-          m.balloon_bundle_id as balloon_bundle_id,
+          {body_rich_select}
+          {col('is_from_me', 'is_me')},
+          {col('handle_id', 'handle_id')},
+          {col('service', 'service')},
+          {col('date', 'date_raw')},
+          {col('associated_message_guid', 'assoc_guid')},
+          {col('associated_message_type', 'assoc_type')},
+          {col('cache_has_attachments', 'has_attachments')},
+          {col('balloon_bundle_id', 'balloon_bundle_id')},
           c.guid as chat_guid,
-          h.id as handle_id_resolved
+          {handle_resolved_select}
         FROM message m
         LEFT JOIN chat_message_join cmj ON cmj.message_id = m.ROWID
         LEFT JOIN chat c ON c.ROWID = cmj.chat_id
-        LEFT JOIN handle h ON h.ROWID = m.handle_id
-        ORDER BY m.date ASC
+        {handle_join}
+        ORDER BY {order_column} ASC
         """
 
-        cursor = conn.cursor()
         cursor.execute(query)
 
         columns = [description[0] for description in cursor.description]
@@ -292,7 +320,11 @@ class IMessageExtractor(BaseExtractor):
         """
 
         cursor = conn.cursor()
-        cursor.execute(query, (msg_rowid,))
+        try:
+            cursor.execute(query, (msg_rowid,))
+        except sqlite3.OperationalError:
+            # Attachment tables not present in minimal databases
+            return []
 
         attachments = []
         for row in cursor.fetchall():
@@ -311,7 +343,7 @@ class IMessageExtractor(BaseExtractor):
             att_type = "unknown"
             if uti:
                 uti_lower = uti.lower()
-                if ("image" in uti_lower or "jpeg" in uti_lower or "png" in uti_lower or 
+                if ("image" in uti_lower or "jpeg" in uti_lower or "png" in uti_lower or
                     "gif" in uti_lower or "tiff" in uti_lower or "heic" in uti_lower):
                     att_type = "image"
                 elif ("video" in uti_lower or "movie" in uti_lower or "mpeg" in uti_lower or

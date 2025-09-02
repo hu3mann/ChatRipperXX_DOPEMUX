@@ -90,14 +90,21 @@ def minimal_imessage_db(tmp_path: Path) -> Path:
     
     # Create minimal test database with just essential tables and one message
     sql = """
-    CREATE TABLE message (ROWID INTEGER PRIMARY KEY, guid TEXT, text TEXT, is_from_me INTEGER, date INTEGER);
+    CREATE TABLE message (
+        ROWID INTEGER PRIMARY KEY,
+        guid TEXT,
+        text TEXT,
+        is_from_me INTEGER,
+        date INTEGER
+    );
     CREATE TABLE chat (ROWID INTEGER PRIMARY KEY, guid TEXT);
     CREATE TABLE handle (ROWID INTEGER PRIMARY KEY, id TEXT);
     CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER);
     
     INSERT INTO handle (ROWID, id) VALUES (1, 'test@example.com');
     INSERT INTO chat (ROWID, guid) VALUES (1, 'test-chat-guid');
-    INSERT INTO message (ROWID, guid, text, is_from_me, date) VALUES (1, 'test-msg', 'Hello', 0, 663360000);
+    INSERT INTO message (ROWID, guid, text, is_from_me, date)
+    VALUES (1, 'test-msg', 'Hello', 0, 663360000);
     INSERT INTO chat_message_join (chat_id, message_id) VALUES (1, 1);
     """
     
