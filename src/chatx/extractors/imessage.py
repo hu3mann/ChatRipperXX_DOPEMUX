@@ -1,5 +1,6 @@
 """iMessage extractor for macOS/iOS chat.db SQLite databases."""
 
+import plistlib
 import shutil
 import sqlite3
 import tempfile
@@ -64,6 +65,111 @@ class IMessageExtractor(BaseExtractor):
             logger.warning(f"Failed to validate iMessage database: {e}")
             return False
     
+    def _decode_attributed_body(self, attributed_body: bytes | None) -> str | None:
+        """Decode macOS Ventura+ attributedBody hex blob to extract message text.
+        
+        In macOS Ventura and later, message text is stored as NSMutableAttributedString
+        encoded with NSArchiver in the attributedBody column instead of plain text.
+        
+        Args:
+            attributed_body: Binary data from attributedBody column
+            
+        Returns:
+            Decoded message text or None if decoding fails
+        """
+        if not attributed_body:
+            return None
+            
+        try:
+            # For now, return a placeholder indicating attributed body content was found
+            # TODO: Implement full NSArchiver/pytypedstream decoding
+            logger.debug("Found attributedBody content, decoding not yet implemented")
+            return "[ATTRIBUTED_BODY_CONTENT]"
+        except Exception as e:
+            logger.warning(f"Failed to decode attributedBody: {e}")
+            return None
+    
+    def _decode_message_summary_info(self, conn: sqlite3.Connection, msg_rowid: int) -> str | None:
+        """Decode iOS 16+ message_summary_info for edited messages.
+        
+        In iOS 16+, edited messages have their text moved to message_summary_info
+        table as binary plist containing edit history.
+        
+        Args:
+            conn: SQLite connection
+            msg_rowid: Message ROWID to look up
+            
+        Returns:
+            Decoded message text or None if not found/decoding fails
+        """
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT content FROM message_summary_info WHERE message_rowid = ?",
+                (msg_rowid,)
+            )
+            row = cursor.fetchone()
+            if not row or not row[0]:
+                return None
+                
+            # Try to decode as binary plist
+            try:
+                plist_data = plistlib.loads(row[0])
+                # For now, return placeholder - full plist parsing would go here
+                logger.debug("Found message_summary_info content, full parsing not yet implemented")
+                return "[EDITED_MESSAGE_CONTENT]"
+            except Exception as e:
+                logger.debug(f"message_summary_info is not a valid plist: {e}")
+                return None
+                
+        except Exception as e:
+            logger.warning(f"Failed to decode message_summary_info: {e}")
+            return None
+    
+    def _extract_message_text(self, conn: sqlite3.Connection, msg_data: dict[str, Any]) -> str | None:
+        """Extract message text using modern format-aware approach.
+        
+        Handles the evolution of iMessage text storage:
+        1. Legacy: Plain text in 'text' column (including None and empty strings)
+        2. macOS Ventura+: Encoded in 'attributedBody' column  
+        3. iOS 16+: Edited messages in 'message_summary_info' table
+        
+        Args:
+            conn: SQLite connection
+            msg_data: Raw message row data
+            
+        Returns:
+            Extracted message text or None
+        """
+        msg_rowid = msg_data.get('msg_rowid')
+        logger.debug(f"Extracting text for message {msg_rowid}")
+        
+        # 1. Check legacy text column first (including None and empty strings)
+        body = msg_data.get('body')
+        logger.debug(f"Message {msg_rowid}: body = {body!r} (type: {type(body)})")
+        if body is not None:  # Explicitly check for None to allow empty strings
+            return body
+            
+        # 2. Try attributedBody for macOS Ventura+ messages
+        body_rich = msg_data.get('body_rich')
+        logger.debug(f"Message {msg_rowid}: body_rich = {body_rich!r}")
+        if body_rich:
+            decoded_text = self._decode_attributed_body(body_rich)
+            logger.debug(f"Message {msg_rowid}: decoded_attributed_body = {decoded_text!r}")
+            if decoded_text:
+                return decoded_text
+                
+        # 3. Try message_summary_info for iOS 16+ edited messages
+        if msg_rowid:
+            summary_text = self._decode_message_summary_info(conn, msg_rowid)
+            logger.debug(f"Message {msg_rowid}: decoded_summary_info = {summary_text!r}")
+            if summary_text:
+                return summary_text
+                
+        # 4. Return None if no text found in any format
+        logger.debug(f"Message {msg_rowid}: returning None")
+        return None
+
     def _convert_apple_timestamp(self, ts: float | None) -> datetime | None:
         """
         Convert Apple iMessage timestamps to UTC-aware datetimes.
@@ -204,11 +310,14 @@ class IMessageExtractor(BaseExtractor):
             # Determine attachment type from UTI or filename
             att_type = "unknown"
             if uti:
-                if "image" in uti.lower():
+                uti_lower = uti.lower()
+                if ("image" in uti_lower or "jpeg" in uti_lower or "png" in uti_lower or 
+                    "gif" in uti_lower or "tiff" in uti_lower or "heic" in uti_lower):
                     att_type = "image"
-                elif "video" in uti.lower() or "movie" in uti.lower():
+                elif ("video" in uti_lower or "movie" in uti_lower or "mpeg" in uti_lower or
+                      "mp4" in uti_lower or "quicktime" in uti_lower):
                     att_type = "video"
-                elif "audio" in uti.lower():
+                elif "audio" in uti_lower or "mp3" in uti_lower or "wav" in uti_lower:
                     att_type = "audio"
                 else:
                     att_type = "file"
@@ -331,9 +440,9 @@ class IMessageExtractor(BaseExtractor):
                             sender = "Me"
                             sender_id = "me"
                         else:
-                            handle = msg.get('handle_id_resolved', 'Unknown')
+                            handle = msg.get('handle_id_resolved') or 'Unknown'
                             sender = handle
-                            sender_id = handle.lower()
+                            sender_id = handle.lower() if handle else "unknown"
 
                         # Handle replies
                         reply_to_msg_id = None
@@ -368,6 +477,9 @@ class IMessageExtractor(BaseExtractor):
                         # Remove None values
                         source_meta = {k: v for k, v in source_meta.items() if v is not None}
 
+                        # Extract text using format-aware approach
+                        message_text = self._extract_message_text(conn, msg)
+
                         # Create canonical message
                         canonical_msg = CanonicalMessage(
                             msg_id=str(msg['msg_rowid']),
@@ -377,7 +489,7 @@ class IMessageExtractor(BaseExtractor):
                             sender=sender,
                             sender_id=sender_id,
                             is_me=bool(msg['is_me']),
-                            text=msg.get('body'),
+                            text=message_text,
                             reply_to_msg_id=reply_to_msg_id,
                             reactions=msg_reactions,
                             attachments=attachments,
