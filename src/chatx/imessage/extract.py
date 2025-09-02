@@ -183,6 +183,14 @@ def extract_messages_for_conversation(
                 "has_attributed_body": bool(attributed_body)
             }
         )
+        # Add pseudonymous sender token (does not change sender_id to keep compatibility)
+        try:
+            from chatx.identity.normalize import load_local_salt, pseudonymize
+            salt, _ = load_local_salt()
+            message.source_meta["sender_pid"] = pseudonymize(sender_id or sender, salt)
+        except Exception:
+            # Non-fatal if identity module not available
+            pass
         
         # Store in lookup tables
         if guid:

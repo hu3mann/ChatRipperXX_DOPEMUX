@@ -102,7 +102,7 @@ def _parse_message_items(
         # Build deterministic msg_id (no stable id in export); combine ts and idx
         msg_id = f"ig:{thread}:{ts_ms}:{idx}"
 
-        yield CanonicalMessage(
+        msg = CanonicalMessage(
             msg_id=msg_id,
             conv_id=thread,
             platform="instagram",
@@ -117,6 +117,14 @@ def _parse_message_items(
             source_ref=SourceRef(guid=None, path=thread_path),
             source_meta={"raw_keys": list(item.keys())},
         )
+        # Add pseudonymous sender token into source_meta (keep sender_id for now)
+        try:
+            from chatx.identity.normalize import load_local_salt, pseudonymize
+            salt, _ = load_local_salt()
+            msg.source_meta["sender_pid"] = pseudonymize(sender, salt)
+        except Exception:
+            pass
+        yield msg
 
 
 def extract_messages_from_zip(
