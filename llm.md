@@ -1,34 +1,25 @@
 llm.md — Model Configuration & Usage
 Status: Draft | Owner: <TBD> | Last Updated: 2025‑09‑02
 Available Models
-Model	Description	Recommended Use
-Gemma (9B) via Ollama	Local model running on your machine; deterministic and cost‑free.	Use for day‑to‑day coding, refactoring and test writing.
-Claude Sonnet 4	Cloud model with larger context windows and higher accuracy.	Use when Gemma’s confidence is low or when tasks span multiple files.
-Claude Opus 4	Premium cloud model with advanced reasoning capabilities.	Use for complex algorithm design, architecture decisions and deep code reviews.
-Other router models	Additional models available via PluggedIn or OpenRouter (e.g., free open‑weights, Gemini).	Use when experimenting or when specific models suit a task.
+Model   Description     Recommended Use
+Gemma (9B) via Ollama   Local model running on your machine; deterministic and cost‑free.       Use for day‑to‑day coding, refactoring and test writing.
+Claude Sonnet 4 Cloud model with larger context windows and higher accuracy.    Use when Gemma’s confidence is low or when tasks span multiple files.
+Claude Opus 4   Premium cloud model with advanced reasoning capabilities.       Use for complex algorithm design, architecture decisions and deep code reviews.
+Other router models     Additional models available via PluggedIn or OpenRouter (e.g., free open‑weights, Gemini).     Use when experimenting or when specific models suit a task.
 Vector Memory Choice
-This project supports two vector memory backends for semantic recall:
-Backend	Description	Pros	Cons
-Chroma	An open‑source embedding database that integrates with LangChain and LlamaIndex; scales from notebooks to clusters
-datacamp.com
-.	Easy to set up locally; good community support; scales horizontally.	Requires local Python environment; not relational.
-pgvector	A PostgreSQL extension that adds vector search to a relational database
-datacamp.com
-.	Leverages existing PostgreSQL infrastructure; allows combining vector and relational queries.	Requires running a PostgreSQL server; scaling vector search may need tuning.
-Set the VECTOR_STORE environment variable in setup_mcp_servers.sh to choose either chroma (default) or pgvector. Chroma is recommended for quick setup and hackability
-datacamp.com
-; pgvector is recommended if your infrastructure already uses PostgreSQL
-datacamp.com
-.
+This project supports three vector memory backends for semantic recall:
+
+| Backend | Description | Pros | Cons |
+| --- | --- | --- | --- |
+| **LanceDB** | An embedded, local vector database used by Claude Context by default; stores vectors on disk under `.claude-context/lancedb/`. | No external service required; fully offline and privacy‑preserving; simple setup. | Limited to single‑process access; not ideal for high‑concurrency scenarios. |
+| **Chroma** | An open‑source embedding database that integrates with LangChain and LlamaIndex; scales from notebooks to clusters. | Easy to set up locally; good community support; scales horizontally. | Requires local Python environment; not relational. |
+| **pgvector** | A PostgreSQL extension that adds vector search to a relational database. | Leverages existing PostgreSQL infrastructure; allows combining vector and relational queries. | Requires running a PostgreSQL server; scaling vector search may need tuning. |
+
+Set the `VECTOR_STORE` environment variable in `scripts/setup_mcp_servers.sh` to choose a backend. The default is `lance`, which leverages LanceDB and requires no additional installation. Choose `chroma` for quick setup and hackability or `pgvector` if your infrastructure already uses PostgreSQL. When using LanceDB you can optionally set `LANCEDB_PATH` to customise the storage location.
 Context Servers
-Server	Purpose	When to Use
-Context7	Injects the latest documentation and API references into your prompt
-upstash.com
-.	Use when coding against external libraries or frameworks; ensures correct API usage.
-Sequential Thinking	Helps plan and reason through complex problems by generating and revising a chain of thought
-npmjs.com
-npmjs.com
-.	Use for planning and architecture tasks.
+Server  Purpose When to Use
+Context7        Injects the latest documentation and API references into your prompt.       Use when coding against external libraries or frameworks; ensures correct API usage.
+Sequential Thinking     Helps plan and reason through complex problems by generating and revising a chain of thought.       Use for planning and architecture tasks.
 Model Selection Guidelines
 Default to local: Start with Gemma for efficiency and privacy. Evaluate the confidence of the response; if low or if the task requires a large context, upgrade to Sonnet.
 Use Sonnet sparingly: Sonnet incurs higher costs. Use it only when Gemma cannot handle the scope or when the context window of 64k is required.

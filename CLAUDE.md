@@ -31,7 +31,7 @@ MCP provides a standard “USB-C for AI” to connect tools and data sources. Cl
 - **Persistence**
   - *Memory Bank* — structured memory across slices (notes/decisions).
   - *Knowledge Graph Memory* — facts + relationships, semantic queries.
-  - *Vector Memory* — Chroma/pgvector embeddings for recall.
+  - *Vector Memory* — Uses **LanceDB** for local vector storage by default. Configure alternative backends ("chroma" or "pgvector") via the `VECTOR_STORE` environment variable; LanceDB data lives under `.claude-context/lancedb/` and requires no external service.
 - **Context & Planning**
   - *Context7* — up-to-date API/framework docs injection.
   - *Sequential Thinking* — structured multi-step reasoning to break down tasks.

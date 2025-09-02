@@ -15,7 +15,7 @@ Coder	Implement features and fixes according to the plan, write tests, and refac
 mcpservers.org
 , GitHub
 apidog.com
-, Pandoc, Vector Memory (Chroma/pgvector)
+, Pandoc, Vector Memory (LanceDB/Chroma/pgvector)
 Tester	Execute test suites, evaluate coverage and performance, and report failures.	Filesystem, GitHub
 Researcher	Perform external research for libraries, examples and best practices; gather information for design decisions.	Exa
 apidog.com
