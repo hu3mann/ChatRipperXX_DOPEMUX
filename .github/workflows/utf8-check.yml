@@ -1,0 +1,12 @@
+name: UTF-8 Check
+on:
+  push:
+  pull_request:
+
+jobs:
+  utf8:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: UTF-8 validation
+        run: bash scripts/ci/check_utf8.sh

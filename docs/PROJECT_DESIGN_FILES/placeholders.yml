@@ -1,0 +1,77 @@
+# ChatX Placeholder Patterns
+# Status: Master | Last Updated: 2025-08-16 PT
+# Purpose: Normalize sensitive/local-only spans into cloud-safe placeholders before Policy Shield preflight.
+# NOTE: These patterns are detection aids. Do NOT upload raw matches; always replace with the mapped coarse label.
+
+schema_version: 1.0
+
+placeholders:
+  SUBSTANCE_USE_STIMULANTS:
+    examples: ["coke", "blow", "adderall", "speed"]
+    patterns:
+      - "\b(coke|cocaine|blow|yayo)\b"
+      - "\b(adderall|amphetamine|speed)\b"
+  SUBSTANCE_USE_PSYCHEDELICS:
+    examples: ["shrooms", "acid"]
+    patterns:
+      - "\b(psilocybin|shrooms?|boomers?)\b"
+      - "\b(lsd|acid|tabs?)\b"
+  SUBSTANCE_USE_EMPATHOGENS:
+    examples: ["mdma", "molly", "ecstasy", "rolling"]
+    patterns:
+      - "\b(mdma|molly|ecstasy|x)\b"
+      - "\b(roll(?:ing)?)\b"
+  SUBSTANCE_USE_DISSOCIATIVES:
+    examples: ["ketamine", "k-hole"]
+    patterns:
+      - "\b(ketamine|\bk\b[- ]?hole)\b"
+      - "\b(dissociat(ed|ive))\b"
+  SUBSTANCE_USE_DEPRESSANTS_GHB:
+    examples: ["ghb", "g water", "gina", "g-hole"]
+    patterns:
+      - "\b(ghb|gbl)\b"
+      - "\b(g[- ]?water|gina)\b"
+      - "\b(g[- ]?hole|gholes)\b"
+  SUBSTANCE_USE_OPIOIDS:
+    examples: ["oxy", "heroin", "dope"]
+    patterns:
+      - "\b(oxy(?:codone)?|hydrocodone|perc(?:ocet)?|vicodin)\b"
+      - "\b(heroin|dope|smack)\b"
+  SUBSTANCE_USE_CANNABIS:
+    examples: ["weed", "pot", "joint", "thc"]
+    patterns:
+      - "\b(weed|pot|joint|thc|cannabis)\b"
+  SUBSTANCE_USE_ALCOHOL:
+    examples: ["drunk", "hangover", "binge"]
+    patterns:
+      - "\b(drunk|tipsy|hangover|binge)\b"
+  SUBSTANCE_USE_POLY:
+    examples: ["crossfaded", "combo", "mixed"]
+    patterns:
+      - "\b(crossfaded|combo|mixed|poly)\b"
+  SEX_KINK_CONTEXT:
+    examples: ["bdsm", "kink", "dom", "sub"]
+    patterns:
+      - "\b(bdsm|kink|fetish|dom(me)?|sub(missive)?)\b"
+  SEX_WORK_TRADE:
+    examples: ["screening", "deposit", "client"]
+    patterns:
+      - "\b(screening|deposit|client|booking)\b"
+  ILLEGAL_ACTIVITY_GENERAL:
+    examples: ["stolen", "scam", "fraud"]
+    patterns:
+      - "\b(stolen|scam|fraud|theft)\b"
+
+replacements:
+  SUBSTANCE_USE_STIMULANTS: "[SUBSTANCE_USE:STIMULANTS]"
+  SUBSTANCE_USE_PSYCHEDELICS: "[SUBSTANCE_USE:PSYCHEDELICS]"
+  SUBSTANCE_USE_EMPATHOGENS: "[SUBSTANCE_USE:EMPATHOGENS]"
+  SUBSTANCE_USE_DISSOCIATIVES: "[SUBSTANCE_USE:DISSOCIATIVES]"
+  SUBSTANCE_USE_DEPRESSANTS_GHB: "[SUBSTANCE_USE:DEPRESSANTS_GHB]"
+  SUBSTANCE_USE_OPIOIDS: "[SUBSTANCE_USE:OPIOIDS]"
+  SUBSTANCE_USE_CANNABIS: "[SUBSTANCE_USE:CANNABIS]"
+  SUBSTANCE_USE_ALCOHOL: "[SUBSTANCE_USE:ALCOHOL]"
+  SUBSTANCE_USE_POLY: "[SUBSTANCE_USE:POLY]"
+  SEX_KINK_CONTEXT: "[SEX:KINK_CONTEXT]"
+  SEX_WORK_TRADE: "[SEX_WORK:TRADE]"
+  ILLEGAL_ACTIVITY_GENERAL: "[ILLEGAL:GENERAL]"

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xtractxact.dev/schemas/message.schema.json",
+  "title": "Canonical Message (Pre-Redaction)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["msg_id", "conv_id", "platform", "timestamp", "sender", "sender_id", "is_me", "text", "reactions", "attachments", "source_ref"],
+  "properties": {
+    "msg_id": {"type": "string", "description": "Stable message identifier (platform rowid or GUID)."},
+    "conv_id": {"type": "string", "description": "Conversation/thread identifier (e.g., iMessage chat GUID)."},
+    "platform": {"type": "string", "enum": ["imessage", "instagram", "whatsapp", "txt"], "description": "Origin platform."},
+    "timestamp": {"type": "string", "format": "date-time", "description": "ISO-8601 UTC timestamp."},
+    "sender": {"type": "string", "description": "Displayable sender name or address; 'Me' permitted."},
+    "sender_id": {"type": "string", "description": "Stable sender id: 'me' or normalized handle/phone/email."},
+    "is_me": {"type": "boolean"},
+    "text": {"type": ["string", "null"], "description": "Raw body; may be empty string or null."},
+    "reply_to_msg_id": {"type": ["string", "null"], "description": "If this message is a reply, the parent msg_id."},
+    "reactions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "kind", "ts"],
+        "properties": {
+          "from": {"type": "string"},
+          "kind": {"type": "string", "description": "Reaction kind (free-form to avoid loss; e.g., love, like, dislike, laugh, emphasize, question)."},
+          "ts": {"type": "string", "format": "date-time"}
+        }
+      }
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "filename"],
+        "properties": {
+          "type": {"type": "string", "description": "image|video|audio|file|unknown"},
+          "filename": {"type": "string"},
+          "abs_path": {"type": ["string", "null"], "description": "Absolute path when available (local only)."},
+          "mime_type": {"type": ["string", "null"]},
+          "uti": {"type": ["string", "null"], "description": "Apple UTI when available."},
+          "transfer_name": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "guid": {"type": ["string", "null"], "description": "Conversation GUID (iMessage) or equivalent if available."},
+        "path": {"type": "string", "description": "Original source path (e.g., chat.db)."}
+      }
+    },
+    "source_meta": {
+      "type": "object",
+      "description": "Platform-specific raw fields to prevent data loss; NEVER sent to cloud.",
+      "additionalProperties": true
+    }
+  }
+}
