@@ -28,11 +28,26 @@ MANIFEST
 .coverage
 htmlcov/
 
+# Python dependency files
+requirements.txt
+requirements-dev.txt
+Pipfile
+Pipfile.lock
+poetry.lock
+environment.yml
+conda.yml
+
 # Virtual env
 .venv/
 venv/
 env/
 
+# Node.js
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+npm-debug.log*
 # macOS
 .DS_Store
 .AppleDouble
@@ -46,6 +61,11 @@ env/
 
 # MkDocs/site
 site/
+
+# Misc
+.cache/
+.env
+mcp.config.expanded.json
 
 # Local cache
 .cache/

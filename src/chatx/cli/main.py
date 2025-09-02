@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from datetime import datetime
 
 import typer
 from rich.console import Console
@@ -145,6 +146,167 @@ def analyze(
 
     # TODO: Implement analysis logic
     console.print("[yellow]Analysis not yet implemented[/yellow]")
+
+
+# iMessage Commands
+imessage_app = typer.Typer(help="iMessage extraction commands")
+app.add_typer(imessage_app, name="imessage")
+
+
+@imessage_app.command("pull")
+def imessage_pull(
+    contact: str = typer.Option(..., "--contact", help="Contact identifier (phone, email, or name)"),
+    db: Path = typer.Option(
+        Path.home() / "Library/Messages/chat.db",
+        "--db",
+        help="Path to Messages database"
+    ),
+    out: Path = typer.Option(Path("./out"), "--out", help="Output directory"),
+    include_attachments: bool = typer.Option(False, "--include-attachments", help="Extract attachment metadata"),
+    copy_binaries: bool = typer.Option(False, "--copy-binaries", help="Copy attachment files to output"),
+    transcribe_audio: str = typer.Option(
+        "off",
+        "--transcribe-audio",
+        help="Audio transcription mode (local|off). Example: --transcribe-audio local",
+    ),
+    report_missing: bool = typer.Option(True, "--report-missing/--no-report-missing", help="Generate missing attachments report"),
+) -> None:
+    """Extract iMessage conversations for a contact."""
+    from chatx.imessage import extract_messages
+    
+    console.print(f"[bold green]Extracting iMessage conversations for:[/bold green] {contact}")
+    console.print(f"[blue]Database:[/blue] {db}")
+    console.print(f"[blue]Output:[/blue] {out}")
+    
+    if not db.exists():
+        console.print(f"[bold red]Error:[/bold red] Messages database not found: {db}")
+        console.print("[yellow]Tip:[/yellow] Grant Full Disk Access to your terminal in System Settings > Privacy & Security")
+        raise typer.Exit(1)
+    
+    # Create output directory
+    out.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        started_at = datetime.now()
+        # Extract messages
+        messages = list(extract_messages(
+            db_path=db,
+            contact=contact,
+            include_attachments=include_attachments,
+            copy_binaries=copy_binaries,
+            transcribe_audio=transcribe_audio,
+            out_dir=out,
+        ))
+        finished_at = datetime.now()
+        
+        message_count = len(messages)
+        console.print(f"[bold green]Extracted {message_count} messages[/bold green]")
+        
+        if message_count > 0:
+            # Write JSON output with schema validation
+            from chatx.utils.json_output import write_messages_with_validation
+            
+            output_file = out / f"messages_{contact.replace('@', '_at_').replace('+', '_plus_')}.json"
+            write_messages_with_validation(messages, output_file)
+            console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
+            
+            # Report transcription statistics if audio transcription was enabled
+            if transcribe_audio != "off" and include_attachments:
+                from chatx.imessage.transcribe import collect_transcription_stats
+                
+                stats = collect_transcription_stats(messages)
+                total_transcripts = stats["total_transcripts"]
+                
+                if total_transcripts > 0:
+                    console.print(f"[blue]Audio transcription:[/blue] {total_transcripts} voice message(s) transcribed")
+                    
+                    # Show breakdown by confidence if available
+                    confidence_counts = stats["by_confidence"]
+                    confidence_breakdown = []
+                    for level in ["high", "medium", "low"]:
+                        count = confidence_counts.get(level, 0)
+                        if count > 0:
+                            confidence_breakdown.append(f"{count} {level}")
+                    
+                    if confidence_breakdown:
+                        console.print(f"[blue]Confidence levels:[/blue] {', '.join(confidence_breakdown)}")
+                    
+                    # Show engines used
+                    engines = stats["by_engine"]
+                    if engines:
+                        engine_list = [f"{count} {engine}" for engine, count in engines.items()]
+                        console.print(f"[blue]Engines:[/blue] {', '.join(engine_list)}")
+                elif transcribe_audio == "local":
+                    console.print("[yellow]No voice messages found to transcribe[/yellow]")
+        
+        # Generate missing attachments report if requested and attachments enabled
+        if report_missing and include_attachments:
+            from chatx.imessage.db import copy_db_for_readonly, open_ro
+            from chatx.imessage.report import generate_missing_attachments_report
+            
+            console.print("[blue]Checking for missing attachments...[/blue]")
+            
+            with copy_db_for_readonly(db) as temp_db:
+                conn = open_ro(temp_db)
+                try:
+                    missing_counts = generate_missing_attachments_report(conn, out, contact)
+                    total_missing = sum(missing_counts.values())
+                    
+                    if total_missing > 0:
+                        console.print(f"[yellow]Found {total_missing} missing attachment(s) across {len(missing_counts)} conversation(s)[/yellow]")
+                        console.print(f"[yellow]Report written to:[/yellow] {out / 'missing_attachments_report.json'}")
+                    else:
+                        console.print("[green]All attachment files found on disk[/green]")
+                finally:
+                    conn.close()
+
+        # Compute and emit run report + perf soft floor warning
+        try:
+            from chatx.utils.run_report import write_extract_run_report
+            # Compute simple counters
+            attachments_total = sum(len(m.attachments) for m in messages)
+            elapsed = max((finished_at - started_at).total_seconds(), 0.0)
+            rate = (len(messages) / elapsed * 60.0) if elapsed > 0 else 0.0
+
+            # Artifacts
+            artifacts = [str(out / f"messages_{contact.replace('@', '_at_').replace('+', '_plus_')}.json")]
+            missing_path = out / 'missing_attachments_report.json'
+            if missing_path.exists():
+                artifacts.append(str(missing_path))
+
+            # Optional soft floor warning via env var
+            import os
+            warn_msgs = []
+            soft_floor = os.environ.get("CHATX_SOFT_FLOOR_MSGS_MIN")
+            if soft_floor:
+                try:
+                    floor = float(soft_floor)
+                    if rate < floor:
+                        warn = f"Throughput below soft floor: {rate:.0f} < {floor:.0f} msgs/min"
+                        console.print(f"[yellow]{warn}[/yellow]")
+                        warn_msgs.append(warn)
+                except ValueError:
+                    # Ignore invalid value
+                    pass
+
+            report_path = write_extract_run_report(
+                out_dir=out,
+                started_at=started_at,
+                finished_at=finished_at,
+                messages_total=len(messages),
+                attachments_total=attachments_total,
+                throughput_msgs_min=rate,
+                artifacts=artifacts,
+                warnings=warn_msgs,
+            )
+            console.print(f"[blue]Run report written to:[/blue] {report_path}")
+        except Exception:
+            # Do not fail extraction if metrics writing fails
+            pass
+        
+    except Exception as e:
+        console.print(f"[bold red]Error during extraction:[/bold red] {e}")
+        raise typer.Exit(1)
 
 
 @app.command()

@@ -34,6 +34,10 @@ if strict:
     assert cov>=0.999, "Strict coverage {} < 0.999".format(cov)
 print("Coverage OK:", cov, "strict:", strict)
 PY
+      - name: Missing attachments report schema
+        run: |
+          test -f ./out/missing_attachments.json
+          jsonschema -i ./out/missing_attachments.json ./schemas/missing_attachments_report.schema.json
       - name: Enrichment (hybrid smoke)
         run: |
           chatx enrich messages --contact "fixture" --backend hybrid --tau 0.7 --context 2 --max-out 800 --dry-run || true
@@ -76,6 +80,7 @@ PY
           name: arch-gates-artifacts
           path: |
             ./out/redaction_report.json
+            ./out/missing_attachments.json
             ./out/enrich/
             ./out/reports/
             ./out/validation.json

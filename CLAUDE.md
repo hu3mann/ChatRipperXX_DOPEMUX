@@ -1,10 +1,9 @@
-@README_PROJECT.md
-@ARCHITECTURE.md
-@INTERFACES.md
-@ACCEPTANCE_CRITERIA.md
-@TEST_STRATEGY.md
-@CI_ARCHITECTURE_GATES.md
-@NON_FUNCTIONAL.md
+@docs/README.md
+@docs/architecture.md
+@docs/interfaces.md
+@docs/acceptance-criteria.md
+@docs/development/test-strategy.md
+@docs/operations/non-functional-requirements.md
 
 # CLAUDE.md — ChatX/ChatRipper + MCP Playbook
 Status: Draft | Owner: <TBD> | Last Updated: 2025-09-02
@@ -13,6 +12,15 @@ Status: Draft | Owner: <TBD> | Last Updated: 2025-09-02
 Make Claude Code produce **small, correct patches** that build and pass on the first run, while leveraging **Model Context Protocol (MCP)** servers for persistent memory, context injection, search, and integrations. This file is auto-loaded as project memory at session start; the `@…` imports above bring key specs into context without copy-pasting.
 
 ---
+
+MCP: Open User Configuration
+User = default_user
+
+1. On every interaction, retrieve all relevant memory.
+2. When new facts show up, store them (identity, behavior, preferences, goals, relationships).
+3. Use the “memory” server to persist; use “sequentialthinking” when multi‑step reasoning is needed.
+4. Keep queries concise and sexy as hell.
+
 
 ## 0) Session bootstrap (Claude, do this first)
 1. **Summarize the task** in ≤5 bullets and list impacted files.
@@ -24,8 +32,8 @@ Make Claude Code produce **small, correct patches** that build and pass on the f
 
 ---
 
-## 1) MCP servers & tools (what’s available)
-MCP provides a standard “USB-C for AI” to connect tools and data sources. Claude Code can add servers from JSON and use them in sessions.
+## 1) MCP servers & tools (what's available)
+MCP provides a standard "USB-C for AI" to connect tools and data sources. Claude Code can add servers from JSON and use them in sessions.
 
 **Categories & examples (installed via `scripts/setup_mcp_servers.sh`):**
 - **Persistence**
@@ -77,7 +85,7 @@ Use project settings + hooks to control tools. Inspect and tweak permissions in 
 
 ---
 
-## 5) TDD loop (what “good” looks like)
+## 5) TDD loop (what "good" looks like)
 1) Read **AC** + **Interfaces** (already imported above).  
 2) Generate failing tests (unit + schema validation + **RFC-7807** negative paths).  
 3) Local checks:
