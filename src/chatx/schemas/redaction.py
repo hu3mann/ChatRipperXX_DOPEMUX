@@ -40,6 +40,14 @@ class RedactionReport(BaseModel):
         default_factory=list,
         description="Additional notes about the redaction process"
     )
+    threat_detections: dict[str, int] = Field(
+        default_factory=dict,
+        description="Threat detection statistics by threat level (safe/suspicious/probable/confirmed)"
+    )
+    advanced_analysis_used: bool = Field(
+        default=False,
+        description="Whether ML-enhanced threat analysis was used"
+    )
 
 
 class PolicyRule(BaseModel):

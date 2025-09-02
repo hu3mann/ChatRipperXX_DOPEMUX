@@ -7,3 +7,4 @@ Managed by Commitizen/semantic release.
 - Docs: Aligned default chunking to `turns:40, stride:10` (ADR‑0002); updated Interfaces, NFRs, and Developer Guide.
 - Docs: Added ADR‑0003 (Local Transcription Engine) and ADR‑0004 (iMessage Acquisition UX: USB & iCloud).
 - iMessage: Documented `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing`; added missing attachments report semantics.
+- iMessage: Added MobileSync backup mode — stage sms.db via Manifest.db, resolve/copy attachments by fileID, and enable transcription from backup without copying; updated Developer Guide and How‑To.

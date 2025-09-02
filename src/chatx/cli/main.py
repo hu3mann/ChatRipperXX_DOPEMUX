@@ -302,6 +302,26 @@ def redact(
         tokenizer_stats = shield.get_tokenizer_stats()
         console.print(f"[blue]Tokenizer stats:[/blue] {tokenizer_stats['total_tokens']} unique tokens")
         
+        # Show threat detection statistics
+        threat_stats = shield.get_threat_detection_stats()
+        if threat_stats.get("advanced_detection_enabled"):
+            detector_stats = threat_stats.get("detector_stats", {})
+            total_analyzed = detector_stats.get("total_analyzed", 0)
+            threats_detected = detector_stats.get("threats_detected", 0)
+            
+            if total_analyzed > 0:
+                console.print(f"[blue]Advanced threat detection:[/blue] {threats_detected}/{total_analyzed} threats detected")
+                
+                # Show threat level breakdown
+                by_level = detector_stats.get("by_level", {})
+                if any(count > 0 for count in by_level.values()):
+                    level_summary = ", ".join(f"{level}: {count}" for level, count in by_level.items() if count > 0)
+                    console.print(f"[blue]Threat levels:[/blue] {level_summary}")
+            
+            console.print(f"[green]✓ Enhanced ML threat detection active[/green]")
+        else:
+            console.print(f"[yellow]Pattern-based threat detection only[/yellow]")
+        
         # Run preflight check if requested
         if preflight:
             console.print("[blue]Running preflight check for cloud readiness...[/blue]")
@@ -751,6 +771,275 @@ def analyze(
 
     # TODO: Implement analysis logic
     console.print("[yellow]Analysis not yet implemented[/yellow]")
+
+
+@app.command()
+def benchmark(
+    model: str = typer.Option(
+        "gemma2:9b-instruct-q4_K_M", "--model", help="Ollama model to benchmark"
+    ),
+    duration: int = typer.Option(60, "--duration", help="Benchmark duration in seconds"),
+    output_dir: Path = typer.Option(Path("./benchmarks"), "--output", "-o", help="Output directory"),
+    sample_size: int = typer.Option(50, "--sample-size", help="Number of sample prompts to use"),
+    concurrent_max: int = typer.Option(8, "--max-concurrent", help="Maximum concurrent requests to test"),
+    run_all: bool = typer.Option(False, "--run-all", help="Benchmark all available model variants"),
+    adaptive_test: bool = typer.Option(False, "--adaptive", help="Run adaptive optimization test"),
+) -> None:
+    """Benchmark local model performance and generate optimization recommendations.
+    
+    Examples:
+        chatx benchmark --model gemma2:9b-instruct-q4_K_M --duration 120
+        chatx benchmark --run-all --duration 60 --output ./perf_results
+        chatx benchmark --adaptive --duration 300  # 5-minute adaptive test
+    """
+    import asyncio
+    from datetime import datetime
+    from chatx.enrichment.ollama_client import ProductionOllamaClient, OllamaModelConfig
+    from chatx.enrichment.performance_optimizer import ModelBenchmarker, AdaptiveOptimizer
+    
+    console.print(f"[bold green]Starting performance benchmark[/bold green]")
+    
+    # Create output directory
+    output_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Sample prompts for benchmarking
+    sample_prompts = [
+        "Analyze the emotional tone of this conversation and provide structured feedback.",
+        "Categorize this message by speech act and determine the sender's intent.",
+        "Evaluate the relationship dynamics shown in this chat exchange.",
+        "Identify any boundary-setting or boundary-testing behaviors in this interaction.",
+        "Assess the communication style and emotional intelligence demonstrated here.",
+        "Determine if this message shows support-seeking or support-offering behavior.",
+        "Analyze the conflict resolution approach used in this conversation.",
+        "Evaluate the authenticity and directness of the communication style.",
+        "Identify patterns of emotional regulation or dysregulation in these messages.",
+        "Assess the level of intimacy and vulnerability expressed in this exchange.",
+    ] * (sample_size // 10 + 1)  # Repeat to reach sample_size
+    sample_prompts = sample_prompts[:sample_size]
+    
+    async def run_benchmarks():
+        # Initialize benchmarker
+        benchmarker = ModelBenchmarker(cache_dir=output_dir / "cache")
+        
+        if adaptive_test:
+            console.print("[blue]Running adaptive optimization test...[/blue]")
+            
+            # Initialize Ollama client
+            model_config = OllamaModelConfig(
+                name=model,
+                temperature=0.0,
+                seed=42,
+                num_predict=800,
+            )
+            
+            ollama_client = ProductionOllamaClient(
+                max_concurrent=4,  # Start with moderate concurrency
+                timeout=30,
+                model_config=model_config,
+            )
+            
+            # Initialize adaptive optimizer
+            optimizer = AdaptiveOptimizer(ollama_client, monitor_interval=10.0)
+            
+            try:
+                async with ollama_client:
+                    # Start adaptive monitoring
+                    monitor_task = asyncio.create_task(optimizer.start_adaptive_monitoring())
+                    
+                    # Run continuous load for specified duration
+                    console.print(f"[blue]Running adaptive test for {duration} seconds...[/blue]")
+                    
+                    end_time = asyncio.get_event_loop().time() + duration
+                    request_count = 0
+                    
+                    while asyncio.get_event_loop().time() < end_time:
+                        try:
+                            # Generate test load
+                            from chatx.enrichment.models import EnrichmentRequest, BatchEnrichmentRequest
+                            
+                            test_requests = [
+                                EnrichmentRequest(text=sample_prompts[request_count % len(sample_prompts)], 
+                                                msg_id=f"adaptive_test_{request_count}")
+                                for _ in range(4)  # Small batches
+                            ]
+                            
+                            batch_request = BatchEnrichmentRequest(requests=test_requests)
+                            await ollama_client.enrich_batch(batch_request)
+                            
+                            request_count += len(test_requests)
+                            
+                            # Small delay between batches
+                            await asyncio.sleep(1.0)
+                            
+                        except Exception as e:
+                            logger.debug(f"Adaptive test request failed: {e}")
+                            continue
+                    
+                    # Stop monitoring
+                    optimizer.stop_adaptive_monitoring()
+                    monitor_task.cancel()
+                    
+                    # Get results
+                    optimization_report = optimizer.get_optimization_report()
+                    performance_metrics = ollama_client.get_performance_metrics()
+                    
+                    # Save adaptive test results
+                    adaptive_results = {
+                        "test_type": "adaptive_optimization",
+                        "model": model,
+                        "duration_seconds": duration,
+                        "total_requests": request_count,
+                        "final_performance": performance_metrics,
+                        "optimization_report": optimization_report,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                    
+                    results_file = output_dir / f"adaptive_test_{timestamp}.json"
+                    with open(results_file, 'w') as f:
+                        json.dump(adaptive_results, f, indent=2)
+                    
+                    console.print(f"[bold green]Adaptive test complete![/bold green]")
+                    console.print(f"[blue]Total requests processed:[/blue] {request_count}")
+                    console.print(f"[blue]Final throughput:[/blue] {performance_metrics.get('throughput_requests_per_second', 0):.1f} msg/s")
+                    console.print(f"[blue]Final concurrent requests:[/blue] {optimization_report['current_config']['max_concurrent']}")
+                    console.print(f"[blue]Total optimizations applied:[/blue] {optimization_report['summary']['total_optimizations']}")
+                    console.print(f"[green]Results saved to:[/green] {results_file}")
+                    
+                    return
+            
+            except Exception as e:
+                console.print(f"[bold red]Adaptive test failed:[/bold red] {e}")
+                raise typer.Exit(1)
+        
+        else:
+            # Standard benchmark
+            console.print(f"[blue]Benchmarking model:[/blue] {model}")
+            console.print(f"[blue]Duration:[/blue] {duration} seconds per configuration")
+            console.print(f"[blue]Sample prompts:[/blue] {len(sample_prompts)}")
+            
+            # Initialize Ollama client
+            model_config = OllamaModelConfig(
+                name=model,
+                temperature=0.0,
+                seed=42,
+                num_predict=800,
+            )
+            
+            ollama_client = ProductionOllamaClient(
+                max_concurrent=4,
+                timeout=30,
+                model_config=model_config,
+            )
+            
+            all_benchmarks = []
+            
+            try:
+                async with ollama_client:
+                    if run_all:
+                        # Test all configured models
+                        for config in benchmarker.benchmark_configs:
+                            console.print(f"[blue]Testing {config['model']}...[/blue]")
+                            benchmarks = await benchmarker.benchmark_model_config(
+                                ollama_client=ollama_client,
+                                model_config=config,
+                                sample_prompts=sample_prompts,
+                                duration_seconds=duration
+                            )
+                            all_benchmarks.extend(benchmarks)
+                    else:
+                        # Test single model with various configurations
+                        test_config = {
+                            "model": model,
+                            "quantization": "Q4_K_M",  # Infer from model name
+                            "context_window": 4096,
+                            "batch_sizes": [1, 2, 4, 8],
+                            "concurrent_requests": [2, 4, 6, min(8, concurrent_max)],
+                        }
+                        
+                        benchmarks = await benchmarker.benchmark_model_config(
+                            ollama_client=ollama_client,
+                            model_config=test_config,
+                            sample_prompts=sample_prompts,
+                            duration_seconds=duration
+                        )
+                        all_benchmarks.extend(benchmarks)
+                    
+                    # Analyze results and generate recommendations
+                    optimal_config, recommendations = benchmarker.find_optimal_configuration(
+                        all_benchmarks, 
+                        prioritize="balanced"
+                    )
+                    
+                    # Display results
+                    console.print(f"[bold green]Benchmark complete![/bold green]")
+                    console.print(f"[blue]Total configurations tested:[/blue] {len(all_benchmarks)}")
+                    
+                    if optimal_config:
+                        console.print(f"[bold green]Optimal Configuration Found:[/bold green]")
+                        console.print(f"[green]  Model:[/green] {optimal_config.model_name}")
+                        console.print(f"[green]  Batch size:[/green] {optimal_config.batch_size}")
+                        console.print(f"[green]  Concurrent requests:[/green] {optimal_config.concurrent_requests}")
+                        console.print(f"[green]  Throughput:[/green] {optimal_config.throughput_msgs_per_second:.1f} msg/s")
+                        console.print(f"[green]  P95 latency:[/green] {optimal_config.p95_latency_ms:.1f}ms")
+                        console.print(f"[green]  Schema validation:[/green] {optimal_config.schema_validation_rate:.1%}")
+                        
+                        if optimal_config.meets_nfr_targets:
+                            console.print(f"[green]✓ Meets all NFR targets[/green]")
+                        else:
+                            console.print(f"[yellow]⚠ Does not meet all NFR targets[/yellow]")
+                    else:
+                        console.print(f"[red]No configuration met NFR targets[/red]")
+                    
+                    # Show recommendations
+                    if recommendations:
+                        console.print(f"\n[bold blue]Optimization Recommendations:[/bold blue]")
+                        for i, rec in enumerate(recommendations[:5], 1):  # Show top 5
+                            priority_color = {"critical": "red", "high": "yellow", "medium": "blue", "low": "dim"}.get(rec.priority, "white")
+                            console.print(f"[{priority_color}]{i}. [{rec.priority.upper()}][/{priority_color}] {rec.recommendation}")
+                            console.print(f"   [dim]Expected: {rec.expected_improvement} (effort: {rec.implementation_effort})[/dim]")
+                    
+                    # Save comprehensive results
+                    results = {
+                        "benchmark_summary": {
+                            "model_tested": model,
+                            "total_configurations": len(all_benchmarks),
+                            "duration_per_config": duration,
+                            "timestamp": datetime.now().isoformat(),
+                        },
+                        "optimal_configuration": asdict(optimal_config) if optimal_config else None,
+                        "all_benchmarks": [asdict(b) for b in all_benchmarks],
+                        "recommendations": [asdict(r) for r in recommendations],
+                        "system_info": benchmarker.get_system_info(),
+                    }
+                    
+                    results_file = output_dir / f"benchmark_results_{timestamp}.json"
+                    with open(results_file, 'w') as f:
+                        json.dump(results, f, indent=2)
+                    
+                    console.print(f"[green]Detailed results saved to:[/green] {results_file}")
+                    
+                    # Show NFR compliance summary
+                    nfr_compliant = [b for b in all_benchmarks if b.meets_nfr_targets]
+                    console.print(f"[blue]NFR compliance:[/blue] {len(nfr_compliant)}/{len(all_benchmarks)} configurations")
+                    
+                    if nfr_compliant:
+                        best_throughput = max(nfr_compliant, key=lambda b: b.throughput_msgs_per_second)
+                        console.print(f"[blue]Best compliant throughput:[/blue] {best_throughput.throughput_msgs_per_second:.1f} msg/s")
+            
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Benchmark interrupted by user[/yellow]")
+                raise typer.Exit(1)
+            except Exception as e:
+                console.print(f"[bold red]Benchmark failed:[/bold red] {e}")
+                raise typer.Exit(1)
+    
+    # Run the async benchmark
+    try:
+        asyncio.run(run_benchmarks())
+    except Exception as e:
+        console.print(f"[bold red]Error running benchmarks:[/bold red] {e}")
+        raise typer.Exit(1)
 
 
 # iMessage Commands
@@ -1225,4 +1514,118 @@ def imessage_pdf(
         raise typer.Exit(1)
     except Exception as e:
         console.print(f"[bold red]Error during extraction:[/bold red] {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def query(
+    question: str = typer.Argument(..., help="Question to ask about the conversation"),
+    contact: str = typer.Option(..., "--contact", help="Contact identifier to query"),
+    k: int = typer.Option(10, "--k", help="Number of chunks to retrieve", show_default=True),
+    since: str | None = typer.Option(None, "--since", help="Start date filter (YYYY-MM-DD)"),
+    until: str | None = typer.Option(None, "--until", help="End date filter (YYYY-MM-DD)"),
+    labels_any: str | None = typer.Option(None, "--labels-any", help="Comma-separated labels (OR filter)"),
+    labels_not: str | None = typer.Option(None, "--labels-not", help="Comma-separated labels to exclude"),
+    platform: str | None = typer.Option(None, "--platform", help="Platform filter (imessage, instagram, etc.)"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Output file for response JSON"),
+    model: str = typer.Option("gemma2:9b-instruct-q4_K_M", "--model", help="Ollama model to use"),
+    temperature: float = typer.Option(0.3, "--temperature", help="LLM temperature (0.0-1.0)"),
+    max_output_tokens: int = typer.Option(800, "--max-tokens", help="Maximum output tokens"),
+    allow_cloud: bool = typer.Option(False, "--allow-cloud", help="Allow cloud LLM usage (requires redaction)"),
+    verbose_citations: bool = typer.Option(False, "--verbose-citations", help="Show detailed citations"),
+) -> None:
+    """Query conversations using RAG (Retrieval-Augmented Generation) with citations.
+    
+    Examples:
+      chatx query "What did we discuss about the project?" --contact "friend@example.com"
+      chatx query "How did our relationship change over time?" --contact "CN_abc123" --since "2024-01-01"
+      chatx query "What were the main topics?" --contact "CN_abc123" --labels-any "work,project"
+    """
+    from chatx.query.rag_engine import RAGEngine, QueryConfig
+    from chatx.indexing.vector_store import ChromaDBVectorStore, IndexingConfig
+    
+    console.print(f"[bold green]Processing query:[/bold green] {question}")
+    console.print(f"[blue]Contact:[/blue] {contact}")
+    
+    # Build filters
+    filters = {}
+    if since:
+        filters["since"] = since
+    if until:
+        filters["until"] = until
+    if labels_any:
+        filters["labels_any"] = [label.strip() for label in labels_any.split(",")]
+    if labels_not:
+        filters["labels_not"] = [label.strip() for label in labels_not.split(",")]
+    if platform:
+        filters["platform"] = platform
+    
+    if filters:
+        console.print(f"[blue]Filters:[/blue] {filters}")
+    
+    try:
+        # Initialize RAG components
+        indexing_config = IndexingConfig(persist_directory="./.chroma_db")
+        vector_store = ChromaDBVectorStore(indexing_config)
+        
+        query_config = QueryConfig(
+            k=k,
+            model_name=model,
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            allow_cloud=allow_cloud,
+        )
+        
+        with vector_store:
+            rag_engine = RAGEngine(vector_store=vector_store, config=query_config)
+            
+            # Process query
+            response = rag_engine.query(question, contact, filters)
+            
+            # Display results
+            console.print(f"\n[bold green]Answer:[/bold green]")
+            console.print(response.answer)
+            
+            if response.citations:
+                console.print(f"\n[bold blue]Citations ({len(response.citations)}):[/bold blue]")
+                
+                for i, citation in enumerate(response.citations[:5], 1):  # Show top 5
+                    console.print(f"\n[bold]Citation {i}[/bold] (score: {citation.score:.3f})")
+                    
+                    if citation.timestamp:
+                        console.print(f"  [dim]Date: {citation.timestamp.strftime('%Y-%m-%d %H:%M')}[/dim]")
+                    
+                    if citation.platform:
+                        console.print(f"  [dim]Platform: {citation.platform}[/dim]")
+                    
+                    console.print(f"  [dim]Messages: {len(citation.message_ids)}[/dim]")
+                    console.print(f"  {citation.text_snippet}")
+                    
+                    if verbose_citations:
+                        console.print(f"  [dim]Chunk ID: {citation.chunk_id}[/dim]")
+                        console.print(f"  [dim]Message IDs: {citation.message_ids[:3]}{'...' if len(citation.message_ids) > 3 else ''}[/dim]")
+            else:
+                console.print(f"\n[yellow]No citations found[/yellow]")
+            
+            # Display stats
+            console.print(f"\n[dim]Retrieved {response.retrieval_stats.get('retrieved_chunks', 0)} chunks in {response.processing_time_ms:.0f}ms[/dim]")
+            if response.llm_stats:
+                tokens_in = response.llm_stats.get('input_tokens_approx', 0)
+                tokens_out = response.llm_stats.get('output_tokens_approx', 0)
+                console.print(f"[dim]LLM: ~{tokens_in} input + {tokens_out} output tokens[/dim]")
+            
+            # Save response if requested
+            if output:
+                output.parent.mkdir(parents=True, exist_ok=True)
+                with open(output, 'w') as f:
+                    json.dump(response.to_dict(), f, indent=2, default=str)
+                console.print(f"\n[green]Response saved to:[/green] {output}")
+            
+            rag_engine.close()
+            
+    except Exception as e:
+        console.print(f"[bold red]Query failed:[/bold red] {e}")
+        if verbose_citations:  # Use verbose flag for debug info
+            import traceback
+            console.print(f"[dim]{traceback.format_exc()}[/dim]")
         raise typer.Exit(1)

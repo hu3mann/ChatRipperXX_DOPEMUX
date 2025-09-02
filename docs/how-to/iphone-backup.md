@@ -23,3 +23,22 @@ This guide shows how to extract iMessage from a Finder/iTunes backup.
   - `out/missing_attachments.json` (if attachments were included and some are missing)
   - `out/run_report.json`, `out/metrics.jsonl`
 
+### Attachments & Transcription in Backup Mode
+- Attachments in backups are stored as hashed fileIDs. ChatX resolves these via `Manifest.db`.
+- You can transcribe voice notes from the backup without copying binaries:
+  ```bash
+  chatx imessage pull \
+    --contact "+15551234567" \
+    --from-backup "~/Library/Application Support/MobileSync/Backup/<UDID>" \
+    --include-attachments \
+    --transcribe-audio local \
+    --out ./out
+  ```
+- To copy binaries from backup into the workspace with content hashes:
+  ```bash
+  chatx imessage pull \
+    --contact "+15551234567" \
+    --from-backup "~/Library/Application Support/MobileSync/Backup/<UDID>" \
+    --include-attachments --copy-binaries \
+    --out ./out
+  ```

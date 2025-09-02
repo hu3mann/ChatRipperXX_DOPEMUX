@@ -2,8 +2,8 @@
 
 import hashlib
 import re
-from typing import Any, Dict, List, Optional, Pattern, Tuple
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -53,7 +53,7 @@ class PIIPatterns:
     @classmethod
     def luhn_checksum(cls, card_num: str) -> bool:
         """Validate credit card number using Luhn algorithm."""
-        def digits_of(n: str) -> List[int]:
+        def digits_of(n: str) -> list[int]:
             return [int(d) for d in n]
         
         digits = digits_of(card_num.replace(' ', '').replace('-', ''))
@@ -65,7 +65,7 @@ class PIIPatterns:
         return checksum % 10 == 0
     
     @classmethod
-    def detect_pii(cls, text: str, include_names: bool = True) -> List[PIIMatch]:
+    def detect_pii(cls, text: str, include_names: bool = True) -> list[PIIMatch]:
         """Detect PII entities in text.
         
         Args:
@@ -137,7 +137,7 @@ class PIIPatterns:
         return cls._remove_overlapping_matches(matches)
     
     @classmethod
-    def _remove_overlapping_matches(cls, matches: List[PIIMatch]) -> List[PIIMatch]:
+    def _remove_overlapping_matches(cls, matches: list[PIIMatch]) -> list[PIIMatch]:
         """Remove overlapping matches, keeping higher confidence ones."""
         if not matches:
             return matches
@@ -176,7 +176,7 @@ class HardFailDetector:
     }
     
     @classmethod
-    def detect_hard_fail_classes(cls, text: str) -> List[str]:
+    def detect_hard_fail_classes(cls, text: str) -> list[str]:
         """Detect hard-fail content classes.
         
         Args:
@@ -200,14 +200,14 @@ class HardFailDetector:
 class ConsistentTokenizer:
     """Consistent tokenization for pseudonymization."""
     
-    def __init__(self, salt: Optional[str] = None):
+    def __init__(self, salt: str | None = None):
         """Initialize tokenizer.
         
         Args:
             salt: Salt for hashing, generates random if None
         """
         self.salt = salt or self._generate_salt()
-        self.mapping: Dict[str, str] = {}
+        self.mapping: dict[str, str] = {}
     
     def _generate_salt(self) -> str:
         """Generate a random salt."""
@@ -235,7 +235,7 @@ class ConsistentTokenizer:
         
         return self.mapping[cache_key]
     
-    def get_mapping_stats(self) -> Dict[str, Any]:
+    def get_mapping_stats(self) -> dict[str, Any]:
         """Get tokenization statistics."""
         type_counts = {}
         for key in self.mapping:

@@ -28,10 +28,9 @@ def write_messages_with_validation(messages: List[CanonicalMessage], output_path
     bad_count = 0
 
     # Locate schema dir for jsonschema validation
-    schema_dir = output_path.parent.parent / "schemas"
-    if not schema_dir.exists():
-        # Fallback to project root schemas
-        schema_dir = Path(__file__).parent.parent.parent / "schemas"
+    # Prefer repository-root /schemas
+    repo_schemas = Path(__file__).resolve().parent.parent.parent.parent / "schemas"
+    schema_dir = repo_schemas if repo_schemas.exists() else (output_path.parent / "schemas")
 
     for i, msg in enumerate(messages):
         try:

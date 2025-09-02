@@ -48,8 +48,8 @@ This note assesses whether extractors are ready to hand off to transform → red
 
 ## Strong SHOULDs (soon)
 
-- Attributed body normalization
-  - Status: Placeholder texts used; full normalization not implemented. Action: PR-X6.
+- Attributed body / edited text decoding
+  - Status: Implemented (best‑effort) — plist parse with UTF‑8 fallback for `attributedBody` and `message_summary_info`. Add targeted fixtures to harden edge cases. Action: PR‑X6.
 - Conversation index export
   - Status: Missing. Action: small follow-up PR (metadata-only file).
 - Identity pseudo-IDs
@@ -64,4 +64,3 @@ This note assesses whether extractors are ready to hand off to transform → red
 1. Land PR-X1…X5 (and X6 optional) as small, test-first changes.
 2. Re-run extractor on fixtures and small sample; verify schema pass, quarantine presence, manifest+run_report present, perf smoke meets target.
 3. Hand off to transform → redact → index per ADRs.
-
