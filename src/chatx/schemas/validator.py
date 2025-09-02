@@ -36,7 +36,7 @@ def load_schema(schema_name: str) -> Dict[str, Any]:
         raise FileNotFoundError(f"Schema not found: {schema_file}")
     
     with open(schema_file) as f:
-        schema = json.load(f)
+        schema: Dict[str, Any] = json.load(f)
     
     SCHEMA_CACHE[schema_name] = schema
     logger.debug(f"Loaded schema: {schema_name}")

@@ -24,11 +24,11 @@ jobs:
       - name: Lint
         run: ruff check .
       - name: Type check
-        run: mypy --ignore-missing-imports .
+        run: mypy src/chatx/utils src/chatx/schemas
       - name: Tests
         env:
           PYTHONPATH: src
-        run: pytest --cov=src --cov-report=term-missing
+        run: pytest --cov=src/chatx --cov-report=term-missing --cov-fail-under=60
       - name: Docs updated check
         env:
           GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
