@@ -8,7 +8,14 @@ set -euo pipefail
 : "${NOTION_API_KEY:?set NOTION_API_KEY}"
 : "${NOTION_BASE_ID:?set NOTION_BASE_ID}"
 : "${CHROMA_URL:=http://localhost:8000}"
-: "${VECTOR_STORE:=chroma}"
+# Choose which vector memory backend to use for semantic recall. Valid values are "lance" (local LanceDB), "chroma" or "pgvector".
+# When set to "lance" (the default) this script will not install any additional vector memory server because Claude Context uses
+# LanceDB for local vector storage by default.
+: "${VECTOR_STORE:=lance}"
+
+# Path to store the LanceDB vector database when using the local backend. If unset, the default path is "$HOME/.claude-context/lancedb".
+# Only relevant when VECTOR_STORE="lance".
+: "${LANCEDB_PATH:=$HOME/.claude-context/lancedb}"
 : "${CONTEXT7_API_KEY:?set CONTEXT7_API_KEY}"
 
 add_server() {
@@ -75,11 +82,13 @@ add_server kg-memory "{
   \"env\":{}
 }"
 
-add_server vector-memory "{
-  \"type\":\"stdio\",
-  \"command\":\"mcp-vector-store\",
-  \"env\":{\"VECTOR_STORE\":\"${VECTOR_STORE}\",\"CHROMA_URL\":\"${CHROMA_URL}\"}
-}"
+if [[ "$VECTOR_STORE" == "chroma" || "$VECTOR_STORE" == "pgvector" ]]; then
+  add_server vector-memory "{\"type\":\"stdio\",\"command\":\"mcp-vector-store\",\"env\":{\"VECTOR_STORE\":\"${VECTOR_STORE}\",\"CHROMA_URL\":\"${CHROMA_URL}\",\"LANCEDB_PATH\":\"${LANCEDB_PATH}\"}}"
+elif [[ "$VECTOR_STORE" == "lance" ]]; then
+  echo ">>> Using LanceDB for vector memory; no additional MCP server needed."
+else
+  echo ">>> Unknown VECTOR_STORE value '${VECTOR_STORE}'; skipping vector memory MCP server." >&2
+fi
 
 add_server pandoc '{
   "type":"stdio",

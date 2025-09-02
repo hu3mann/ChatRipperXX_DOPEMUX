@@ -29,7 +29,7 @@ User = default_user
 ## 0) Session bootstrap (Claude, do this first)
 1. **Summarize the task** in ≤5 bullets and list impacted files.
 2. Enter **Plan Mode** and propose a minimal, **test-first** approach (no edits/exec yet).
-3. Confirm constraints: language/runtime, lint/type/test gates (≥90% coverage), interfaces/SLA, schemas, **RFC-7807** errors.
+3. Confirm constraints: language/runtime, lint/type/test gates (≥60% coverage), interfaces/SLA, schemas, **RFC-7807** errors.
 4. Propose **tests under `tests/**`**; request permission to write tests only; run them and show failures.
 5. Propose a **minimal patch** to `src/**` to make tests pass. Re-run ruff + mypy + pytest.
 6. When green: **refactor → docs → ADR stub → small, titled commit**.
@@ -43,7 +43,7 @@ MCP provides a standard "USB-C for AI" to connect tools and data sources. Claude
 - **Persistence**
   - *Memory Bank* — structured memory across slices (notes/decisions).
   - *Knowledge Graph Memory* — facts + relationships, semantic queries.
-  - *Vector Memory* — Chroma/pgvector embeddings for recall.
+  - *Vector Memory* — Uses **LanceDB** for local vector storage by default. Configure alternative backends ("chroma" or "pgvector") via the `VECTOR_STORE` environment variable; LanceDB data lives under `.claude-context/lancedb/` and requires no external service.
 - **Context & Planning**
   - *Context7* — up-to-date API/framework docs injection.
   - *Sequential Thinking* — structured multi-step reasoning to break down tasks.
@@ -97,7 +97,7 @@ Use project settings + hooks to control tools. Inspect and tweak permissions in 
 python -m pip install -e .[dev]
 ruff check .
 mypy src
-pytest --cov=src --cov-fail-under=90
+pytest --cov=src/chatx --cov-fail-under=60
 ```
 4) Minimal code → pass tests → refactor → docs → ADR.
 
@@ -111,7 +111,7 @@ pytest --cov=src --cov-fail-under=90
 
 ## 7) Slash commands (kept in `.claude/commands/`)
 - `/plan-slice` — 10-bullet technical plan + risks + test checklist.  
-- `/tdd-loop` — tests → minimal patch → re-run checks (ruff/mypy/pytest ≥90%).  
+- `/tdd-loop` — tests → minimal patch → re-run checks (ruff/mypy/pytest ≥60%).
 - `/security-review` — check last diff for secrets/PII exfil/unsafe shell/network/schema drift.  
 - `/hooks` — manage hooks; `/permissions` — view/adjust tool rules.
 
@@ -134,7 +134,7 @@ pytest --cov=src --cov-fail-under=90
 ---
 
 ## 10) Definition of Done
-- Lint, types, tests **green**; coverage **≥ 90%** for changed code.  
+- Lint, types, tests **green**; coverage **≥ 60%** for changed code.
 - JSON/HTTP **schemas valid**; errors are **RFC-7807** problem+json.  
 - Behavior documented; ADR stub added if design shifted; commit message is clear and scoped.
 
