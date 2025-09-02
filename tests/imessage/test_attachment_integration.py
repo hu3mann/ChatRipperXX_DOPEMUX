@@ -172,7 +172,7 @@ class TestAttachmentIntegration:
         import chatx.imessage.attachments as att_module
         original_copy_func = att_module.copy_attachment_files
         
-        def patched_copy_func(attachments, out_dir):
+        def patched_copy_func(attachments, out_dir, backup_dir=None):
             # Use fake file for testing
             updated_attachments = []
             for att in attachments:

@@ -18,6 +18,7 @@ def extract_messages(
     *,
     include_attachments: bool = False,
     copy_binaries: bool = False,
+    thumbnails: bool = False,
     transcribe_audio: str = "off",
     out_dir: Path,
     backup_dir: Optional[Path] = None,
@@ -54,8 +55,15 @@ def extract_messages(
             # Extract messages for each conversation
             for conv_guid in conv_guids:
                 yield from extract_messages_for_conversation(
-                    conn, conv_guid, str(db_path), include_attachments, copy_binaries,
-                    transcribe_audio, out_dir, backup_dir
+                    conn,
+                    conv_guid,
+                    str(db_path),
+                    include_attachments,
+                    copy_binaries,
+                    thumbnails,
+                    transcribe_audio,
+                    out_dir,
+                    backup_dir,
                 )
                 
         finally:
@@ -64,10 +72,11 @@ def extract_messages(
 
 def extract_messages_for_conversation(
     conn: sqlite3.Connection,
-    conv_guid: str, 
+    conv_guid: str,
     original_db_path: str,
     include_attachments: bool,
     copy_binaries: bool,
+    thumbnails: bool,
     transcribe_audio: str,
     out_dir: Path,
     backup_dir: Optional[Path] = None,
@@ -240,6 +249,7 @@ def extract_messages_for_conversation(
         from chatx.imessage.attachments import (
             extract_attachment_metadata,
             copy_attachment_files,
+            generate_thumbnail_files,
         )
         from chatx.imessage.transcribe import (
             is_audio_attachment,
@@ -254,25 +264,35 @@ def extract_messages_for_conversation(
             # Extract attachment metadata
             attachments = extract_attachment_metadata(conn, message.source_meta["rowid"]) 
             
-            # Copy binary files if requested
-            if copy_binaries and attachments:
-                attachments = copy_attachment_files(attachments, out_dir)
-                # Emit attachment hashes into source_meta for observability/dedupe
-                infos = []
-                for att in attachments:
-                    if att.abs_path:
-                        try:
-                            name = Path(att.abs_path).name
-                            file_hash = name.split("_", 1)[0]
-                            infos.append({
-                                "filename": att.filename,
-                                "hash": file_hash,
-                                "path": att.abs_path,
-                            })
-                        except Exception:
-                            pass
-                if infos:
-                    message.source_meta.setdefault("attachments_info", infos)
+            thumb_paths: dict[str, str] = {}
+            if attachments:
+                if copy_binaries:
+                    attachments = copy_attachment_files(attachments, out_dir, backup_dir)
+                    # Emit attachment hashes into source_meta for observability/dedupe
+                    infos = []
+                    for att in attachments:
+                        if att.abs_path:
+                            try:
+                                name = Path(att.abs_path).name
+                                file_hash = name.split("_", 1)[0]
+                                infos.append(
+                                    {
+                                        "filename": att.filename,
+                                        "hash": file_hash,
+                                        "path": att.abs_path,
+                                    }
+                                )
+                            except Exception:
+                                pass
+                    if infos:
+                        message.source_meta.setdefault("attachments_info", infos)
+
+                if thumbnails:
+                    thumb_paths = generate_thumbnail_files(attachments, out_dir, backup_dir)
+                    if thumb_paths:
+                        message.source_meta.setdefault("image", {})["thumb_path"] = next(
+                            iter(thumb_paths.values())
+                        )
             
             # Process audio transcription if enabled
             if transcribe_audio != "off" and attachments:
