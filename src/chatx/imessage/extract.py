@@ -171,7 +171,7 @@ def extract_messages_for_conversation(
             text=message_text,
             reply_to_msg_id=None,  # Will be set in third pass
             reactions=[],  # Will be populated in second pass
-            attachments=[],  # Will be implemented in PR-3
+            attachments=[],  # Will be populated after message creation
             source_ref=SourceRef(
                 guid=guid or f"msg_{msg_rowid}",
                 path=original_db_path
@@ -213,7 +213,22 @@ def extract_messages_for_conversation(
             target_message = messages_by_guid[reply_to_guid]
             message.reply_to_msg_id = target_message.msg_id
     
-    # Yield all regular messages (now with reactions and replies resolved)
+    # Fourth pass: extract and attach attachment metadata
+    if include_attachments:
+        from chatx.imessage.attachments import extract_attachment_metadata, copy_attachment_files
+        
+        for message, _ in regular_messages:
+            # Extract attachment metadata
+            attachments = extract_attachment_metadata(conn, message.source_meta["rowid"])
+            
+            # Copy binary files if requested
+            if copy_binaries and attachments:
+                attachments = copy_attachment_files(attachments, out_dir)
+            
+            # Add attachments to message
+            message.attachments = attachments
+    
+    # Yield all regular messages (now with reactions, replies, and attachments resolved)
     for message, _ in regular_messages:
         yield message
 
