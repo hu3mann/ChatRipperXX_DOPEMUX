@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
 
@@ -36,12 +36,12 @@ class RedactionReport:
     hardfail_triggered: bool
     messages_total: int
     tokens_redacted: int
-    placeholders: Dict[str, int]
-    coarse_label_counts: Dict[str, int]
-    visibility_leaks: List[str]
-    notes: List[str]
+    placeholders: dict[str, int]
+    coarse_label_counts: dict[str, int]
+    visibility_leaks: list[str]
+    notes: list[str]
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
@@ -81,11 +81,11 @@ class PolicyShield:
             logger.info(f"Created new salt file: {salt_file}")
             return salt
     
-    def _detect_pii_in_text(self, text: str) -> List[PIIMatch]:
+    def _detect_pii_in_text(self, text: str) -> list[PIIMatch]:
         """Detect PII entities in text."""
         return self.pii_detector.detect_pii(text, include_names=self.policy.detect_names)
     
-    def _redact_text(self, text: str) -> Tuple[str, List[PIIMatch], int]:
+    def _redact_text(self, text: str) -> tuple[str, list[PIIMatch], int]:
         """Redact PII from text.
         
         Args:
@@ -123,7 +123,7 @@ class PolicyShield:
         
         return redacted_text, pii_matches, tokens_redacted
     
-    def _calculate_coverage(self, original_text: str, pii_matches: List[PIIMatch]) -> float:
+    def _calculate_coverage(self, original_text: str, pii_matches: list[PIIMatch]) -> float:
         """Calculate redaction coverage.
         
         Args:
@@ -145,7 +145,7 @@ class PolicyShield:
         
         return coverage
     
-    def _check_hard_fail_classes(self, text: str) -> List[str]:
+    def _check_hard_fail_classes(self, text: str) -> list[str]:
         """Check for hard-fail content classes.
         
         Args:
@@ -156,7 +156,7 @@ class PolicyShield:
         """
         return self.hard_fail_detector.detect_hard_fail_classes(text)
     
-    def redact_chunk_text(self, text: str) -> Tuple[str, Dict[str, Any]]:
+    def redact_chunk_text(self, text: str) -> tuple[str, dict[str, Any]]:
         """Redact text chunk and return metadata.
         
         Args:
@@ -192,7 +192,7 @@ class PolicyShield:
         
         return redacted_text, metadata
     
-    def redact_chunks(self, chunks: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], RedactionReport]:
+    def redact_chunks(self, chunks: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], RedactionReport]:
         """Redact conversation chunks.
         
         Args:
@@ -206,7 +206,7 @@ class PolicyShield:
         redacted_chunks = []
         total_tokens_redacted = 0
         coverage_scores = []
-        placeholder_counts: Dict[str, int] = {}
+        placeholder_counts: dict[str, int] = {}
         hard_fail_triggered = False
         visibility_leaks = []
         notes = []
@@ -299,15 +299,15 @@ class PolicyShield:
         
         logger.info(f"Redaction report saved to: {output_file}")
     
-    def get_tokenizer_stats(self) -> Dict[str, Any]:
+    def get_tokenizer_stats(self) -> dict[str, Any]:
         """Get tokenizer statistics."""
         return self.tokenizer.get_mapping_stats()
     
     def preflight_cloud_check(
-        self, 
-        redacted_chunks: List[Dict[str, Any]], 
+        self,
+        redacted_chunks: list[dict[str, Any]],
         report: RedactionReport
-    ) -> Tuple[bool, List[str]]:
+    ) -> tuple[bool, list[str]]:
         """Preflight check for cloud processing readiness.
         
         Args:

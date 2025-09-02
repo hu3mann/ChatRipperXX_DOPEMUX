@@ -373,7 +373,7 @@ def enrich(
         raise typer.Exit(1)
         
     if backend in ["cloud", "hybrid"] and not allow_cloud:
-        console.print(f"[bold red]Error:[/bold red] Cloud processing requires --allow-cloud flag")
+        console.print("[bold red]Error:[/bold red] Cloud processing requires --allow-cloud flag")
         raise typer.Exit(1)
 
     if backend != "local":
@@ -383,7 +383,7 @@ def enrich(
     try:
         # Validate confidence thresholds
         if not (0.0 <= tau_low <= tau <= tau_high <= 1.0):
-            console.print(f"[bold red]Error:[/bold red] Invalid confidence thresholds")
+            console.print("[bold red]Error:[/bold red] Invalid confidence thresholds")
             console.print("[blue]Must satisfy:[/blue] 0 ≤ tau_low ≤ tau ≤ tau_high ≤ 1")
             raise typer.Exit(1)
         
@@ -408,7 +408,7 @@ def enrich(
         if redacted_count == 0:
             console.print("[yellow]Warning:[/yellow] No redaction metadata found - are these redacted chunks?")
         else:
-            console.print(f"[green]✓ Found redaction metadata in chunks[/green]")
+            console.print("[green]✓ Found redaction metadata in chunks[/green]")
         
         # Configure enrichment
         console.print(f"[blue]Backend:[/blue] {backend}")
@@ -466,7 +466,7 @@ def enrich(
         total_time = (finished_at - started_at).total_seconds()
         
         # Show results
-        console.print(f"[bold green]Enrichment complete![/bold green]")
+        console.print("[bold green]Enrichment complete![/bold green]")
         console.print(f"[bold green]Generated {len(enrichments)} enrichments[/bold green]")
         console.print(f"[bold green]Output saved to:[/bold green] {output_path}")
         console.print(f"[blue]Total processing time:[/blue] {total_time:.2f}s")
@@ -477,9 +477,9 @@ def enrich(
             
             # Check if meets NFR target
             if throughput >= 25.0:
-                console.print(f"[green]✓ Meets ≥25 enrichments/s target[/green]")
+                console.print("[green]✓ Meets ≥25 enrichments/s target[/green]")
             else:
-                console.print(f"[yellow]⚠ Below 25 enrichments/s target[/yellow]")
+                console.print("[yellow]⚠ Below 25 enrichments/s target[/yellow]")
         
         # Get performance report
         performance_report = enricher.get_performance_report()
