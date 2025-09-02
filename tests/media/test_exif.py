@@ -5,6 +5,6 @@ import pytest
 from chatx.media.exif import read_exif
 
 
-def test_read_exif_raises_not_implemented():
-    with pytest.raises(NotImplementedError):
-        read_exif("/dev/null")
+@pytest.mark.xfail(raises=NotImplementedError, strict=True, reason="stub")
+def test_read_exif_unimplemented():
+    read_exif("/dev/null")
