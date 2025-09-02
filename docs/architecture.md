@@ -118,7 +118,7 @@
 
 ### Artifacts
 - `redaction_report.json` — Coverage statistics and validation
-- `missing_attachments.json` — iCloud eviction reporting
+- `missing_attachments_report.json` — iCloud eviction reporting
 - `run_summary.json` — Performance and processing statistics
 
 ---
