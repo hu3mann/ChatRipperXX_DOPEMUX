@@ -580,6 +580,7 @@ def imessage_pull(
     out: Path = typer.Option(Path("./out"), "--out", help="Output directory", show_default=True, metavar="<DIR>", rich_help_panel="Output"),
     include_attachments: bool = typer.Option(False, "--include-attachments", help="Extract attachment metadata", rich_help_panel="Attachments"),
     copy_binaries: bool = typer.Option(False, "--copy-binaries", help="Copy attachment files to output", rich_help_panel="Attachments"),
+    thumbnails: bool = typer.Option(False, "--thumbnails", help="Generate thumbnails for image attachments", rich_help_panel="Attachments"),
     transcribe_audio: str = typer.Option(
         "off",
         "--transcribe-audio",
@@ -668,6 +669,7 @@ def imessage_pull(
                     contact=contact,
                     include_attachments=include_attachments,
                     copy_binaries=copy_binaries,
+                    thumbnails=thumbnails,
                     transcribe_audio=transcribe_audio,
                     out_dir=out,
                     backup_dir=from_backup,
@@ -678,6 +680,7 @@ def imessage_pull(
                 contact=contact,
                 include_attachments=include_attachments,
                 copy_binaries=copy_binaries,
+                thumbnails=thumbnails,
                 transcribe_audio=transcribe_audio,
                 out_dir=out,
             ))

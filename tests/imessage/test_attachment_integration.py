@@ -179,8 +179,9 @@ class TestAttachmentIntegration:
         # Temporarily patch the attachments directory
         import chatx.imessage.attachments as att_module
         original_copy_func = att_module.copy_attachment_files
-        
+     
         def patched_copy_func(attachments, out_dir, backup_dir=None, *, dedupe_map=None):
+
             updated_attachments = []
             for att in attachments:
                 if att.filename == "photo.jpg":

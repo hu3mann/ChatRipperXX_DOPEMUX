@@ -18,6 +18,7 @@ def extract_messages(
     *,
     include_attachments: bool = False,
     copy_binaries: bool = False,
+    thumbnails: bool = False,
     transcribe_audio: str = "off",
     out_dir: Path,
     backup_dir: Optional[Path] = None,
@@ -54,8 +55,15 @@ def extract_messages(
             # Extract messages for each conversation
             for conv_guid in conv_guids:
                 yield from extract_messages_for_conversation(
-                    conn, conv_guid, str(db_path), include_attachments, copy_binaries,
-                    transcribe_audio, out_dir, backup_dir
+                    conn,
+                    conv_guid,
+                    str(db_path),
+                    include_attachments,
+                    copy_binaries,
+                    thumbnails,
+                    transcribe_audio,
+                    out_dir,
+                    backup_dir,
                 )
                 
         finally:
@@ -64,10 +72,11 @@ def extract_messages(
 
 def extract_messages_for_conversation(
     conn: sqlite3.Connection,
-    conv_guid: str, 
+    conv_guid: str,
     original_db_path: str,
     include_attachments: bool,
     copy_binaries: bool,
+    thumbnails: bool,
     transcribe_audio: str,
     out_dir: Path,
     backup_dir: Optional[Path] = None,
@@ -240,6 +249,7 @@ def extract_messages_for_conversation(
         from chatx.imessage.attachments import (
             extract_attachment_metadata,
             copy_attachment_files,
+            generate_thumbnail_files,
         )
         from chatx.imessage.transcribe import (
             is_audio_attachment,

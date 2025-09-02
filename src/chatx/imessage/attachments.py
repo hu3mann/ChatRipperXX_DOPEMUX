@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple
 
 from chatx.media.hash import sha256_stream
 from chatx.schemas.message import Attachment
+from chatx.media.thumbnail import generate_thumbnail
 
 # UTI to attachment type mapping (Apple Uniform Type Identifiers)
 UTI_TYPE_MAP: Dict[str, str] = {
@@ -84,6 +85,45 @@ MIME_TYPE_MAP: Dict[str, str] = {
     "application/zip": "file",
     "application/x-tar": "file",
 }
+
+
+def _find_attachment_source(
+    attachment: Attachment, backup_dir: Optional[Path] = None
+) -> Optional[Path]:
+    """Locate the source file for an attachment if present."""
+    attachments_dir = Path.home() / "Library" / "Messages" / "Attachments"
+
+    source_path: Optional[Path] = None
+    if attachment.abs_path:
+        candidate = Path(attachment.abs_path)
+        if candidate.exists():
+            return candidate
+
+    if attachment.filename:
+        # Try backup resolution
+        if backup_dir:
+            try:
+                rel = _relative_sms_attachments_path(attachment.filename)
+                if rel:
+                    from chatx.imessage.backup import resolve_backup_file
+
+                    source_path = resolve_backup_file(backup_dir, "HomeDomain", rel)
+            except Exception:
+                source_path = None
+
+        # Fallback to local paths
+        if source_path is None:
+            potential = [
+                attachments_dir / attachment.filename,
+                attachments_dir / "Attachments" / attachment.filename,
+                Path(attachment.filename),
+            ]
+            for path in potential:
+                if path.exists():
+                    source_path = path
+                    break
+
+    return source_path
 
 
 def determine_attachment_type(uti: Optional[str], mime_type: Optional[str], filename: Optional[str]) -> str:
@@ -202,32 +242,9 @@ def copy_attachment_files(
     dedupe: Dict[str, str] = dedupe_map or {}
 
     for attachment in attachments:
-        # Try to find source file
-        source_path = None
-        if attachment.filename:
-            # If a MobileSync backup is provided, attempt to resolve via Manifest.db
-            if backup_dir:
-                try:
-                    # Normalize to relative path under Library/SMS/Attachments
-                    rel = _relative_sms_attachments_path(attachment.filename)
-                    if rel:
-                        # Lazy import to avoid cycles
-                        from chatx.imessage.backup import resolve_backup_file
-                        source_path = resolve_backup_file(backup_dir, "HomeDomain", rel)
-                except Exception:
-                    source_path = None
-            # Fallback to local macOS attachments path
-            if source_path is None:
-                potential_paths = [
-                    attachments_dir / attachment.filename,
-                    attachments_dir / "Attachments" / attachment.filename,  # Nested structure
-                    Path(attachment.filename)  # Absolute path case
-                ]
-                for path in potential_paths:
-                    if path.exists():
-                        source_path = path
-                        break
-        
+        # Resolve source file location
+        source_path = _find_attachment_source(attachment, backup_dir)
+
         # Copy file if found
         if source_path and source_path.exists():
             try:
@@ -278,6 +295,41 @@ def _relative_sms_attachments_path(filename: str) -> Optional[str]:
     except Exception:
         return None
     return None
+
+
+def generate_thumbnail_files(
+    attachments: List[Attachment],
+    out_dir: Path,
+    backup_dir: Optional[Path] = None,
+) -> Dict[str, str]:
+    """Generate thumbnails for image attachments.
+
+    Returns mapping of attachment filenames to thumbnail paths."""
+
+    thumb_paths: Dict[str, str] = {}
+
+    for attachment in attachments:
+        if attachment.type != "image":
+            continue
+
+        source_path = _find_attachment_source(attachment, backup_dir)
+        if not source_path or not source_path.exists():
+            continue
+
+        file_hash = compute_file_hash(source_path)
+        thumb_dir = out_dir / "thumbnails" / file_hash[:2]
+        thumb_path = thumb_dir / f"{file_hash}.jpg"
+
+        if not thumb_path.exists():
+            try:
+                generate_thumbnail(source_path, thumb_path)
+            except Exception:
+                continue
+
+        if attachment.filename is not None:
+            thumb_paths[attachment.filename] = str(thumb_path)
+
+    return thumb_paths
 
 
 def compute_file_hash(file_path: Path) -> str:
