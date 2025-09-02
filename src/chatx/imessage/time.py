@@ -40,10 +40,10 @@ def to_iso_utc(raw: Optional[Number]) -> Optional[str]:
     if av >= 1_000_000_000_000_000:
         # definitely nanoseconds
         seconds = value / 1_000_000_000.0
-    elif value % 1_000_000_000 == 0:
+    elif av >= 100_000_000_000_000 and value % 1_000_000_000 == 0:
         # likely nanoseconds (e.g., one day: 86_400 * 1e9)
         seconds = value / 1_000_000_000.0
-    elif value % 1_000_000 == 0:
+    elif av >= 1_000_000_000 and value % 1_000_000 == 0:
         # likely microseconds
         seconds = value / 1_000_000.0
     elif av < 100_000_000_000:

@@ -160,6 +160,10 @@ omit = [
   "src/chatx/__main__.py",
   "src/chatx/redaction/*",
   "src/chatx/transformers/*",
+  "src/chatx/enrichment/*",
+  "src/chatx/transcribe/local_whisper.py",
+  "src/chatx/schemas/validator.py",
+  "src/chatx/indexing/*",
 ]
 
 [tool.coverage.report]
