@@ -1,5 +1,5 @@
 Title: iMessage Extractor Spec
-Status: Draft | Owner: XtractXact | Last Updated: 2025-09-01 PT
+Status: Draft | Owner: XtractXact | Last Updated: 2025-09-02 PT
 
 ## Context
 
@@ -61,7 +61,7 @@ Status: Draft | Owner: XtractXact | Last Updated: 2025-09-01 PT
 chatx imessage pull --contact "<phone|email|name>" \
   [--db ~/Library/Messages/chat.db] \
   [--include-attachments] [--copy-binaries] \
-  [--transcribe-audio local|off] \
+  [--transcribe-audio local|off] [--report-missing|--no-report-missing] \
   [--out ./out]
 ```
 

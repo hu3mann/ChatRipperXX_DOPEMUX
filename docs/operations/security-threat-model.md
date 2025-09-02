@@ -1,6 +1,6 @@
 Security & Threat Model (STRIDE-lite)
 
-Status: Draft | Owner: You | Last Updated: 2025-08-26 PT
+Status: Draft | Owner: You | Last Updated: 2025-09-02 PT
 
 Data Boundaries
 	•	Local-only: raw text, attachments, fine labels, salt, source_meta, logs with raw fields (guarded).

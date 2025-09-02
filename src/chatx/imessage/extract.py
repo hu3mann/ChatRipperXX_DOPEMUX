@@ -238,11 +238,27 @@ def extract_messages_for_conversation(
         
         for message, _ in regular_messages:
             # Extract attachment metadata
-            attachments = extract_attachment_metadata(conn, message.source_meta["rowid"])
+            attachments = extract_attachment_metadata(conn, message.source_meta["rowid"]) 
             
             # Copy binary files if requested
             if copy_binaries and attachments:
                 attachments = copy_attachment_files(attachments, out_dir)
+                # Emit attachment hashes into source_meta for observability/dedupe
+                infos = []
+                for att in attachments:
+                    if att.abs_path:
+                        try:
+                            name = Path(att.abs_path).name
+                            file_hash = name.split("_", 1)[0]
+                            infos.append({
+                                "filename": att.filename,
+                                "hash": file_hash,
+                                "path": att.abs_path,
+                            })
+                        except Exception:
+                            pass
+                if infos:
+                    message.source_meta.setdefault("attachments_info", infos)
             
             # Process audio transcription if enabled
             if transcribe_audio != "off" and attachments:

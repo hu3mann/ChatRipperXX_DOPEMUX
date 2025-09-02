@@ -234,7 +234,7 @@ SLAs & Limits
 - Default LLM output tokens ≤800; context packing ±2 turns.
 - Observability: structured logs and artifacts (e.g., `redaction_report.json`); echo `X-Request-Id` if provided.
 - Gate defaults: τ=0.7; hysteresis τ_low=0.62, τ_high=0.78 (reduce thrash).
-- Default chunking: turns:20, stride:10 for dense chats; use daily for sparse days.
+- Default chunking: turns:40, stride:10 for dense chats; use daily for sparse days.
 - Redaction coverage threshold: ≥0.995 (≥0.999 with --strict); hard-fail classes block cloud.
 
 Change Log (since 2025-08-15)

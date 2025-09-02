@@ -9,7 +9,7 @@ Status: Draft | Owner: You | Last Updated: 2025-09-02 PT
 * Output layout & retention: Set workspace layout for `out/attachments/**`, hashing strategy, and default retention policy.
 * Detector thresholds: What SHOULD the default detector thresholds be for each coarse label family (conservative vs balanced)? Capture as config + unit tests.
 * Episode hysteresis: SHOULD episode start/stop rules vary by platform (iMessage vs Instagram vs WhatsApp)? Define per-source defaults.
-* Default chunking: SHOULD we default to chunks of ±40 turns or daily windows per density? Confirm and codify.
+* Default chunking: Resolved in ADR-0002 — default is `turns:40, stride:10` for dense chats; daily windows for sparse periods.
 * Local model default & quantization: PROPOSE `gemma2:9b` (IT) at 4-bit; CONFIRM as the project default and pin build hashes.
 * NUANCE_LEVEL default: CONFIRM `balanced` as the default for cloud prompting.
 
