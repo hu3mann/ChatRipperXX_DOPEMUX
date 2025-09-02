@@ -35,6 +35,9 @@ chatx imessage pull --contact "+15551234567" --from-backup "~/Library/Applicatio
 # Extract Instagram DMs for a single user (required)
 chatx instagram pull --zip ./instagram.zip --user "Your Name" --out ./out
 
+# Audit iMessage DB for missing local attachments (report-only)
+chatx imessage audit --db ~/Library/Messages/chat.db --out ./out
+
 # Run full pipeline with privacy redaction
 chatx pipeline ~/Library/Messages/chat.db ./output --provider local
 

@@ -461,6 +461,61 @@ def instagram_pull(
         console.print(f"[bold red]Error:[/bold red] ZIP file not found: {zip}")
         raise typer.Exit(1)
 
+
+# iMessage audit command (report-only)
+@imessage_app.command("audit")
+def imessage_audit(
+    db: Path = typer.Option(
+        Path.home() / "Library/Messages/chat.db",
+        "--db",
+        help="Path to Messages database",
+    ),
+    out: Path = typer.Option(Path("./out"), "--out", help="Output directory"),
+    contact: str | None = typer.Option(None, "--contact", help="Optional contact filter"),
+) -> None:
+    """Scan the database for missing/evicted attachment files and produce a guidance report.
+
+    This does not attempt any automation. Exit status is 0 even when missing files are found.
+    """
+    from chatx.imessage.db import copy_db_for_readonly, open_ro
+    from chatx.imessage.report import generate_missing_attachments_report
+    from chatx.imessage.backup import canonical_mobilesync_hint
+
+    console.print("[bold green]Auditing iMessage attachments...[/bold green]")
+    console.print(f"[blue]Database:[/blue] {db}")
+    console.print(f"[blue]Output:[/blue] {out}")
+
+    out.mkdir(parents=True, exist_ok=True)
+
+    if not db.exists():
+        console.print(f"[bold red]Database not found:[/bold red] {db}")
+        console.print("[yellow]Tip:[/yellow] Grant Full Disk Access to your terminal in System Settings > Privacy & Security")
+        console.print(f"[yellow]Hint (iPhone backups):[/yellow] {canonical_mobilesync_hint()}")
+        raise typer.Exit(1)
+
+    # Always exit 0 after report generation
+    try:
+        with copy_db_for_readonly(db) as temp_db:
+            conn = open_ro(temp_db)
+            try:
+                console.print("[blue]Generating missing attachments report...[/blue]")
+                counts = generate_missing_attachments_report(conn, out, contact)
+                total_missing = sum(counts.values())
+                if total_missing > 0:
+                    console.print(f"[yellow]Found {total_missing} missing attachment(s) across {len(counts)} conversation(s)[/yellow]")
+                    console.print(f"[yellow]Report written to:[/yellow] {out / 'missing_attachments.json'}")
+                    console.print("[blue]Guidance:[/blue] In Messages, open the conversation, click Info (i), then use 'Download' to fetch evicted items. There is no bulk API.")
+                else:
+                    console.print("[green]All attachment files are present on disk.[/green]")
+            finally:
+                conn.close()
+    except Exception as e:
+        console.print(f"[bold red]Audit failed:[/bold red] {e}")
+        # Exit non-zero on hard failure
+        raise typer.Exit(1)
+    # Success path (report generated): exit 0
+    return
+
     out.mkdir(parents=True, exist_ok=True)
 
     try:
