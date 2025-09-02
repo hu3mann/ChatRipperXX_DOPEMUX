@@ -9,21 +9,23 @@ Status: Draft | Owner: You | Last Updated: 2025-09-02 PT
 * Output layout & retention: Set workspace layout for `out/attachments/**`, hashing strategy, and default retention policy.
 * Detector thresholds: What SHOULD the default detector thresholds be for each coarse label family (conservative vs balanced)? Capture as config + unit tests.
 * Episode hysteresis: SHOULD episode start/stop rules vary by platform (iMessage vs Instagram vs WhatsApp)? Define per-source defaults.
-* Default chunking: SHOULD we default to chunks of ±40 turns or daily windows per density? Confirm and codify.
+* Default chunking: Resolved in ADR-0002 — default is `turns:40, stride:10` for dense chats; daily windows for sparse periods.
 * Local model default & quantization: PROPOSE `gemma2:9b` (IT) at 4-bit; CONFIRM as the project default and pin build hashes.
 * NUANCE_LEVEL default: CONFIRM `balanced` as the default for cloud prompting.
 
 ## Next Actions
 
-* Refine attributedBody/message_summary_info decoding (replace placeholders with full parsers). 
-* Finalize attachment copy policy (hashing, layout, retention); edge cases in completeness report.
+* Harden attributedBody/message_summary_info decoding (full parser + edge cases); add targeted fixtures.
+* Finalize attachment copy policy (hashing, layout, retention); document backup vs local paths; edge cases in completeness report.
 * Wire schema validation & quarantine; perf smoke; CI gates per TEST_STRATEGY.md.
 * Draft ADRs for transcription engine choice (Whisper vs alternatives) and iCloud/USB acquisition UX.
 
 ## Changes Since Last Update
 
 * 2025-09-02: Implemented initial iMessage extractor with reaction folding, reply resolution, and attachment metadata; added unit and integration tests.
-* 2025-09-02: Wired CLI flags `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing`; added `missing_attachments_report.json` generation and validation; implemented local transcription path (mock/Whisper) and surfaced run stats.
+* 2025-09-02: Wired CLI flags `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing`; added missing attachments report generation and validation; implemented local transcription path (mock/Whisper) and surfaced run stats.
+* 2025-09-02: Added MobileSync backup path support: stage sms.db via Manifest.db, resolve/copy attachments by fileID, and enable transcription from backup without copy.
+* 2025-09-02: Implemented best‑effort decoding for attributedBody and message_summary_info (plist parse + UTF‑8 fallback).
 * 2025-08-16: **CLOUD_ENRICHMENT.md** expanded with `provenance`, `shield`, and confidence calibration details; added field-visibility matrix.
 * 2025-08-16: **INTERFACES.md** updated to mirror enrichment fields, error codes, and visibility rules; enriched CLI contracts clarified.
 * 2025-08-16: **ACCEPTANCE_CRITERIA.md** extended with Gherkin for chunking, relationship labels, idempotency, and minimal-context checks.

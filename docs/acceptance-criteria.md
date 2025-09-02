@@ -1,5 +1,5 @@
 Title: Acceptance Criteria
-Status: Draft | Owner: You | Last Updated: 2025-08-16 PT
+Status: Draft | Owner: You | Last Updated: 2025-09-02 PT
 
 ## User Stories (Gherkin)
 
@@ -82,6 +82,6 @@ Status: Draft | Owner: You | Last Updated: 2025-08-16 PT
 
   * Given `--include-attachments` and some attachment paths missing from disk,
     When extraction completes,
-    Then the tool MUST emit `out/missing_attachments_report.json` listing `{conv_guid, msg_id, filename}` for all missing items,
+    Then the tool MUST emit `out/missing_attachments.json` listing `{conv_guid, msg_id, filename}` for all missing items,
     And the CLI MUST exit **0** (not an error) when messages are extracted but some attachments are missing,
     And the summary MUST include counts per conversation to guide manual fetch.

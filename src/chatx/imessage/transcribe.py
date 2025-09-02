@@ -48,13 +48,21 @@ def transcribe_local(audio_file_path: Path, engine: str = "whisper") -> Optional
     if not audio_file_path.exists():
         return None
     
-    # Check if file is likely an audio file
-    if not is_audio_file(audio_file_path):
-        return None
-    
+    # For mock engine and CLI calls, enforce a conservative extension check.
+    # Whisper path can handle more formats and hashed filenames when upstream marked audio.
     if engine == "mock":
+        if not is_audio_file(audio_file_path):
+            return None
         return _transcribe_mock(audio_file_path)
     elif engine == "whisper":
+        # Prefer faster-whisper plugin when available, fall back to classic
+        try:
+            from chatx.transcribe.local_whisper import transcribe as fw_transcribe
+            out = fw_transcribe(audio_file_path)
+            if out:
+                return out
+        except ImportError:
+            pass
         return _transcribe_whisper(audio_file_path)
     else:
         # Unknown engine, fall back to mock

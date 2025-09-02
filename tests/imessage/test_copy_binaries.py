@@ -66,7 +66,7 @@ class TestCopyBinaries:
             # Test file copying
             out_dir = tmp_path / "output"
             
-            updated_attachments = copy_attachment_files([attachment], out_dir)
+            updated_attachments, _ = copy_attachment_files([attachment], out_dir)
             
             # Verify structure
             assert len(updated_attachments) == 1
@@ -83,6 +83,9 @@ class TestCopyBinaries:
             
             # Content should match
             assert copied_file.read_bytes() == test_content
+            assert updated_att.source_meta["hash"]["sha256"] == compute_file_hash(
+                attachments_dir / "test_image.jpg"
+            )
             
         finally:
             # Restore original Path.home
@@ -102,7 +105,7 @@ class TestCopyBinaries:
         out_dir = tmp_path / "output"
         
         # Should not raise exception
-        updated_attachments = copy_attachment_files([attachment], out_dir)
+        updated_attachments, _ = copy_attachment_files([attachment], out_dir)
         
         # Attachment should be unchanged (abs_path still None)
         assert len(updated_attachments) == 1
@@ -149,14 +152,17 @@ class TestCopyBinaries:
         try:
             out_dir = tmp_path / "output"
             
-            updated_attachments = copy_attachment_files([attachment1, attachment2], out_dir)
-            
+            updated_attachments, dedupe_map = copy_attachment_files(
+                [attachment1, attachment2], out_dir
+            )
+
             # Both should have same hash-based directory
             hash1_dir = Path(updated_attachments[0].abs_path).parent
             hash2_dir = Path(updated_attachments[1].abs_path).parent
-            
+
             # Same content should result in same hash directory
             assert hash1_dir == hash2_dir
+            assert len(dedupe_map) == 1
             
         finally:
             att_module.Path.home = lambda: original_home
@@ -203,23 +209,26 @@ class TestCopyBinaries:
         
         try:
             out_dir = tmp_path / "output"
-            updated_attachments = copy_attachment_files(attachments, out_dir)
-            
+            updated_attachments, dedupe_map = copy_attachment_files(
+                attachments, out_dir
+            )
+
             # All should be copied successfully
             assert len(updated_attachments) == 3
-            
+
             for att in updated_attachments:
                 assert att.abs_path is not None
                 copied_file = Path(att.abs_path)
                 assert copied_file.exists()
-                
+
                 # Content should match original
                 original_content = files_content[att.filename]
                 assert copied_file.read_bytes() == original_content
-            
+
             # Should have different hash directories for different content
             hash_dirs = {Path(att.abs_path).parent for att in updated_attachments}
             assert len(hash_dirs) == 3  # All different content
+            assert len(dedupe_map) == 3
             
         finally:
             att_module.Path.home = lambda: original_home

@@ -1,5 +1,5 @@
 Title: Non-Functional Requirements
-Status: Draft | Owner: XtractXact | Last Updated: 2025-08-16 PT
+Status: Draft | Owner: XtractXact | Last Updated: 2025-09-02 PT
 
 ## Scope & Intent
 This document defines measurable non-functional requirements (NFRs) for the **ChatX / XtractXact** toolchain. It operationalizes the local‑first + optional cloud **hybrid cascade** with strict **Policy Shield** preflight, schema‑locked enrichment, and forensic traceability. Requirements are written with RFC 2119 language and include verification methods.
@@ -7,7 +7,7 @@ This document defines measurable non-functional requirements (NFRs) for the **Ch
 ## Defaults
 Defaults
 - Local model: gemma-2-9b-q4_K_M; temp ≤0.3; streaming off; fixed seed (deterministic).
-- Chunking: turns:20, stride:10 (dense); fallback daily for sparse periods.
+- Chunking: turns:40, stride:10 (dense); fallback daily for sparse periods.
 - Gate: τ=0.7; hysteresis τ_low=0.62, τ_high=0.78; context packing ±2 turns.
 - Redaction: coverage ≥0.995 (≥0.999 strict); block hard-fail classes; attachments never uploaded.
 - Targets: local tagging ≥25 msgs/s (Apple Silicon, 4-bit); detectors ≥200 msgs/s.
@@ -196,4 +196,3 @@ Defaults
 
 ## Exceptions & Changes
 - Any waiver to MUST items requires an ADR with time‑boxed expiry and explicit compensating controls.
-

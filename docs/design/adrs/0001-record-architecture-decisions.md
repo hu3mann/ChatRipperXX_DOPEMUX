@@ -1,5 +1,6 @@
 # ADR-0001: Record Architecture Decisions
 
+_Last updated: 2025-09-02 UTC_
 **Status:** Proposed  
 **Date:** 2025-08-30
 

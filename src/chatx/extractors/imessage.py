@@ -5,7 +5,7 @@ import shutil
 import sqlite3
 import tempfile
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -66,42 +66,38 @@ class IMessageExtractor(BaseExtractor):
             return False
     
     def _decode_attributed_body(self, attributed_body: bytes | None) -> str | None:
-        """Decode macOS Ventura+ attributedBody hex blob to extract message text.
-        
-        In macOS Ventura and later, message text is stored as NSMutableAttributedString
-        encoded with NSArchiver in the attributedBody column instead of plain text.
-        
-        Args:
-            attributed_body: Binary data from attributedBody column
-            
-        Returns:
-            Decoded message text or None if decoding fails
+        """Best‑effort decode of attributedBody to extract plain text.
+
+        Attempts binary plist parsing first, then falls back to a UTF‑8 heuristic.
+        Returns None if no plausible text is found.
         """
         if not attributed_body:
             return None
-            
+
         try:
-            # For now, return a placeholder indicating attributed body content was found
-            # TODO: Implement full NSArchiver/pytypedstream decoding
-            logger.debug("Found attributedBody content, decoding not yet implemented")
-            return "[ATTRIBUTED_BODY_CONTENT]"
+            # Try plist parsing first (handles both binary and XML plists)
+            try:
+                data = plistlib.loads(attributed_body)
+                text_candidate = self._extract_text_from_nested(data)
+                if text_candidate:
+                    return text_candidate
+            except Exception as e:
+                logger.debug(f"attributedBody plist parse failed: {e}")
+                if attributed_body.startswith(b"bplist00"):
+                    return "[ATTRIBUTED_BODY_CONTENT]"
+
+            # Heuristic UTF‑8 scan as fallback
+            decoded = attributed_body.decode("utf-8", errors="ignore")
+            # Normalize whitespace and filter out control characters
+            cleaned = ' '.join(''.join(ch if ch.isprintable() else ' ' for ch in decoded).split())
+            if cleaned:
+                return cleaned
         except Exception as e:
             logger.warning(f"Failed to decode attributedBody: {e}")
-            return None
+        return None
     
     def _decode_message_summary_info(self, conn: sqlite3.Connection, msg_rowid: int) -> str | None:
-        """Decode iOS 16+ message_summary_info for edited messages.
-        
-        In iOS 16+, edited messages have their text moved to message_summary_info
-        table as binary plist containing edit history.
-        
-        Args:
-            conn: SQLite connection
-            msg_rowid: Message ROWID to look up
-            
-        Returns:
-            Decoded message text or None if not found/decoding fails
-        """
+        """Best‑effort decode of iOS 16+ message_summary_info (edited messages)."""
         try:
             cursor = conn.cursor()
             cursor.execute(
@@ -111,17 +107,27 @@ class IMessageExtractor(BaseExtractor):
             row = cursor.fetchone()
             if not row or not row[0]:
                 return None
-                
-            # Try to decode as binary plist; return placeholder even if parsing fails
+
+            blob = row[0]
+            raw = bytes(blob) if isinstance(blob, bytes | bytearray) else str(blob).encode("utf-8")
+            # Prefer plist parsing when possible (handles binary and XML)
             try:
-                plistlib.loads(row[0])
-                logger.debug(
-                    "Found message_summary_info content, full parsing not yet implemented"
-                )
+                data = plistlib.loads(raw)
+                text_candidate = self._extract_text_from_nested(data)
+                if text_candidate:
+                    return text_candidate
             except Exception as e:
-                logger.debug(f"message_summary_info is not a valid plist: {e}")
-            return "[EDITED_MESSAGE_CONTENT]"
-                
+                logger.debug(f"message_summary_info plist parse failed: {e}")
+                if raw.startswith(b"bplist00"):
+                    return "[EDITED_MESSAGE_CONTENT]"
+
+            # Fallback: UTF‑8 heuristic
+            try:
+                decoded = raw.decode("utf-8", errors="ignore")
+                cleaned = ' '.join(decoded.split())
+                return cleaned if cleaned else None
+            except Exception:
+                return None
         except Exception as e:
             logger.warning(f"Failed to decode message_summary_info: {e}")
             return None
@@ -173,36 +179,53 @@ class IMessageExtractor(BaseExtractor):
         return None
 
     def _convert_apple_timestamp(self, ts: float | None) -> datetime | None:
-        """
-        Convert Apple iMessage timestamps to UTC-aware datetimes.
-
-        Apple stores times as seconds or sub-second units since 2001-01-01.
-        We handle:
-          - None or 0 => None
-          - seconds (e.g., 123456789)
-          - microseconds (e.g., 123456789000000)
-          - nanoseconds (e.g., 1234567890000000000)
-        """
-        if ts in (None, 0):
+        """Convert Apple timestamp to UTC datetime using shared helper."""
+        from chatx.imessage.time import to_iso_utc
+        iso = to_iso_utc(ts)
+        if not iso:
             return None
+        # Normalize 'Z' to +00:00 for parsing
+        return datetime.fromisoformat(iso.replace('Z', '+00:00'))
+
+    def _extract_text_from_nested(self, obj: Any) -> str | None:
+        """Search nested structures for plausible text and return the longest string.
+
+        Traverses dicts/lists and prefers common text keys when available.
+        """
+        best: str | None = None
+
+        def consider(s: str | None) -> None:
+            nonlocal best
+            if not s:
+                return
+            s_trim = ' '.join(s.split())
+            if not s_trim:
+                return
+            if best is None or len(s_trim) > len(best):
+                best = s_trim
 
         try:
-            value = int(ts) if ts is not None else 0
-        except (TypeError, ValueError):
-            return None
+            if isinstance(obj, str):
+                consider(obj)
+            elif isinstance(obj, dict):
+                # Check likely keys first
+                for k in ("string", "text", "body", "summary", "NS.string"):
+                    v = obj.get(k)
+                    if isinstance(v, str):
+                        consider(v)
+                for v in obj.values():
+                    res = self._extract_text_from_nested(v)
+                    if isinstance(res, str):
+                        consider(res)
+            elif isinstance(obj, list | tuple | set):
+                for v in obj:
+                    res = self._extract_text_from_nested(v)
+                    if isinstance(res, str):
+                        consider(res)
+        except Exception:
+            pass
 
-        # Heuristics based on magnitude to infer unit
-        # < 1e11 -> seconds (covers reasonable ranges)
-        # < 1e15 -> microseconds
-        # >= 1e15 -> nanoseconds
-        if value < 1_00_000_000_000:  # ~3,170 years in seconds; ample headroom
-            seconds = float(value)
-        elif value < 1_000_000_000_000_000:  # microseconds
-            seconds = value / 1_000_000.0
-        else:  # nanoseconds
-            seconds = value / 1_000_000_000.0
-
-        return APPLE_EPOCH + timedelta(seconds=seconds)
+        return best
     
     def _copy_database(self) -> Path:
         """Copy database to temporary location to avoid file locks.

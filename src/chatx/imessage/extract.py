@@ -20,6 +20,7 @@ def extract_messages(
     copy_binaries: bool = False,
     transcribe_audio: str = "off",
     out_dir: Path,
+    backup_dir: Optional[Path] = None,
 ) -> Iterator[CanonicalMessage]:
     """Extract iMessage conversations for a contact.
     
@@ -54,7 +55,7 @@ def extract_messages(
             for conv_guid in conv_guids:
                 yield from extract_messages_for_conversation(
                     conn, conv_guid, str(db_path), include_attachments, copy_binaries,
-                    transcribe_audio, out_dir
+                    transcribe_audio, out_dir, backup_dir
                 )
                 
         finally:
@@ -68,7 +69,8 @@ def extract_messages_for_conversation(
     include_attachments: bool,
     copy_binaries: bool,
     transcribe_audio: str,
-    out_dir: Path
+    out_dir: Path,
+    backup_dir: Optional[Path] = None,
 ) -> Iterator[CanonicalMessage]:
     """Extract messages for a specific conversation."""
     from chatx.schemas.message import SourceRef
@@ -114,17 +116,17 @@ def extract_messages_for_conversation(
         ) = row
         
         from chatx.imessage.reactions import is_reaction, is_reply, get_reaction_type
-        
+
         # Skip reactions in first pass - we'll fold them into parent messages
         if is_reaction(associated_message_type or 0):
             reaction_type = get_reaction_type(associated_message_type)
-            
+
             # For custom emoji reactions, use the text field as the reaction content
             if reaction_type == "custom" and text:
                 reaction_display = text  # The actual emoji
             else:
                 reaction_display = reaction_type  # Traditional tapback name
-            
+
             reactions_data.append({
                 'rowid': msg_rowid,
                 'guid': guid,
@@ -137,9 +139,6 @@ def extract_messages_for_conversation(
             })
             continue
         
-        # Convert Apple timestamp to ISO-8601 UTC
-        timestamp = apple_timestamp_to_iso(date) if date else datetime.now(timezone.utc).isoformat()
-        
         # Determine sender information
         if is_from_me:
             sender = "Me"
@@ -151,20 +150,23 @@ def extract_messages_for_conversation(
         # Handle text content (attributed body takes precedence if present)
         message_text = text
         if attributed_body and not text:
-            # For now, just indicate attributed content exists (proper parsing in future PR)
-            message_text = "[Rich text content]"
+            # Placeholder for attributed content until full parser lands
+            message_text = "[ATTRIBUTED_BODY_CONTENT]"
         
         # Determine reply threading (will be resolved after all messages collected)
         reply_to_guid = None
         if is_reply(associated_message_type or 0, bool(associated_message_guid)):
             reply_to_guid = associated_message_guid
-        
+
+        # Convert Apple timestamp to ISO-8601 UTC and parse to datetime
+        from chatx.imessage.time import to_iso_utc
+        ts_iso = to_iso_utc(date) or datetime.now(timezone.utc).isoformat()
         # Create message with reactions/replies support
         message = CanonicalMessage(
             msg_id=f"msg_{msg_rowid}",
             conv_id=chat_guid or f"conv_{conv_guid}",
             platform="imessage",
-            timestamp=datetime.fromisoformat(timestamp.replace('Z', '+00:00')),
+            timestamp=datetime.fromisoformat(ts_iso.replace('Z', '+00:00')),
             sender=sender,
             sender_id=sender_id,
             is_me=bool(is_from_me),
@@ -183,6 +185,14 @@ def extract_messages_for_conversation(
                 "has_attributed_body": bool(attributed_body)
             }
         )
+        # Add pseudonymous sender token (does not change sender_id to keep compatibility)
+        try:
+            from chatx.identity.normalize import load_local_salt, pseudonymize
+            salt, _ = load_local_salt()
+            message.source_meta["sender_pid"] = pseudonymize(sender_id or sender, salt)
+        except Exception:
+            # Non-fatal if identity module not available
+            pass
         
         # Store in lookup tables
         if guid:
@@ -198,10 +208,22 @@ def extract_messages_for_conversation(
             
             # Create reaction object
             from chatx.schemas.message import Reaction
+            from_name = reaction_data['handle_address'] or f"unknown_{reaction_data['handle_id']}" if not reaction_data['is_from_me'] else "me"
+            ts_val = (
+                datetime.fromisoformat((to_iso_utc(reaction_data['timestamp']) or datetime.now(timezone.utc).isoformat()).replace('Z', '+00:00'))
+                if reaction_data['timestamp'] else datetime.now(timezone.utc)
+            )
+            # De-duplicate: skip if an identical reaction already exists
+            dup = any(
+                (r.kind == reaction_data['reaction_type'] and r.from_ == from_name and int(r.ts.timestamp()) == int(ts_val.timestamp()))
+                for r in target_message.reactions
+            )
+            if dup:
+                continue
             reaction = Reaction(
                 kind=reaction_data['reaction_type'],
-                **{"from": reaction_data['handle_address'] or f"unknown_{reaction_data['handle_id']}" if not reaction_data['is_from_me'] else "me"},
-                ts=datetime.fromisoformat(apple_timestamp_to_iso(reaction_data['timestamp']).replace('Z', '+00:00')) if reaction_data['timestamp'] else datetime.now(timezone.utc)
+                **{"from": from_name},
+                ts=ts_val,
             )
             
             # Add to target message reactions list
@@ -227,14 +249,32 @@ def extract_messages_for_conversation(
         
         attachments_with_transcripts = 0
         failed_transcriptions = 0
-        
+        dedupe_map: Dict[str, str] = {}
+
         for message, _ in regular_messages:
             # Extract attachment metadata
-            attachments = extract_attachment_metadata(conn, message.source_meta["rowid"])
+            attachments = extract_attachment_metadata(conn, message.source_meta["rowid"]) 
             
             # Copy binary files if requested
             if copy_binaries and attachments:
-                attachments = copy_attachment_files(attachments, out_dir)
+                attachments, dedupe_map = copy_attachment_files(
+                    attachments, out_dir, dedupe_map=dedupe_map
+                )
+                # Emit attachment hashes into source_meta for observability/dedupe
+                infos = []
+                for att in attachments:
+                    if att.abs_path:
+                        file_hash = att.source_meta.get("hash", {}).get("sha256")
+                        if file_hash:
+                            infos.append(
+                                {
+                                    "filename": att.filename,
+                                    "hash": file_hash,
+                                    "path": att.abs_path,
+                                }
+                            )
+                if infos:
+                    message.source_meta.setdefault("attachments_info", infos)
             
             # Process audio transcription if enabled
             if transcribe_audio != "off" and attachments:
@@ -254,6 +294,16 @@ def extract_messages_for_conversation(
                             attachments_dir = Path.home() / "Library" / "Messages" / "Attachments"
                             if check_attachment_file_exists(attachment.filename):
                                 audio_path = attachments_dir / attachment.filename
+                            # If in backup mode, resolve via Manifest.db (hashed fileID path)
+                            elif backup_dir is not None and attachment.filename:
+                                try:
+                                    from chatx.imessage.attachments import _relative_sms_attachments_path
+                                    from chatx.imessage.backup import resolve_backup_file
+                                    rel = _relative_sms_attachments_path(attachment.filename)
+                                    if rel:
+                                        audio_path = resolve_backup_file(Path(backup_dir), "HomeDomain", rel)
+                                except Exception:
+                                    audio_path = None
 
                         # Attempt transcription if file exists
                         if audio_path and audio_path.exists():
@@ -304,19 +354,19 @@ def get_conversation_guids(conn: sqlite3.Connection, handle_ids: List[int]) -> L
     return [row[0] for row in cursor if row[0]]
 
 
-def apple_timestamp_to_iso(apple_timestamp: int) -> str:
-    """Convert Apple Core Data timestamp to ISO-8601 UTC string.
-    
-    Args:
-        apple_timestamp: Apple timestamp (nanoseconds since 2001-01-01)
-        
-    Returns:
-        ISO-8601 UTC timestamp string
-    """
-    # Apple timestamps are in nanoseconds, convert to seconds
-    timestamp_seconds = apple_timestamp / 1_000_000_000
-    dt = APPLE_EPOCH + timedelta(seconds=timestamp_seconds)
-    return dt.isoformat().replace('+00:00', 'Z')
+# Legacy kept for backward import stability in tests if any; use time.to_iso_utc instead.
+def apple_timestamp_to_iso(apple_timestamp: int) -> str:  # pragma: no cover
+    from chatx.imessage.time import to_iso_utc
+    iso = to_iso_utc(apple_timestamp)
+    if iso:
+        return iso
+    # Fallback: treat as nanoseconds relative to epoch for legacy tests
+    try:
+        seconds = apple_timestamp / 1_000_000_000
+        dt = APPLE_EPOCH + timedelta(seconds=seconds)
+        return dt.isoformat().replace('+00:00', 'Z')
+    except Exception:
+        return APPLE_EPOCH.isoformat().replace('+00:00', 'Z')
 
 
 def resolve_contact_handles(conn: sqlite3.Connection, contact: str) -> List[int]:

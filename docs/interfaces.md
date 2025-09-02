@@ -13,8 +13,15 @@ Principles
 CLI (explicit pipeline — canonical)
 ```
 # Extraction
-chatx imessage pull --contact "<phone|email|name>" [--db ~/Library/Messages/chat.db | --from-backup <MobileSync/Backup/UDID>] [--include-attachments] [--copy-binaries] [--transcribe-audio local|off] [--report-missing|--no-report-missing] [--out ./out]
+chatx imessage pull --contact "<phone|email|name>" \
+  [--db ~/Library/Messages/chat.db | --from-backup <~/Library/Application Support/MobileSync/Backup/<UDID>>] \
+  [--backup-password <pw>] \
+  [--include-attachments] [--copy-binaries] \
+  [--transcribe-audio local|off] [--report-missing|--no-report-missing] \
+  [--out ./out]
 chatx instagram pull --zip ./instagram.zip --user "<Your Name>" [--author-only "<username>"] [--out ./out]
+chatx imessage audit --db ~/Library/Messages/chat.db [--contact <id>] [--out ./out]
+chatx imessage pdf --pdf ./conversation.pdf --me "<Your Name>" [--ocr] [--out ./out]
 chatx whatsapp pull --input ./export.json|.txt [--out ./out]
 
 # Transform & Redact
@@ -234,13 +241,14 @@ SLAs & Limits
 - Default LLM output tokens ≤800; context packing ±2 turns.
 - Observability: structured logs and artifacts (e.g., `redaction_report.json`); echo `X-Request-Id` if provided.
 - Gate defaults: τ=0.7; hysteresis τ_low=0.62, τ_high=0.78 (reduce thrash).
-- Default chunking: turns:20, stride:10 for dense chats; use daily for sparse days.
+- Default chunking: turns:40, stride:10 for dense chats; use daily for sparse days.
 - Redaction coverage threshold: ≥0.995 (≥0.999 with --strict); hard-fail classes block cloud.
 
 Change Log (since 2025-08-15)
 - Normalized CLI section and deprecated aliases.
 - Finalized HTTP request/response shapes, validation rules, and error catalog; confirmed 60s/streaming SLA.
-- iMessage CLI: added `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing` options; `missing_attachments_report.json` defined with non-error exit semantics when attachments are missing.
+- iMessage CLI: added `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing` options; missing attachments report defined with non-error exit semantics when attachments are missing.
+- iMessage backup mode: `--from-backup` and optional `--backup-password`. In backup mode, attachments resolve via Manifest.db (hashed fileIDs) and can be copied with `--copy-binaries`; transcription can resolve backup files without copying.
 
 ## CLI: Index Metadata Update (no re-embedding)
 - **Name | Command | Purpose**

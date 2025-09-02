@@ -1,11 +1,11 @@
 """iMessage attachment processing utilities."""
 
-import hashlib
 import shutil
 import sqlite3
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from chatx.media.hash import sha256_stream
 from chatx.schemas.message import Attachment
 
 # UTI to attachment type mapping (Apple Uniform Type Identifiers)
@@ -176,82 +176,110 @@ def extract_attachment_metadata(
 
 def copy_attachment_files(
     attachments: List[Attachment],
-    out_dir: Path
-) -> List[Attachment]:
+    out_dir: Path,
+    backup_dir: Optional[Path] = None,
+    *,
+    dedupe_map: Optional[Dict[str, str]] = None,
+) -> Tuple[List[Attachment], Dict[str, str]]:
     """Copy attachment files to output directory with content hashing.
-    
+
     Args:
         attachments: List of attachment metadata
         out_dir: Base output directory
-        
+        backup_dir: Optional MobileSync backup directory
+        dedupe_map: Optional existing hash -> path mapping for deduplication
+
     Returns:
-        Updated attachment list with copied file paths
-        
+        Tuple of (updated attachments list, dedupe map)
+
     Uses content hashing for deduplication and collision avoidance:
     out_dir/attachments/<sha256[:2]>/<sha256>/<original_basename>
     """
     # Typical macOS attachment path
     attachments_dir = Path.home() / "Library" / "Messages" / "Attachments"
-    
+
     updated_attachments = []
-    
+    dedupe: Dict[str, str] = dedupe_map or {}
+
     for attachment in attachments:
         # Try to find source file
         source_path = None
         if attachment.filename:
-            # Try common attachment paths
-            potential_paths = [
-                attachments_dir / attachment.filename,
-                attachments_dir / "Attachments" / attachment.filename,  # Nested structure
-                Path(attachment.filename)  # Absolute path case
-            ]
-            
-            for path in potential_paths:
-                if path.exists():
-                    source_path = path
-                    break
+            # If a MobileSync backup is provided, attempt to resolve via Manifest.db
+            if backup_dir:
+                try:
+                    # Normalize to relative path under Library/SMS/Attachments
+                    rel = _relative_sms_attachments_path(attachment.filename)
+                    if rel:
+                        # Lazy import to avoid cycles
+                        from chatx.imessage.backup import resolve_backup_file
+                        source_path = resolve_backup_file(backup_dir, "HomeDomain", rel)
+                except Exception:
+                    source_path = None
+            # Fallback to local macOS attachments path
+            if source_path is None:
+                potential_paths = [
+                    attachments_dir / attachment.filename,
+                    attachments_dir / "Attachments" / attachment.filename,  # Nested structure
+                    Path(attachment.filename)  # Absolute path case
+                ]
+                for path in potential_paths:
+                    if path.exists():
+                        source_path = path
+                        break
         
         # Copy file if found
         if source_path and source_path.exists():
             try:
                 # Compute content hash
                 file_hash = compute_file_hash(source_path)
-                
-                # Create destination directory structure
-                dest_subdir = out_dir / "attachments" / file_hash[:2]
-                dest_subdir.mkdir(parents=True, exist_ok=True)
-                
-                # Create final destination path
-                dest_filename = f"{file_hash}_{attachment.filename}"
-                dest_path = dest_subdir / dest_filename
-                
-                # Copy file if not already exists
-                if not dest_path.exists():
-                    shutil.copy2(source_path, dest_path)
-                
-                # Update attachment with copied file path
+
+                # Determine destination path based on dedupe map
+                if file_hash in dedupe:
+                    dest_path = Path(dedupe[file_hash])
+                else:
+                    dest_subdir = out_dir / "attachments" / file_hash[:2]
+                    dest_subdir.mkdir(parents=True, exist_ok=True)
+                    dest_filename = f"{file_hash}_{Path(attachment.filename).name}"
+                    dest_path = dest_subdir / dest_filename
+                    if not dest_path.exists():
+                        shutil.copy2(source_path, dest_path)
+                    dedupe[file_hash] = str(dest_path)
+
+                # Update attachment with copied file path and hash metadata
                 attachment.abs_path = str(dest_path)
-                
+                attachment.source_meta.setdefault("hash", {})["sha256"] = file_hash
+
             except (OSError, IOError, shutil.Error):
                 # File copy failed, but continue with metadata
                 pass
         
         updated_attachments.append(attachment)
     
-    return updated_attachments
+    return updated_attachments, dedupe
+
+
+def _relative_sms_attachments_path(filename: str) -> Optional[str]:
+    """Extract relative 'Library/SMS/Attachments/..' path from any filename string.
+
+    Accepts absolute paths and returns the subpath starting at 'Library/SMS/Attachments'.
+    Returns None if the pattern is not present and the filename is not a relative SMS path.
+    """
+    try:
+        if not filename:
+            return None
+        marker = "Library/SMS/Attachments"
+        if marker in filename:
+            idx = filename.index(marker)
+            return filename[idx:]
+        # If already looks relative to Library/SMS/Attachments, accept it
+        if filename.startswith("Library/SMS/Attachments/"):
+            return filename
+    except Exception:
+        return None
+    return None
 
 
 def compute_file_hash(file_path: Path) -> str:
-    """Compute SHA-256 hash of file contents.
-    
-    Args:
-        file_path: Path to file
-        
-    Returns:
-        Hex-encoded SHA-256 hash
-    """
-    hasher = hashlib.sha256()
-    with open(file_path, 'rb') as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            hasher.update(chunk)
-    return hasher.hexdigest()
+    """Compute SHA-256 hash of file contents."""
+    return sha256_stream(file_path)

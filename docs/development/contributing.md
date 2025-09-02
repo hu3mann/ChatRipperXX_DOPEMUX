@@ -1,4 +1,5 @@
 # CONTRIBUTING
+_Last updated: 2025-09-02 UTC_
 
 ## Setup
 - Python 3.11+

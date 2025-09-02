@@ -1,6 +1,6 @@
 Developer Guide
 
-Status: Draft | Owner: You | Last Updated: 2025-08-26 PT
+Status: Draft | Owner: You | Last Updated: 2025-09-02 PT
 
 Setup
 	•	Python 3.11+.
@@ -21,6 +21,9 @@ CLI Examples
 - Include attachments: `chatx imessage pull --contact "friend@example.com" --include-attachments --out ./out`
 - Copy binaries: `chatx imessage pull --contact "friend@example.com" --include-attachments --copy-binaries --out ./out`
 - Transcribe voice notes locally: `chatx imessage pull --contact "friend@example.com" --include-attachments --transcribe-audio local --out ./out`
+ - Backup mode (read-only sms.db): `chatx imessage pull --contact "<id>" --from-backup "~/Library/Application Support/MobileSync/Backup/<UDID>" --out ./out`
+ - Backup mode + transcription without copying: `chatx imessage pull --contact "<id>" --from-backup "<BackupPath>" --include-attachments --transcribe-audio local --out ./out`
+ - Backup mode + copy binaries: `chatx imessage pull --contact "<id>" --from-backup "<BackupPath>" --include-attachments --copy-binaries --out ./out`
  - Instagram (author filter): `chatx instagram pull --zip ./instagram.zip --user "Your Name" --author-only "FriendA" --out ./out`
 
 Artifacts
@@ -29,10 +32,17 @@ Artifacts
 - Quarantine (invalid messages): `out/quarantine/messages_bad.jsonl`
 - Run report (metrics): `out/run_report.json`
 
+Backup Mode Notes
+- Backups live under `~/Library/Application Support/MobileSync/Backup/<UDID>` on macOS. Use `--from-backup` to enable this path; if encrypted, pass `--backup-password`.
+- Attachments in backups are stored as hashed fileIDs. The tool resolves them via `Manifest.db` and can:
+  - transcribe audio directly (without `--copy-binaries`), or
+  - copy to `out/attachments/**` with `--copy-binaries`.
+  In both cases, no data is sent to cloud.
+
 Perf Smoke
 - Disabled by default. To run locally: `CHATX_RUN_PERF=1 pytest -m perf -q`
 - Optional soft floor warning in CLI: set `CHATX_SOFT_FLOOR_MSGS_MIN=5000` to warn if throughput is below 5k msgs/min.
-	2.	Transform: chatx transform --input ./out/raw/*.json --to jsonl --chunk turns:20 --stride 10 --contact CN_xxx
+	2.	Transform: chatx transform --input ./out/raw/*.json --to jsonl --chunk turns:40 --stride 10 --contact CN_xxx
 	3.	Redact: chatx redact --input ./out/chunks/*.json --pseudonymize --opaque --threshold 0.995 --salt-file ./salt.key --report ./out/redaction_report.json
 	4.	Index: chatx index --input ./out/redacted/*.json --store chroma --collection chatx_<contact>
 	5.	Query: chatx query "What changed after Feb?" --contact CN_xxx --since 2025-02-01 --k 32

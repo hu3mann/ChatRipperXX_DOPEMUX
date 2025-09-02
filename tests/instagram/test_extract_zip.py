@@ -3,7 +3,6 @@ from __future__ import annotations
 import io
 import json
 import zipfile
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -17,7 +16,11 @@ def _write_json(zf: zipfile.ZipFile, name: str, obj: dict) -> None:
     zf.writestr(zi, buf.getvalue())
 
 
-def _make_thread_json(messages: list[dict], thread: str, participants: list[str] | None = None) -> dict:
+def _make_thread_json(
+    messages: list[dict],
+    thread: str,
+    participants: list[str] | None = None,
+) -> dict:
     parts = participants or ["Me", "Friend"]
     return {
         "participants": [{"name": n} for n in parts],
@@ -38,15 +41,31 @@ def test_instagram_zip_basic_merge_and_normalize(tmp_path: Path) -> None:
         part1 = _make_thread_json(
             [
                 {"sender_name": "Friend", "timestamp_ms": 1_700_000_000_000, "content": "Hi"},
-                {"sender_name": "Me", "timestamp_ms": 1_700_000_100_000, "content": "Hello", "reactions": [
-                    {"actor": "Friend", "reaction": "❤️", "timestamp_ms": 1_700_000_100_100}
-                ]},
+                {
+                    "sender_name": "Me",
+                    "timestamp_ms": 1_700_000_100_000,
+                    "content": "Hello",
+                    "reactions": [
+                        {
+                            "actor": "Friend",
+                            "reaction": "❤️",
+                            "timestamp_ms": 1_700_000_100_100,
+                        }
+                    ],
+                },
             ],
             thread,
         )
         part2 = _make_thread_json(
             [
-                {"sender_name": "Friend", "timestamp_ms": 1_700_000_200_000, "content": "Photo", "photos": [{"uri": f"messages/inbox/{thread}/photos/001.jpg"}]},
+                {
+                    "sender_name": "Friend",
+                    "timestamp_ms": 1_700_000_200_000,
+                    "content": "Photo",
+                    "photos": [
+                        {"uri": f"messages/inbox/{thread}/photos/001.jpg"},
+                    ],
+                },
             ],
             thread,
         )

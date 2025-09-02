@@ -1,5 +1,5 @@
 Title: iMessage Extractor Spec
-Status: Draft | Owner: XtractXact | Last Updated: 2025-09-01 PT
+Status: Draft | Owner: XtractXact | Last Updated: 2025-09-02 PT
 
 ## Context
 
@@ -24,7 +24,7 @@ Status: Draft | Owner: XtractXact | Last Updated: 2025-09-01 PT
      * **Replies:** populate `reply_to_msg_id` using `associated_message_guid` mapping (stable id).
      * **Attachments:** join `message_attachment_join` → `attachment`; fill `attachments[]` (type, filename, abs_path?, mime/uti). If `--copy-binaries`, copy to workspace and set `abs_path` to copied file.
    * **Provenance:** always emit `source_ref={"guid": <chat_guid>, "path": <original_db_path>}`.
-   * **Voice Notes:** when `--transcribe-audio local`, run local transcription on audio attachments; store transcript text in `source_meta.transcript`. Cloud transcription is disallowed by policy (attachments never uploaded).
+* **Voice Notes:** when `--transcribe-audio local`, run local transcription on audio attachments; store transcript entries in `source_meta.transcripts[]`. Cloud transcription is disallowed by policy (attachments never uploaded). In backup mode, transcription resolves hashed fileIDs via Manifest.db without requiring `--copy-binaries`.
    * Output: newline-delimited Message JSON (pre-redaction), validating message.schema.json (all required fields).
 
 2. **iPhone (USB Backup) — Outline**
@@ -51,7 +51,7 @@ Status: Draft | Owner: XtractXact | Last Updated: 2025-09-01 PT
 
 ## Completeness & Evicted Attachments
 
-* **Local Completeness Scan:** after extraction, scan all attachment records and report any whose file is missing on disk to `out/missing_attachments_report.json`.
+* **Local Completeness Scan:** after extraction, scan all attachment records and report any whose file is missing on disk to `out/missing_attachments.json`.
 * **Actionable Report:** include per-chat counts and example filenames for user remediation (e.g., “open chat → info → Download All Attachments”).
 * **Automation:** Open question: OS-supported automation to force downloads at scale (manual process is acceptable short-term).
 
@@ -59,9 +59,9 @@ Status: Draft | Owner: XtractXact | Last Updated: 2025-09-01 PT
 
 ```bash
 chatx imessage pull --contact "<phone|email|name>" \
-  [--db ~/Library/Messages/chat.db] \
+  [--db ~/Library/Messages/chat.db | --from-backup "~/Library/Application Support/MobileSync/Backup/<UDID>"] [--backup-password <pw>] \
   [--include-attachments] [--copy-binaries] \
-  [--transcribe-audio local|off] \
+  [--transcribe-audio local|off] [--report-missing|--no-report-missing] \
   [--out ./out]
 ```
 
