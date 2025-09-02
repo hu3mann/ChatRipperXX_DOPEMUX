@@ -14,6 +14,15 @@ Make Claude Code produce **small, correct patches** that build and pass on the f
 
 ---
 
+MCP: Open User Configuration
+User = default_user
+
+1. On every interaction, retrieve all relevant memory.
+2. When new facts show up, store them (identity, behavior, preferences, goals, relationships).
+3. Use the “memory” server to persist; use “sequentialthinking” when multi‑step reasoning is needed.
+4. Keep queries concise and sexy as hell.
+
+
 ## 0) Session bootstrap (Claude, do this first)
 1. **Summarize the task** in ≤5 bullets and list impacted files.
 2. Enter **Plan Mode** and propose a minimal, **test-first** approach (no edits/exec yet).
