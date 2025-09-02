@@ -20,7 +20,7 @@ def create_imessage_test_db() -> Path:
     fixtures_dir = Path(__file__).parent
     sql_file = fixtures_dir / "imessage_test_data.sql"
     
-    with open(sql_file, 'r') as f:
+    with open(sql_file) as f:
         sql_content = f.read()
     
     # Create and populate database
@@ -41,7 +41,7 @@ def get_expected_messages() -> list[dict[str, Any]]:
         {
             "msg_id": "1",
             "conv_id": "iMessage;-;+15551234567",
-            "platform": "imessage", 
+            "platform": "imessage",
             "sender": "+15551234567",
             "sender_id": "+15551234567",
             "is_me": False,
@@ -54,11 +54,11 @@ def get_expected_messages() -> list[dict[str, Any]]:
             "attachments": [],
         },
         {
-            "msg_id": "2", 
+            "msg_id": "2",
             "conv_id": "iMessage;-;+15551234567",
             "platform": "imessage",
             "sender": "Me",
-            "sender_id": "me", 
+            "sender_id": "me",
             "is_me": True,
             "text": "Hey! How are you?",
             "reply_to_msg_id": None,
@@ -70,7 +70,7 @@ def get_expected_messages() -> list[dict[str, Any]]:
         },
         {
             "msg_id": "3",
-            "conv_id": "iMessage;-;+15551234567", 
+            "conv_id": "iMessage;-;+15551234567",
             "platform": "imessage",
             "sender": "+15551234567",
             "sender_id": "+15551234567",
@@ -87,7 +87,7 @@ def get_expected_messages() -> list[dict[str, Any]]:
             "msg_id": "4",
             "conv_id": "iMessage;-;+15551234567",
             "platform": "imessage",
-            "sender": "Me", 
+            "sender": "Me",
             "sender_id": "me",
             "is_me": True,
             "text": "Want to grab lunch sometime?",
@@ -98,7 +98,7 @@ def get_expected_messages() -> list[dict[str, Any]]:
         {
             "msg_id": "5",
             "conv_id": "iMessage;-;+15551234567",
-            "platform": "imessage", 
+            "platform": "imessage",
             "sender": "+15551234567",
             "sender_id": "+15551234567",
             "is_me": False,
@@ -113,7 +113,7 @@ def get_expected_messages() -> list[dict[str, Any]]:
             "platform": "imessage",
             "sender": "Me",
             "sender_id": "me",
-            "is_me": True, 
+            "is_me": True,
             "text": "Perfect! Let's meet at noon.",
             "reply_to_msg_id": "5",  # Reply to msg-005
             "reactions": [
@@ -125,7 +125,7 @@ def get_expected_messages() -> list[dict[str, Any]]:
         # Messages with different timestamp formats
         {
             "msg_id": "11",
-            "conv_id": "iMessage;-;friend@example.com", 
+            "conv_id": "iMessage;-;friend@example.com",
             "platform": "imessage",
             "sender": "friend@example.com",
             "sender_id": "friend@example.com",
@@ -138,11 +138,11 @@ def get_expected_messages() -> list[dict[str, Any]]:
         {
             "msg_id": "12",
             "conv_id": "iMessage;-;friend@example.com",
-            "platform": "imessage", 
+            "platform": "imessage",
             "sender": "Me",
             "sender_id": "me",
             "is_me": True,
-            "text": "Testing microsecond timestamps", 
+            "text": "Testing microsecond timestamps",
             "reply_to_msg_id": None,
             "reactions": [],
             "attachments": [],
@@ -153,7 +153,7 @@ def get_expected_messages() -> list[dict[str, Any]]:
             "conv_id": "iMessage;-;group123",  # Note: this might be wrong, need to check JOIN
             "platform": "imessage",
             "sender": "+15559876543",
-            "sender_id": "+15559876543", 
+            "sender_id": "+15559876543",
             "is_me": False,
             "text": "This is an SMS message",
             "reply_to_msg_id": None,
@@ -165,7 +165,7 @@ def get_expected_messages() -> list[dict[str, Any]]:
             "msg_id": "14",
             "conv_id": "iMessage;-;+15551234567",
             "platform": "imessage",
-            "sender": "Me", 
+            "sender": "Me",
             "sender_id": "me",
             "is_me": True,
             "text": "Check out this photo!",
@@ -175,7 +175,7 @@ def get_expected_messages() -> list[dict[str, Any]]:
                 {
                     "type": "image",
                     "filename": "photo.jpg",
-                    "mime_type": "image/jpeg", 
+                    "mime_type": "image/jpeg",
                     "uti": "public.jpeg",
                     "transfer_name": "IMG_001.jpeg"
                 }
@@ -187,7 +187,7 @@ def get_expected_messages() -> list[dict[str, Any]]:
             "conv_id": "iMessage;-;+15551234567",
             "platform": "imessage",
             "sender": "Unknown",  # No handle_id
-            "sender_id": "unknown", 
+            "sender_id": "unknown",
             "is_me": False,
             "text": "Message with no handle",
             "reply_to_msg_id": None,
@@ -195,7 +195,7 @@ def get_expected_messages() -> list[dict[str, Any]]:
             "attachments": [],
         },
         {
-            "msg_id": "17", 
+            "msg_id": "17",
             "conv_id": "iMessage;-;+15551234567",
             "platform": "imessage",
             "sender": "Me",
@@ -208,14 +208,14 @@ def get_expected_messages() -> list[dict[str, Any]]:
         },
         {
             "msg_id": "18",
-            "conv_id": "iMessage;-;+15551234567", 
+            "conv_id": "iMessage;-;+15551234567",
             "platform": "imessage",
             "sender": "+15551234567",
             "sender_id": "+15551234567",
             "is_me": False,
             "text": "",  # Empty text
             "reply_to_msg_id": None,
-            "reactions": [], 
+            "reactions": [],
             "attachments": [],
         },
         # Modern format messages (macOS Ventura+ attributedBody)

@@ -4,21 +4,22 @@ These tests follow the acceptance criteria from ACCEPTANCE_CRITERIA.md and
 detailed specifications from IMESSAGE_SPEC.md.
 """
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import pytest
 
-from chatx.extractors.imessage import IMessageExtractor
 from chatx.extractors.base import ExtractionError
+from chatx.extractors.imessage import IMessageExtractor
 from chatx.schemas.message import CanonicalMessage
 
 
 class TestIMessageExtractionIntegration:
     """Integration tests for iMessage extractor with comprehensive test data."""
-    
-    def test_extract_messages_comprehensive(self, imessage_test_db: Path, expected_imessage_messages: list[dict]) -> None:
+
+    def test_extract_messages_comprehensive(
+        self, imessage_test_db: Path, expected_imessage_messages: list[dict]
+    ) -> None:
         """Test comprehensive message extraction against golden fixtures.
         
         Acceptance Criteria from ACCEPTANCE_CRITERIA.md:
@@ -35,19 +36,22 @@ class TestIMessageExtractionIntegration:
         assert len(extracted_messages) == 16, f"Expected 16 messages, got {len(extracted_messages)}"
         
         # Convert to dicts for easier comparison
-        extracted_dicts = [msg.model_dump(exclude={"source_ref", "source_meta"}) for msg in extracted_messages]
+        extracted_dicts = [
+            msg.model_dump(exclude={"source_ref", "source_meta"})
+            for msg in extracted_messages
+        ]
         
         # Test each expected message is present with correct data
         for expected in expected_imessage_messages:
             matching_msg = next(
-                (msg for msg in extracted_dicts if msg["msg_id"] == expected["msg_id"]), 
+                (msg for msg in extracted_dicts if msg["msg_id"] == expected["msg_id"]),
                 None
             )
             assert matching_msg is not None, f"Expected message {expected['msg_id']} not found"
             
             # Test core fields
             assert matching_msg["conv_id"] == expected["conv_id"]
-            assert matching_msg["platform"] == expected["platform"] 
+            assert matching_msg["platform"] == expected["platform"]
             assert matching_msg["sender"] == expected["sender"]
             assert matching_msg["sender_id"] == expected["sender_id"]
             assert matching_msg["is_me"] == expected["is_me"]
@@ -56,7 +60,9 @@ class TestIMessageExtractionIntegration:
             
             # Test reactions are properly folded
             assert len(matching_msg["reactions"]) == len(expected["reactions"])
-            for reaction, expected_reaction in zip(matching_msg["reactions"], expected["reactions"]):
+            for reaction, expected_reaction in zip(
+                matching_msg["reactions"], expected["reactions"], strict=False
+            ):
                 # Use from_ since that's the actual field name in the model
                 assert reaction["from_"] == expected_reaction["from"]
                 assert reaction["kind"] == expected_reaction["kind"]
@@ -65,7 +71,9 @@ class TestIMessageExtractionIntegration:
                 
             # Test attachments
             assert len(matching_msg["attachments"]) == len(expected["attachments"])
-            for attachment, expected_attachment in zip(matching_msg["attachments"], expected["attachments"]):
+            for attachment, expected_attachment in zip(
+                matching_msg["attachments"], expected["attachments"], strict=False
+            ):
                 assert attachment["type"] == expected_attachment["type"]
                 assert attachment["filename"] == expected_attachment["filename"]
                 
@@ -90,7 +98,7 @@ class TestIMessageExtractionIntegration:
         second_msg = next((msg for msg in extracted_messages if msg.msg_id == "1"), None)
         
         assert nanosecond_msg is not None
-        assert microsecond_msg is not None  
+        assert microsecond_msg is not None
         assert second_msg is not None
         
         # All should have reasonable timestamps (around 2022 based on our test data)
@@ -102,28 +110,28 @@ class TestIMessageExtractionIntegration:
         """Test reactions are properly folded into target messages.
         
         From IMESSAGE_SPEC.md:
-        - Reaction rows MUST be grouped into target message's reactions[] 
+        - Reaction rows MUST be grouped into target message's reactions[]
         - Reaction rows MUST be suppressed from output as standalone messages
         """
         extractor = IMessageExtractor(imessage_test_db)
         extracted_messages = list(extractor.extract_messages())
-        
+
         # No message should be a standalone reaction (all should be folded)
-        for msg in extracted_messages:
+        for _msg in extracted_messages:
             # Reactions have empty or null text and associated_message_guid
             # Since they're folded, we shouldn't see any standalone reactions
             pass
             
         # Check specific messages have expected reactions
         msg_with_like = next((msg for msg in extracted_messages if msg.msg_id == "6"), None)
-        msg_with_love = next((msg for msg in extracted_messages if msg.msg_id == "3"), None)  
+        msg_with_love = next((msg for msg in extracted_messages if msg.msg_id == "3"), None)
         msg_with_laugh = next((msg for msg in extracted_messages if msg.msg_id == "2"), None)
         msg_with_emphasize = next((msg for msg in extracted_messages if msg.msg_id == "1"), None)
         
         assert msg_with_like is not None and len(msg_with_like.reactions) == 1
         assert msg_with_like.reactions[0].kind == "like"
         
-        assert msg_with_love is not None and len(msg_with_love.reactions) == 1  
+        assert msg_with_love is not None and len(msg_with_love.reactions) == 1
         assert msg_with_love.reactions[0].kind == "love"
         
         assert msg_with_laugh is not None and len(msg_with_laugh.reactions) == 1
@@ -178,7 +186,7 @@ class TestIMessageExtractionIntegration:
         assert attachment.type == "image"
         assert attachment.filename == "photo.jpg"
         assert attachment.mime_type == "image/jpeg"
-        assert attachment.uti == "public.jpeg"  
+        assert attachment.uti == "public.jpeg"
         assert attachment.transfer_name == "IMG_001.jpeg"
         
         # Ensure no binary data is included (abs_path should be None in extraction)
@@ -210,7 +218,7 @@ class TestIMessageExtractionIntegration:
         extractor = IMessageExtractor(imessage_test_db)
         extracted_messages = list(extractor.extract_messages())
         
-        # Test message with no handle (should default to "Unknown")  
+        # Test message with no handle (should default to "Unknown")
         no_handle_msg = next((msg for msg in extracted_messages if msg.msg_id == "16"), None)
         assert no_handle_msg is not None
         assert no_handle_msg.sender == "Unknown"
@@ -223,7 +231,7 @@ class TestIMessageExtractionIntegration:
         assert null_text_msg is not None
         assert null_text_msg.text is None
         
-        assert empty_text_msg is not None  
+        assert empty_text_msg is not None
         assert empty_text_msg.text == ""
         
         # Test orphaned reaction is handled (doesn't crash, gets counted)
@@ -245,7 +253,7 @@ class TestIMessageExtractionIntegration:
         """Test extraction works with minimal valid database."""
         extractor = IMessageExtractor(minimal_imessage_db)
         
-        # Should pass validation  
+        # Should pass validation
         assert extractor.validate_source()
         
         # Should extract the single message
@@ -281,18 +289,18 @@ class TestIMessageExtractionIntegration:
     def test_extraction_report_generation(self, imessage_test_db: Path) -> None:
         """Test extraction report contains useful metrics."""
         extractor = IMessageExtractor(imessage_test_db)
-        extracted_messages = list(extractor.extract_messages())
-        
+        _extracted_messages = list(extractor.extract_messages())
+
         # Report should track key metrics
         assert extractor.report.reactions_folded > 0
         assert isinstance(extractor.report.errors, list)
-        
+
         # Should track unresolved replies if any
         assert hasattr(extractor.report, 'unresolved_replies')
         
     def test_deterministic_extraction(self, imessage_test_db: Path) -> None:
         """Test extraction is deterministic - multiple runs produce identical results."""
-        extractor1 = IMessageExtractor(imessage_test_db) 
+        extractor1 = IMessageExtractor(imessage_test_db)
         extractor2 = IMessageExtractor(imessage_test_db)
         
         messages1 = list(extractor1.extract_messages())
@@ -300,8 +308,9 @@ class TestIMessageExtractionIntegration:
         
         assert len(messages1) == len(messages2)
         
-        # Compare message content (excluding timestamps which might vary due to datetime.now() fallbacks)
-        for msg1, msg2 in zip(messages1, messages2):
+        # Compare message content (excluding timestamps which might vary due to
+        # datetime.now() fallbacks)
+        for msg1, msg2 in zip(messages1, messages2, strict=False):
             assert msg1.msg_id == msg2.msg_id
             assert msg1.conv_id == msg2.conv_id
             assert msg1.text == msg2.text
