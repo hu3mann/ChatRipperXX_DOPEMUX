@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "claude-context": {
+      "command": "npx",
+      "args": ["-y", "@zilliz/claude-context-mcp@latest"],
+      "env": {
+        "OPENAI_API_KEY": "${OPENAI_API_KEY}",
+        "MILVUS_ADDRESS": "${MILVUS_ADDRESS}",
+        "MILVUS_TOKEN": "${MILVUS_TOKEN}"
+      }
+    },
+    "context7-mcp": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp", "--api-key", "${UPSTASH_CONTEXT7_KEY}"]
+    },
+    "mcp": {
+      "command": "npx",
+      "args": ["-y", "@smithery/cli@latest", "run", "@docfork/mcp", "--key", "${DOCFORK_MCP_KEY}"]
+    },
+    "server-sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@smithery-ai/server-sequential-thinking",
+        "--key",
+        "${SEQ_THINKING_KEY}",
+        "--profile",
+        "${SEQ_THINKING_PROFILE}"
+      ]
+    }
+  }
+}

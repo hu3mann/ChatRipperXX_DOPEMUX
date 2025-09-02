@@ -47,3 +47,6 @@ site/
 
 # Local cache
 .cache/
+
+.env
+mcp.config.expanded.json
