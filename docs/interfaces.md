@@ -242,7 +242,7 @@ SLAs & Limits
 Change Log (since 2025-08-15)
 - Normalized CLI section and deprecated aliases.
 - Finalized HTTP request/response shapes, validation rules, and error catalog; confirmed 60s/streaming SLA.
-- iMessage CLI: added `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing` options; `missing_attachments_report.json` defined with non-error exit semantics when attachments are missing.
+- iMessage CLI: added `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing` options; `missing_attachments.json` defined with non-error exit semantics when attachments are missing.
 
 ## CLI: Index Metadata Update (no re-embedding)
 - **Name | Command | Purpose**

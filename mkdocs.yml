@@ -16,7 +16,7 @@ nav:
   - Home: index.md
   - Architecture: architecture.md
   - ADRs:
-      - ADR Index: adr/index.md
+      - ADR Index: design/adrs/index.md
   - Agent Workflows: agent-workflows.md
   - Repo Prompt XML Apply: repo-prompt-xml.md
   - Additional Docs:

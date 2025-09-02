@@ -14,7 +14,7 @@ We support macOS local DB extraction today. Users also request iPhone USB backup
 ## Consequences
 
 - CLI to accept a `--from-backup <path>` option (future slice) while keeping the current macOS local DB path.
-- Maintain and emit `missing_attachments_report.json` to guide manual remediation for iCloud‑evicted files.
+- Maintain and emit `missing_attachments.json` to guide manual remediation for iCloud‑evicted files.
 - Defer automation of iCloud downloads; document manual steps and risks.
 
 ## Alternatives Considered
@@ -26,4 +26,3 @@ We support macOS local DB extraction today. Users also request iPhone USB backup
 
 - iMessage Extractor Spec – completeness & evicted attachments
 - NEXT.md – Open question on iCloud/USB acquisition UX
-

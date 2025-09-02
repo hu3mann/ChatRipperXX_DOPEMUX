@@ -23,7 +23,7 @@ Status: Draft | Owner: You | Last Updated: 2025-09-02 PT
 ## Changes Since Last Update
 
 * 2025-09-02: Implemented initial iMessage extractor with reaction folding, reply resolution, and attachment metadata; added unit and integration tests.
-* 2025-09-02: Wired CLI flags `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing`; added `missing_attachments_report.json` generation and validation; implemented local transcription path (mock/Whisper) and surfaced run stats.
+* 2025-09-02: Wired CLI flags `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing`; added `missing_attachments.json` generation and validation; implemented local transcription path (mock/Whisper) and surfaced run stats.
 * 2025-08-16: **CLOUD_ENRICHMENT.md** expanded with `provenance`, `shield`, and confidence calibration details; added field-visibility matrix.
 * 2025-08-16: **INTERFACES.md** updated to mirror enrichment fields, error codes, and visibility rules; enriched CLI contracts clarified.
 * 2025-08-16: **ACCEPTANCE_CRITERIA.md** extended with Gherkin for chunking, relationship labels, idempotency, and minimal-context checks.

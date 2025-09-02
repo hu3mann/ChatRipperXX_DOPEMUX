@@ -51,7 +51,7 @@ Status: Draft | Owner: XtractXact | Last Updated: 2025-09-02 PT
 
 ## Completeness & Evicted Attachments
 
-* **Local Completeness Scan:** after extraction, scan all attachment records and report any whose file is missing on disk to `out/missing_attachments_report.json`.
+* **Local Completeness Scan:** after extraction, scan all attachment records and report any whose file is missing on disk to `out/missing_attachments.json`.
 * **Actionable Report:** include per-chat counts and example filenames for user remediation (e.g., “open chat → info → Download All Attachments”).
 * **Automation:** Open question: OS-supported automation to force downloads at scale (manual process is acceptable short-term).
 
