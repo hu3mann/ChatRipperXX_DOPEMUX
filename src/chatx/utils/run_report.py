@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 def iso_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def write_extract_run_report(
@@ -21,19 +21,32 @@ def write_extract_run_report(
     finished_at: datetime,
     messages_total: int,
     attachments_total: int,
+    images_total: int = 0,
     throughput_msgs_min: float,
-    artifacts: Optional[List[str]] = None,
-    warnings: Optional[List[str]] = None,
+    artifacts: list[str] | None = None,
+    warnings: list[str] | None = None,
 ) -> Path:
     """Write a run report JSON for the extract component.
 
-    Returns the path to the report file.
+    Args:
+        out_dir: Destination directory for the report.
+        started_at: When the run began.
+        finished_at: When the run finished.
+        messages_total: Number of messages processed.
+        attachments_total: Number of attachments encountered.
+        images_total: Number of image attachments encountered.
+        throughput_msgs_min: Processing throughput.
+        artifacts: Optional list of artifact paths.
+        warnings: Optional list of warnings.
+
+    Returns:
+        Path to the report file.
     """
     run_id = os.environ.get("CHATX_RUN_ID") or str(uuid.uuid4())
-    s_at = started_at.astimezone(timezone.utc).isoformat()
-    f_at = finished_at.astimezone(timezone.utc).isoformat()
+    s_at = started_at.astimezone(UTC).isoformat()
+    f_at = finished_at.astimezone(UTC).isoformat()
 
-    component: Dict[str, Any] = {
+    component: dict[str, Any] = {
         "component": "extract",
         "run_id": run_id,
         "started_at": s_at,
@@ -43,13 +56,14 @@ def write_extract_run_report(
             "messages_total": messages_total,
             "attachments_total": attachments_total,
             "throughput_msgs_min": max(0.0, float(throughput_msgs_min)),
+            "images_total": images_total,
         },
         "warnings": warnings or [],
         "errors": [],
         "artifacts": artifacts or [],
     }
 
-    report: Dict[str, Any] = {
+    report: dict[str, Any] = {
         "run_id": run_id,
         "started_at": s_at,
         "finished_at": f_at,
@@ -60,6 +74,7 @@ def write_extract_run_report(
             "coverage_min": 0,
             "coverage_max": 0,
             "duration_s": component["duration_s"],
+            "images_total": images_total,
         },
     }
 
@@ -88,13 +103,13 @@ def validate_run_report(report_path: Path) -> bool:
         if not run_schema_path.exists():
             return True  # Schema not available in environment
 
-        with open(run_schema_path, "r", encoding="utf-8") as f:
+        with open(run_schema_path, encoding="utf-8") as f:
             run_schema = json.load(f)
 
         # Prepare ref store for external refs
-        store: Dict[str, Any] = {}
+        store: dict[str, Any] = {}
         if metrics_schema_path.exists():
-            with open(metrics_schema_path, "r", encoding="utf-8") as f:
+            with open(metrics_schema_path, encoding="utf-8") as f:
                 metrics_schema = json.load(f)
             store["metrics.schema.json"] = metrics_schema
             # Also register by $id if present
@@ -102,10 +117,11 @@ def validate_run_report(report_path: Path) -> bool:
                 store[metrics_schema["$id"]] = metrics_schema
 
         # Load the report
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             report_data = json.load(f)
 
-        validator = Draft202012Validator(run_schema, resolver=jsonschema.RefResolver.from_schema(run_schema, store=store))
+        resolver = jsonschema.RefResolver.from_schema(run_schema, store=store)
+        validator = Draft202012Validator(run_schema, resolver=resolver)
         validator.validate(report_data)
         return True
 
@@ -121,21 +137,21 @@ def append_metrics_event(
     component: str,
     started_at: datetime,
     finished_at: datetime,
-    counters: Dict[str, Any],
-    warnings: Optional[List[str]] = None,
-    errors: Optional[List[str]] = None,
-    artifacts: Optional[List[str]] = None,
+    counters: dict[str, Any],
+    warnings: list[str] | None = None,
+    errors: list[str] | None = None,
+    artifacts: list[str] | None = None,
 ) -> Path:
     """Append a single component metrics payload to metrics.jsonl.
 
     Returns the metrics.jsonl path.
     """
     run_id = os.environ.get("CHATX_RUN_ID") or str(uuid.uuid4())
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "component": component,
         "run_id": run_id,
-        "started_at": started_at.astimezone(timezone.utc).isoformat(),
-        "finished_at": finished_at.astimezone(timezone.utc).isoformat(),
+        "started_at": started_at.astimezone(UTC).isoformat(),
+        "finished_at": finished_at.astimezone(UTC).isoformat(),
         "duration_s": max((finished_at - started_at).total_seconds(), 0.0),
         "counters": counters,
         "warnings": warnings or [],
