@@ -13,14 +13,18 @@ from chatx.extractors.imessage import IMessageExtractor
 
 
 def test_decode_attributed_body_plist(tmp_path: Path) -> None:
-    extractor = IMessageExtractor(tmp_path / "chat.db")
+    db_path = tmp_path / "chat.db"
+    db_path.touch()
+    extractor = IMessageExtractor(db_path)
     payload = plistlib.dumps({"string": "Hello world"})
     text = extractor._decode_attributed_body(payload)
     assert text == "Hello world"
 
 
 def test_decode_attributed_body_utf8_fallback(tmp_path: Path) -> None:
-    extractor = IMessageExtractor(tmp_path / "chat.db")
+    db_path = tmp_path / "chat.db"
+    db_path.touch()
+    extractor = IMessageExtractor(db_path)
     payload = "Some utf8 text with ✓".encode("utf-8")
     text = extractor._decode_attributed_body(payload)
     assert "Some utf8 text" in (text or "")
