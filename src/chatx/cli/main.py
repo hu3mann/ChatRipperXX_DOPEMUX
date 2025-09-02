@@ -20,7 +20,7 @@ console = Console()
 def main(
     verbose: int = typer.Option(0, "--verbose", "-v", count=True, help="Increase verbosity"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress output"),
-    config: Path | None = typer.Option(None, "--config", "-c", help="Configuration file path"),
+    config: str = typer.Option("", "--config", "-c", help="Configuration file path"),
 ) -> None:
     """ChatX - Privacy-focused chat analysis tool."""
     # Set up logging based on verbosity
@@ -35,9 +35,6 @@ def main(
 
     if config:
         console.print(f"Using config: {config}")
-
-    # Store config for subcommands (this is just the callback, not the actual command)
-    # Subcommands will handle their own logic
 
 
 @app.command()

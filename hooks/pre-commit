@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+
 # Block commits that include staged files which are not valid UTF-8.
 # Uses iconv to validate; any failure aborts the commit.
 

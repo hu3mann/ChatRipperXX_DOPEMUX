@@ -13,8 +13,7 @@ class Reaction(BaseModel):
     kind: str = Field(..., description="Reaction type (love, like, dislike, laugh, etc.)")
     ts: datetime = Field(..., description="Reaction timestamp")
 
-    class Config:
-        populate_by_name = True
+    model_config = {"populate_by_name": True}
 
 
 class Attachment(BaseModel):
@@ -66,7 +65,8 @@ class CanonicalMessage(BaseModel):
         description="Platform-specific raw fields; NEVER sent to cloud"
     )
 
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat()
         }
+    }

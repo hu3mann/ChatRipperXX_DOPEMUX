@@ -64,7 +64,7 @@ class IMessageExtractor(BaseExtractor):
             logger.warning(f"Failed to validate iMessage database: {e}")
             return False
     
-    def _convert_apple_timestamp(self, ts: Optional[float]) -> Optional[datetime]:
+    def _convert_apple_timestamp(self, ts: float | None) -> datetime | None:
         """
         Convert Apple iMessage timestamps to UTC-aware datetimes.
 
@@ -79,7 +79,7 @@ class IMessageExtractor(BaseExtractor):
             return None
 
         try:
-            value = int(ts)
+            value = int(ts) if ts is not None else 0
         except (TypeError, ValueError):
             return None
 
@@ -94,7 +94,7 @@ class IMessageExtractor(BaseExtractor):
         else:  # nanoseconds
             seconds = value / 1_000_000_000.0
 
-        return APPLE_EPOCH + datetime.timedelta(seconds=seconds)
+        return APPLE_EPOCH + timedelta(seconds=seconds)
     
     def _copy_database(self) -> Path:
         """Copy database to temporary location to avoid file locks.
@@ -269,7 +269,7 @@ class IMessageExtractor(BaseExtractor):
                     timestamp = datetime.now(UTC)
 
                 reaction = Reaction(
-                    from_=sender,
+                    from_=sender,  # type: ignore
                     kind=reaction_kind,
                     ts=timestamp
                 )

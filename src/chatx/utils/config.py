@@ -34,13 +34,25 @@ class Config(BaseModel):
     
     # LLM settings
     llm: LLMConfig = Field(
-        default_factory=lambda: LLMConfig(provider="local"),
+        default_factory=lambda: LLMConfig(
+            provider="local",
+            model=None,
+            api_key=None,
+            base_url=None,
+            max_retries=3,
+            timeout=60
+        ),
         description="LLM configuration"
     )
     
     # Privacy settings
     redaction: RedactionConfig = Field(
-        default_factory=RedactionConfig,
+        default_factory=lambda: RedactionConfig(
+            strict_mode=True,
+            policy_file=None,
+            generate_report=True,
+            fail_on_leak=True
+        ),
         description="Redaction configuration"
     )
     
@@ -95,7 +107,13 @@ class Config(BaseModel):
         Returns:
             Config instance with default values
         """
-        return cls()
+        return cls(
+            verbose=False,
+            output_dir=Path("./output"),
+            temp_dir=None,
+            batch_size=10,
+            max_workers=4
+        )
 
 
 def load_config(config_path: str | Path | None = None) -> Config:
