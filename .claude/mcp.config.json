@@ -6,43 +6,40 @@
         "-y",
         "@zilliz/claude-context-mcp@latest"
       ],
-      "env": {
-        "OPENAI_API_KEY": "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",
-        "MILVUS_ADDRESS": "https://in05-8cf68c6f65a1939.serverless.gcp-us-west1.cloud.zilliz.com",
-        "MILVUS_TOKEN": "de630e7f7c8b0e7ff0c3c4db486fa3c635a86853fa0134eaca57d488af615b64cc093b8ad4216d399cf70eecdda8d7d20d7151a7"
+      "env": {        
       }
     },
     "context7-mcp": {
       "command": "npx",
       "args": [
-        "-y",
-        "@upstash/context7-mcp",
-        "--api-key",
-        "1c48892c-dd4d-40af-a31b-b758edd674a0"
+    "-y",
+    "@upstash/context7-mcp",
+    "--api-key",
+    "${SMITHERY_KEY}"
       ]
     },
     "mcp": {
       "command": "npx",
       "args": [
-        "-y",
-        "@smithery/cli@latest",
-        "run",
-        "@docfork/mcp",
-        "--key",
-        "1c48892c-dd4d-40af-a31b-b758edd674a0"
+    "-y",
+    "@smithery/cli@latest",
+    "run",
+    "@docfork/mcp",
+    "--key",
+    "${SMITHERY_KEY}"
       ]
     },
     "server-sequential-thinking": {
       "command": "npx",
       "args": [
-        "-y",
-        "@smithery/cli@latest",
-        "run",
-        "@smithery-ai/server-sequential-thinking",
-        "--key",
-        "1c48892c-dd4d-40af-a31b-b758edd674a0",
-        "--profile",
-        "joint-constrictor-SZYWlg"
+    "-y",
+    "@smithery/cli@latest",
+    "run",
+    "@smithery-ai/server-sequential-thinking",
+    "--key",
+    "${SMITHERY_KEY}",
+    "--profile",
+    "joint-constrictor-SZYWlg"
       ]
     }
   }

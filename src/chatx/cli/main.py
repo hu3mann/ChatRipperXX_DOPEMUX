@@ -202,6 +202,35 @@ def imessage_pull(
             output_file = out / f"messages_{contact.replace('@', '_at_').replace('+', '_plus_')}.json"
             write_messages_with_validation(messages, output_file)
             console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
+            
+            # Report transcription statistics if audio transcription was enabled
+            if transcribe_audio != "off" and include_attachments:
+                from chatx.imessage.transcribe import collect_transcription_stats
+                
+                stats = collect_transcription_stats(messages)
+                total_transcripts = stats["total_transcripts"]
+                
+                if total_transcripts > 0:
+                    console.print(f"[blue]Audio transcription:[/blue] {total_transcripts} voice message(s) transcribed")
+                    
+                    # Show breakdown by confidence if available
+                    confidence_counts = stats["by_confidence"]
+                    confidence_breakdown = []
+                    for level in ["high", "medium", "low"]:
+                        count = confidence_counts.get(level, 0)
+                        if count > 0:
+                            confidence_breakdown.append(f"{count} {level}")
+                    
+                    if confidence_breakdown:
+                        console.print(f"[blue]Confidence levels:[/blue] {', '.join(confidence_breakdown)}")
+                    
+                    # Show engines used
+                    engines = stats["by_engine"]
+                    if engines:
+                        engine_list = [f"{count} {engine}" for engine, count in engines.items()]
+                        console.print(f"[blue]Engines:[/blue] {', '.join(engine_list)}")
+                elif transcribe_audio == "local":
+                    console.print("[yellow]No voice messages found to transcribe[/yellow]")
         
         # Generate missing attachments report if requested and attachments enabled
         if report_missing and include_attachments:

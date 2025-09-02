@@ -216,6 +216,10 @@ def extract_messages_for_conversation(
     # Fourth pass: extract and attach attachment metadata
     if include_attachments:
         from chatx.imessage.attachments import extract_attachment_metadata, copy_attachment_files
+        from chatx.imessage.transcribe import is_audio_attachment, transcribe_local
+        
+        attachments_with_transcripts = 0
+        failed_transcriptions = 0
         
         for message, _ in regular_messages:
             # Extract attachment metadata
@@ -224,6 +228,45 @@ def extract_messages_for_conversation(
             # Copy binary files if requested
             if copy_binaries and attachments:
                 attachments = copy_attachment_files(attachments, out_dir)
+            
+            # Process audio transcription if enabled
+            if transcribe_audio != "off" and attachments:
+                for attachment in attachments:
+                    # Check if this attachment is audio
+                    if is_audio_attachment(
+                        attachment.mime_type, 
+                        attachment.uti, 
+                        attachment.filename
+                    ):
+                        # Determine path for transcription
+                        if copy_binaries and attachment.copied_path:
+                            audio_path = attachment.copied_path
+                        else:
+                            # Try to find file in default Messages attachments location
+                            from pathlib import Path
+                            attachments_dir = Path.home() / "Library" / "Messages" / "Attachments"
+                            audio_path = attachments_dir / attachment.filename
+                        
+                        # Attempt transcription if file exists
+                        if audio_path.exists():
+                            engine = "whisper" if transcribe_audio == "local" else "mock"
+                            transcript_result = transcribe_local(audio_path, engine=engine)
+                            
+                            if transcript_result:
+                                # Store transcript in message source_meta for provenance
+                                if "transcripts" not in message.source_meta:
+                                    message.source_meta["transcripts"] = []
+                                
+                                message.source_meta["transcripts"].append({
+                                    "filename": attachment.filename,
+                                    "transcript": transcript_result["transcript"],
+                                    "engine": transcript_result["engine"],
+                                    "confidence": transcript_result["confidence"]
+                                })
+                                
+                                attachments_with_transcripts += 1
+                            else:
+                                failed_transcriptions += 1
             
             # Add attachments to message
             message.attachments = attachments
