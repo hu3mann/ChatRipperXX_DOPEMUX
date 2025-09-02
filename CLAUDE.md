@@ -11,6 +11,10 @@ Status: Draft | Owner: <TBD> | Last Updated: 2025-09-02
 ## Purpose
 Make Claude Code produce **small, correct patches** that build and pass on the first run, while leveraging **Model Context Protocol (MCP)** servers for persistent memory, context injection, search, and integrations. This file is auto-loaded as project memory at session start; the `@…` imports above bring key specs into context without copy-pasting.
 
+## Editing policy
+- In Claude Code sessions (terminal): you may edit files directly or return a unified diff (we'll apply with `git apply`).
+- In web/chat sessions: return a Repo Prompt XML edits document (see `docs/repo-prompt-xml.md`) and we'll apply via Repo Prompt's Apply tab or MCP tool.
+
 ---
 
 MCP: Open User Configuration
