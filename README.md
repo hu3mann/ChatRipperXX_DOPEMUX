@@ -38,6 +38,9 @@ chatx instagram pull --zip ./instagram.zip --user "Your Name" --out ./out
 # Audit iMessage DB for missing local attachments (report-only)
 chatx imessage audit --db ~/Library/Messages/chat.db --out ./out
 
+# Ingest PDF conversation export (text-first, OCR fallback)
+chatx imessage pdf --pdf ./conversation.pdf --me "Your Name" --out ./out
+
 # Run full pipeline with privacy redaction
 chatx pipeline ~/Library/Messages/chat.db ./output --provider local
 

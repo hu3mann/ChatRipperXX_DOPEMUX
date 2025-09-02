@@ -516,6 +516,36 @@ def imessage_audit(
     # Success path (report generated): exit 0
     return
 
+
+@imessage_app.command("pdf")
+def imessage_pdf(
+    pdf: Path = typer.Option(..., "--pdf", help="Path to conversation PDF export"),
+    out: Path = typer.Option(Path("./out"), "--out", help="Output directory"),
+    me: str = typer.Option(..., "--me", help="Your display name as it appears in the PDF"),
+    ocr: bool = typer.Option(False, "--ocr", help="Enable OCR fallback when no text layer"),
+) -> None:
+    """Ingest a conversation PDF (text-first; OCR fallback) to canonical JSON."""
+    from chatx.pdf_ingest.reader import PDFIngestOptions, extract_messages_from_pdf
+    from chatx.utils.json_output import write_messages_with_validation
+
+    console.print(f"[bold green]Ingesting PDF:[/bold green] {pdf}")
+    console.print(f"[blue]Output:[/blue] {out}")
+    if not pdf.exists():
+        console.print(f"[bold red]Error:[/bold red] PDF not found: {pdf}")
+        raise typer.Exit(1)
+
+    out.mkdir(parents=True, exist_ok=True)
+
+    try:
+        opts = PDFIngestOptions(me_name=me, ocr=ocr)
+        messages = extract_messages_from_pdf(pdf, options=opts)
+        output_file = out / f"messages_{pdf.stem}.json"
+        write_messages_with_validation(messages, output_file)
+        console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
+    except Exception as e:
+        console.print(f"[bold red]PDF ingestion failed:[/bold red] {e}")
+        raise typer.Exit(1)
+
     out.mkdir(parents=True, exist_ok=True)
 
     try:

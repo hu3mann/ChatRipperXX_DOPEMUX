@@ -16,6 +16,7 @@ CLI (explicit pipeline — canonical)
 chatx imessage pull --contact "<phone|email|name>" [--db ~/Library/Messages/chat.db | --from-backup <MobileSync/Backup/UDID>] [--include-attachments] [--copy-binaries] [--transcribe-audio local|off] [--report-missing|--no-report-missing] [--out ./out]
 chatx instagram pull --zip ./instagram.zip --user "<Your Name>" [--author-only "<username>"] [--out ./out]
 chatx imessage audit --db ~/Library/Messages/chat.db [--contact <id>] [--out ./out]
+chatx imessage pdf --pdf ./conversation.pdf --me "<Your Name>" [--ocr] [--out ./out]
 chatx whatsapp pull --input ./export.json|.txt [--out ./out]
 
 # Transform & Redact
