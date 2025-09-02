@@ -135,6 +135,7 @@ addopts = [
     "--cov=src/chatx",
     "--cov-report=term-missing",
     "--cov-report=html",
+    "--cov-fail-under=60",
 ]
 
 [tool.coverage.run]
