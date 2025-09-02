@@ -193,14 +193,14 @@ Install the helper and function for robust, one-step application from the macOS 
 #   scripts/clip_apply_patch.zsh
 
 # add to ~/.zshrc:
-gap() { "$(git rev-parse --show-toplevel)"/scripts/clip_apply_patch.zsh "$@"; }
+gclip() { "$(git rev-parse --show-toplevel)"/scripts/clip_apply_patch.zsh "$@"; }
 ```
 
 Usage:
 ```zsh
 # copy a unified diff from chat, then:
-gap          # apply & stage
-gap -c       # apply, stage, and commit with a generic message
+gclip          # apply & stage
+gclip -c       # apply, stage, and commit with a generic message
 ```
 
 #### UTF-8 hooks (client-side)
