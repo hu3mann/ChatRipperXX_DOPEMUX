@@ -290,3 +290,25 @@ Change Log (since 2025-08-15)
 
 - **SLA**
   - 25k upserts/min on a developer laptop (best-effort).
+### CLI Error Model (RFC‑7807)
+- Flag: `--error-format json|text` (default: text). When `json`, fatal CLI errors are emitted as Problem JSON on stderr and exit non‑zero.
+- Common error codes:
+  - `INVALID_INPUT` — invalid arguments or failed parse (e.g., bad ZIP)
+  - `MISSING_DB` — Messages `chat.db` not found (iMessage paths)
+  - `MISSING_BACKUP_DIR` — backup directory not found
+  - `ENCRYPTED_BACKUP_PASSWORD_REQUIRED` — encrypted backup requires password
+  - `MISSING_ZIP` — Instagram data ZIP not found
+  - `UNSAFE_ZIP_ENTRY` — ZIP contains an unsafe member path (blocked)
+  - `NO_VALID_ROWS` — all rows failed schema validation (see `out/quarantine/messages_bad.jsonl`)
+
+Example (stderr):
+```json
+{
+  "type": "https://chatx.local/problems/NO_VALID_ROWS",
+  "title": "No valid rows",
+  "status": 1,
+  "detail": "All rows failed schema validation; see quarantine/messages_bad.jsonl",
+  "instance": "./out/messages_friend.json",
+  "code": "NO_VALID_ROWS"
+}
+```
