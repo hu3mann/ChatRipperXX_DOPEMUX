@@ -17,6 +17,8 @@ nav:
   - Architecture: architecture.md
   - ADRs:
       - ADR Index: adr/index.md
+  - Agent Workflows: agent-workflows.md
+  - Repo Prompt XML Apply: repo-prompt-xml.md
   - Additional Docs:
       - README: README.md
       - LLM Context: CR-XactXtract/llm-context.md
