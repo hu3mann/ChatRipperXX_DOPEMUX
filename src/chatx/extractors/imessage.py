@@ -175,36 +175,13 @@ class IMessageExtractor(BaseExtractor):
         return None
 
     def _convert_apple_timestamp(self, ts: float | None) -> datetime | None:
-        """
-        Convert Apple iMessage timestamps to UTC-aware datetimes.
-
-        Apple stores times as seconds or sub-second units since 2001-01-01.
-        We handle:
-          - None or 0 => None
-          - seconds (e.g., 123456789)
-          - microseconds (e.g., 123456789000000)
-          - nanoseconds (e.g., 1234567890000000000)
-        """
-        if ts in (None, 0):
+        """Convert Apple timestamp to UTC datetime using shared helper."""
+        from chatx.imessage.time import to_iso_utc
+        iso = to_iso_utc(ts)
+        if not iso:
             return None
-
-        try:
-            value = int(ts) if ts is not None else 0
-        except (TypeError, ValueError):
-            return None
-
-        # Heuristics based on magnitude to infer unit
-        # < 1e11 -> seconds (covers reasonable ranges)
-        # < 1e15 -> microseconds
-        # >= 1e15 -> nanoseconds
-        if value < 1_00_000_000_000:  # ~3,170 years in seconds; ample headroom
-            seconds = float(value)
-        elif value < 1_000_000_000_000_000:  # microseconds
-            seconds = value / 1_000_000.0
-        else:  # nanoseconds
-            seconds = value / 1_000_000_000.0
-
-        return APPLE_EPOCH + timedelta(seconds=seconds)
+        # Normalize 'Z' to +00:00 for parsing
+        return datetime.fromisoformat(iso.replace('Z', '+00:00'))
 
     def _extract_text_from_nested(self, obj: Any) -> str | None:
         """Search nested structures for plausible text and return the longest string.

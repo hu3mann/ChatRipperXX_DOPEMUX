@@ -332,27 +332,201 @@ def redact(
 
 @app.command()
 def enrich(
-    input_file: Path = typer.Argument(..., help="Input file to enrich"),
+    input_file: Path = typer.Argument(..., help="Input file containing redacted chunks"),
     output: Path | None = typer.Option(None, "--output", "-o", help="Output file path"),
-    provider: str = typer.Option(
-        "local", "--provider", help="LLM provider (local, openai, anthropic)"
+    contact: str = typer.Option("unknown", "--contact", help="Contact identifier"),
+    backend: str = typer.Option("local", "--backend", help="Enrichment backend (local, cloud, hybrid)"),
+    model: str = typer.Option(
+        "gemma2:9b-instruct-q4_K_M", "--model", help="Ollama model to use"
     ),
-    model: str | None = typer.Option(None, "--model", help="Specific model to use"),
-    batch_size: int = typer.Option(10, "--batch-size", help="Batch size for processing"),
+    tau: float = typer.Option(0.7, "--tau", help="Primary confidence threshold (0.0-1.0)"),
+    tau_low: float = typer.Option(0.62, "--tau-low", help="Hysteresis low threshold"),
+    tau_high: float = typer.Option(0.78, "--tau-high", help="Hysteresis high threshold"),
+    batch_size: int = typer.Option(4, "--batch-size", help="Concurrent request limit"),
+    max_concurrent: int = typer.Option(4, "--max-concurrent", help="Max concurrent Ollama requests"),
+    timeout: int = typer.Option(30, "--timeout", help="Request timeout in seconds"),
+    validate_schemas: bool = typer.Option(True, "--validate/--no-validate", help="Validate against schemas"),
+    allow_cloud: bool = typer.Option(False, "--allow-cloud", help="Allow cloud processing (hybrid mode)"),
 ) -> None:
-    """Enrich messages with LLM-generated metadata."""
+    """Enrich redacted chunks with LLM-generated metadata.
+    
+    Examples:
+        chatx enrich redacted_chunks.jsonl --contact "friend@example.com" --backend local
+        chatx enrich redacted_chunks.jsonl --contact "+15551234567" --tau 0.8 --model gemma2:9b
+        chatx enrich redacted_chunks.jsonl --backend hybrid --allow-cloud --tau-low 0.6
+    """
+    import asyncio
+    import json
+    from datetime import datetime
+    from chatx.enrichment.enricher import MessageEnricher, ConfidenceGateConfig
+    from chatx.enrichment.ollama_client import ProductionOllamaClient, OllamaModelConfig
+    
     console.print(f"[bold green]Enriching:[/bold green] {input_file}")
 
     if not input_file.exists():
         console.print(f"[bold red]Error:[/bold red] Input file does not exist: {input_file}")
         raise typer.Exit(1)
 
-    console.print(f"[blue]Using provider:[/blue] {provider}")
-    if model:
-        console.print(f"[blue]Using model:[/blue] {model}")
+    if backend not in ["local", "cloud", "hybrid"]:
+        console.print(f"[bold red]Error:[/bold red] Invalid backend: {backend}")
+        console.print("[blue]Valid backends:[/blue] local, cloud, hybrid")
+        raise typer.Exit(1)
+        
+    if backend in ["cloud", "hybrid"] and not allow_cloud:
+        console.print(f"[bold red]Error:[/bold red] Cloud processing requires --allow-cloud flag")
+        raise typer.Exit(1)
 
-    # TODO: Implement enrichment logic
-    console.print("[yellow]Enrichment not yet implemented[/yellow]")
+    if backend != "local":
+        console.print("[yellow]Warning:[/yellow] Cloud and hybrid backends not yet implemented, using local")
+        backend = "local"
+
+    try:
+        # Validate confidence thresholds
+        if not (0.0 <= tau_low <= tau <= tau_high <= 1.0):
+            console.print(f"[bold red]Error:[/bold red] Invalid confidence thresholds")
+            console.print("[blue]Must satisfy:[/blue] 0 ≤ tau_low ≤ tau ≤ tau_high ≤ 1")
+            raise typer.Exit(1)
+        
+        started_at = datetime.now()
+        
+        # Load redacted chunks
+        console.print(f"[blue]Loading redacted chunks from:[/blue] {input_file}")
+        with open(input_file) as f:
+            if input_file.suffix == ".jsonl":
+                chunks = [json.loads(line) for line in f if line.strip()]
+            else:
+                chunks = json.load(f)
+        
+        console.print(f"[blue]Loaded {len(chunks)} chunks[/blue]")
+        
+        # Check for redaction metadata
+        redacted_count = 0
+        for chunk in chunks[:5]:  # Sample first 5
+            if 'provenance' in chunk and 'redaction' in chunk.get('provenance', {}):
+                redacted_count += 1
+        
+        if redacted_count == 0:
+            console.print("[yellow]Warning:[/yellow] No redaction metadata found - are these redacted chunks?")
+        else:
+            console.print(f"[green]✓ Found redaction metadata in chunks[/green]")
+        
+        # Configure enrichment
+        console.print(f"[blue]Backend:[/blue] {backend}")
+        console.print(f"[blue]Model:[/blue] {model}")
+        console.print(f"[blue]Contact:[/blue] {contact}")
+        console.print(f"[blue]Confidence thresholds:[/blue] τ={tau}, τ_low={tau_low}, τ_high={tau_high}")
+        console.print(f"[blue]Concurrency:[/blue] {max_concurrent} requests")
+        
+        # Create configuration objects
+        model_config = OllamaModelConfig(
+            name=model,
+            temperature=0.0,  # Deterministic
+            seed=42,
+            num_predict=800,
+        )
+        
+        confidence_config = ConfidenceGateConfig(
+            tau=tau,
+            tau_low=tau_low,
+            tau_high=tau_high,
+        )
+        
+        # Run enrichment
+        async def run_enrichment():
+            ollama_client = ProductionOllamaClient(
+                max_concurrent=max_concurrent,
+                timeout=timeout,
+                model_config=model_config,
+            )
+            
+            enricher = MessageEnricher(
+                ollama_client=ollama_client,
+                confidence_config=confidence_config,
+                output_dir=input_file.parent,
+                validate_schemas=validate_schemas,
+            )
+            
+            async with enricher:
+                # Check Ollama health first
+                console.print("[blue]Checking Ollama health...[/blue]")
+                
+                enrichments, output_path = await enricher.enrich_chunks(
+                    chunks=chunks,
+                    contact=contact,
+                    output_file=output,
+                )
+                
+                return enrichments, output_path, enricher
+        
+        # Run the async enrichment
+        console.print("[blue]Starting enrichment...[/blue]")
+        enrichments, output_path, enricher = asyncio.run(run_enrichment())
+        
+        finished_at = datetime.now()
+        total_time = (finished_at - started_at).total_seconds()
+        
+        # Show results
+        console.print(f"[bold green]Enrichment complete![/bold green]")
+        console.print(f"[bold green]Generated {len(enrichments)} enrichments[/bold green]")
+        console.print(f"[bold green]Output saved to:[/bold green] {output_path}")
+        console.print(f"[blue]Total processing time:[/blue] {total_time:.2f}s")
+        
+        if enrichments and total_time > 0:
+            throughput = len(enrichments) / total_time
+            console.print(f"[blue]Throughput:[/blue] {throughput:.1f} enrichments/s")
+            
+            # Check if meets NFR target
+            if throughput >= 25.0:
+                console.print(f"[green]✓ Meets ≥25 enrichments/s target[/green]")
+            else:
+                console.print(f"[yellow]⚠ Below 25 enrichments/s target[/yellow]")
+        
+        # Get performance report
+        performance_report = enricher.get_performance_report()
+        
+        # Show confidence distribution
+        confidence_dist = performance_report.get("enrichment_metrics", {}).get("confidence_distribution", {})
+        if any(confidence_dist.values()):
+            console.print(f"[blue]Confidence distribution:[/blue] "
+                         f"Low: {confidence_dist.get('low', 0)}, "
+                         f"Medium: {confidence_dist.get('medium', 0)}, "
+                         f"High: {confidence_dist.get('high', 0)}")
+        
+        # Show Ollama metrics
+        ollama_metrics = performance_report.get("ollama_metrics", {})
+        if ollama_metrics:
+            console.print(f"[blue]Average latency:[/blue] {ollama_metrics.get('average_latency_ms', 0):.1f}ms")
+            console.print(f"[blue]Error rate:[/blue] {ollama_metrics.get('error_rate', 0):.1%}")
+            
+            if ollama_metrics.get('meets_throughput_target'):
+                console.print("[green]✓ Ollama throughput target met[/green]")
+            if ollama_metrics.get('meets_latency_target'):
+                console.print("[green]✓ Ollama latency target met[/green]")
+        
+        # Save performance report
+        report_file = output_path.parent / f"enrichment_report_{started_at.strftime('%Y%m%d_%H%M%S')}.json"
+        with open(report_file, "w") as f:
+            json.dump(performance_report, f, indent=2)
+        console.print(f"[blue]Performance report saved to:[/blue] {report_file}")
+        
+        # Show warnings for low confidence
+        low_conf_rate = performance_report.get("enrichment_metrics", {}).get("low_confidence_rate", 0)
+        if low_conf_rate > 0.2:  # More than 20% low confidence
+            console.print(f"[yellow]Warning:[/yellow] {low_conf_rate:.1%} of enrichments had low confidence")
+            console.print("[yellow]Consider adjusting model or prompts for better results[/yellow]")
+        
+        # Show validation warnings
+        validation_errors = performance_report.get("enrichment_metrics", {}).get("validation_errors", 0)
+        if validation_errors > 0:
+            console.print(f"[yellow]Warning:[/yellow] {validation_errors} validation errors occurred")
+            console.print(f"[yellow]Check quarantine directory:[/yellow] {input_file.parent / 'quarantine'}")
+        
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Enrichment interrupted by user[/yellow]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[bold red]Error during enrichment:[/bold red] {e}")
+        raise typer.Exit(1)
 
 
 @app.command()

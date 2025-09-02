@@ -118,7 +118,7 @@ def extract_messages_for_conversation(
         from chatx.imessage.reactions import is_reaction, is_reply, get_reaction_type
         
         # Skip reactions in first pass - we'll fold them into parent messages
-        if is_reaction(associated_message_type or 0):
+            if is_reaction(associated_message_type or 0):
             reaction_type = get_reaction_type(associated_message_type)
             
             # For custom emoji reactions, use the text field as the reaction content
@@ -137,10 +137,7 @@ def extract_messages_for_conversation(
                 'reaction_type': reaction_display,
                 'timestamp': date
             })
-            continue
-        
-        # Convert Apple timestamp to ISO-8601 UTC
-        timestamp = apple_timestamp_to_iso(date) if date else datetime.now(timezone.utc).isoformat()
+                continue
         
         # Determine sender information
         if is_from_me:
@@ -161,12 +158,15 @@ def extract_messages_for_conversation(
         if is_reply(associated_message_type or 0, bool(associated_message_guid)):
             reply_to_guid = associated_message_guid
         
-        # Create message with reactions/replies support
-        message = CanonicalMessage(
+            # Convert Apple timestamp to ISO-8601 UTC and parse to datetime
+            from chatx.imessage.time import to_iso_utc
+            ts_iso = to_iso_utc(date) or datetime.now(timezone.utc).isoformat()
+            # Create message with reactions/replies support
+            message = CanonicalMessage(
             msg_id=f"msg_{msg_rowid}",
             conv_id=chat_guid or f"conv_{conv_guid}",
             platform="imessage",
-            timestamp=datetime.fromisoformat(timestamp.replace('Z', '+00:00')),
+                timestamp=datetime.fromisoformat(ts_iso.replace('Z', '+00:00')),
             sender=sender,
             sender_id=sender_id,
             is_me=bool(is_from_me),
@@ -211,7 +211,10 @@ def extract_messages_for_conversation(
             reaction = Reaction(
                 kind=reaction_data['reaction_type'],
                 **{"from": reaction_data['handle_address'] or f"unknown_{reaction_data['handle_id']}" if not reaction_data['is_from_me'] else "me"},
-                ts=datetime.fromisoformat(apple_timestamp_to_iso(reaction_data['timestamp']).replace('Z', '+00:00')) if reaction_data['timestamp'] else datetime.now(timezone.utc)
+                ts=(
+                    datetime.fromisoformat((to_iso_utc(reaction_data['timestamp']) or datetime.now(timezone.utc).isoformat()).replace('Z', '+00:00'))
+                    if reaction_data['timestamp'] else datetime.now(timezone.utc)
+                )
             )
             
             # Add to target message reactions list
@@ -340,19 +343,10 @@ def get_conversation_guids(conn: sqlite3.Connection, handle_ids: List[int]) -> L
     return [row[0] for row in cursor if row[0]]
 
 
-def apple_timestamp_to_iso(apple_timestamp: int) -> str:
-    """Convert Apple Core Data timestamp to ISO-8601 UTC string.
-    
-    Args:
-        apple_timestamp: Apple timestamp (nanoseconds since 2001-01-01)
-        
-    Returns:
-        ISO-8601 UTC timestamp string
-    """
-    # Apple timestamps are in nanoseconds, convert to seconds
-    timestamp_seconds = apple_timestamp / 1_000_000_000
-    dt = APPLE_EPOCH + timedelta(seconds=timestamp_seconds)
-    return dt.isoformat().replace('+00:00', 'Z')
+# Legacy kept for backward import stability in tests if any; use time.to_iso_utc instead.
+def apple_timestamp_to_iso(apple_timestamp: int) -> str:  # pragma: no cover
+    from chatx.imessage.time import to_iso_utc
+    return to_iso_utc(apple_timestamp) or APPLE_EPOCH.isoformat().replace('+00:00', 'Z')
 
 
 def resolve_contact_handles(conn: sqlite3.Connection, contact: str) -> List[int]:
