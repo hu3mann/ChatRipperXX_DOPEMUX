@@ -77,7 +77,7 @@ jobs:
 
       # Align coverage threshold with project defaults (60%)
       - name: Test (pytest + coverage gate)
-        run: pytest --cov=src/chatx --cov-report=term-missing --cov-fail-under=60
+        run: pytest --cov=src --cov-report=term-missing --cov-fail-under=60
 
       - name: Store coverage artifact
         if: always()
