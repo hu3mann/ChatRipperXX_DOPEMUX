@@ -13,7 +13,12 @@ Principles
 CLI (explicit pipeline — canonical)
 ```
 # Extraction
-chatx imessage pull --contact "<phone|email|name>" [--db ~/Library/Messages/chat.db | --from-backup <MobileSync/Backup/UDID>] [--include-attachments] [--copy-binaries] [--transcribe-audio local|off] [--report-missing|--no-report-missing] [--out ./out]
+chatx imessage pull --contact "<phone|email|name>" \
+  [--db ~/Library/Messages/chat.db | --from-backup <~/Library/Application Support/MobileSync/Backup/<UDID>>] \
+  [--backup-password <pw>] \
+  [--include-attachments] [--copy-binaries] \
+  [--transcribe-audio local|off] [--report-missing|--no-report-missing] \
+  [--out ./out]
 chatx instagram pull --zip ./instagram.zip --user "<Your Name>" [--author-only "<username>"] [--out ./out]
 chatx imessage audit --db ~/Library/Messages/chat.db [--contact <id>] [--out ./out]
 chatx imessage pdf --pdf ./conversation.pdf --me "<Your Name>" [--ocr] [--out ./out]
@@ -242,7 +247,8 @@ SLAs & Limits
 Change Log (since 2025-08-15)
 - Normalized CLI section and deprecated aliases.
 - Finalized HTTP request/response shapes, validation rules, and error catalog; confirmed 60s/streaming SLA.
-- iMessage CLI: added `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing` options; `missing_attachments.json` defined with non-error exit semantics when attachments are missing.
+- iMessage CLI: added `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing` options; missing attachments report defined with non-error exit semantics when attachments are missing.
+- iMessage backup mode: `--from-backup` and optional `--backup-password`. In backup mode, attachments resolve via Manifest.db (hashed fileIDs) and can be copied with `--copy-binaries`; transcription can resolve backup files without copying.
 
 ## CLI: Index Metadata Update (no re-embedding)
 - **Name | Command | Purpose**
