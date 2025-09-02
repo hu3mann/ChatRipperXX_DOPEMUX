@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 
 from chatx.utils.logging import setup_logging
+from chatx import __version__ as CHATX_VERSION
 
 app = typer.Typer(
     name="chatx",
@@ -25,11 +26,18 @@ app = typer.Typer(
 console = Console()
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        console.print(f"chatx {CHATX_VERSION}")
+        raise typer.Exit()
+
+
 @app.callback()
 def main(
-    verbose: int = typer.Option(0, "--verbose", "-v", count=True, help="Increase verbosity"),
-    quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress output"),
-    config: str = typer.Option("", "--config", "-c", help="Configuration file path"),
+    verbose: int = typer.Option(0, "--verbose", "-v", count=True, help="Increase verbosity", rich_help_panel="Global"),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress output", rich_help_panel="Global"),
+    config: str = typer.Option("", "--config", "-c", help="Configuration file path", rich_help_panel="Global"),
+    version: bool = typer.Option(False, "--version", callback=_version_callback, is_eager=True, help="Show version and exit", rich_help_panel="Global"),
 ) -> None:
     """ChatX - Privacy-focused chat analysis tool."""
     # Set up logging based on verbosity
@@ -369,18 +377,23 @@ imessage_app = typer.Typer(help="iMessage extraction commands")
 app.add_typer(imessage_app, name="imessage")
 
 
-@imessage_app.command("pull")
+@imessage_app.command("pull", help="Extract iMessage conversations for a contact.")
 def imessage_pull(
-    contact: str = typer.Option(..., "--contact", help="Contact identifier (phone, email, or name)"),
+    contact: str = typer.Option(..., "--contact", metavar="<ID>", help="Contact identifier (phone, email, or name)", rich_help_panel="Source"),
     db: Path = typer.Option(
         Path.home() / "Library/Messages/chat.db",
         "--db",
-        help="Path to Messages database"
+        help="Path to Messages database",
+        show_default=True,
+        metavar="<PATH>",
+        rich_help_panel="Source",
     ),
     from_backup: Path | None = typer.Option(
         None,
         "--from-backup",
-        help="Path to iPhone backup directory (Finder/iTunes MobileSync). Example: ~/Library/Application Support/MobileSync/Backup/<UDID>"
+        help="Path to iPhone backup directory (Finder/iTunes MobileSync)",
+        metavar="<BACKUP_DIR>",
+        rich_help_panel="Source",
     ),
     backup_password: str | None = typer.Option(
         None,
@@ -388,16 +401,19 @@ def imessage_pull(
         help="Password for encrypted backups (input is not echoed)",
         prompt=False,
         hide_input=True,
+        rich_help_panel="Source",
     ),
-    out: Path = typer.Option(Path("./out"), "--out", help="Output directory"),
-    include_attachments: bool = typer.Option(False, "--include-attachments", help="Extract attachment metadata"),
-    copy_binaries: bool = typer.Option(False, "--copy-binaries", help="Copy attachment files to output"),
+    out: Path = typer.Option(Path("./out"), "--out", help="Output directory", show_default=True, metavar="<DIR>", rich_help_panel="Output"),
+    include_attachments: bool = typer.Option(False, "--include-attachments", help="Extract attachment metadata", rich_help_panel="Attachments"),
+    copy_binaries: bool = typer.Option(False, "--copy-binaries", help="Copy attachment files to output", rich_help_panel="Attachments"),
     transcribe_audio: str = typer.Option(
         "off",
         "--transcribe-audio",
         help="Audio transcription mode (local|off). Example: --transcribe-audio local",
+        show_default=True,
+        rich_help_panel="Transcription",
     ),
-    report_missing: bool = typer.Option(True, "--report-missing/--no-report-missing", help="Generate missing attachments report"),
+    report_missing: bool = typer.Option(True, "--report-missing/--no-report-missing", help="Generate missing attachments report", show_default=True, rich_help_panel="Attachments"),
 ) -> None:
     """Extract iMessage conversations for a contact.
 
@@ -670,12 +686,12 @@ instagram_app = typer.Typer(help="Instagram extraction commands")
 app.add_typer(instagram_app, name="instagram")
 
 
-@instagram_app.command("pull")
+@instagram_app.command("pull", help="Extract Instagram DMs from official ZIP export.")
 def instagram_pull(
-    zip: Path = typer.Option(..., "--zip", help="Path to Instagram official data ZIP"),
-    out: Path = typer.Option(Path("./out"), "--out", help="Output directory"),
-    user: str = typer.Option(..., "--user", help="Your Instagram display name (filters threads; also marks is_me)"),
-    author_only: list[str] = typer.Option([], "--author-only", help="Include only messages authored by these usernames (repeatable)"),
+    zip: Path = typer.Option(..., "--zip", help="Path to Instagram official data ZIP", metavar="<ZIP>"),
+    out: Path = typer.Option(Path("./out"), "--out", help="Output directory", show_default=True, metavar="<DIR>"),
+    user: str = typer.Option(..., "--user", help="Your Instagram display name (filters threads; also marks is_me)", metavar="<NAME>"),
+    author_only: list[str] = typer.Option([], "--author-only", help="Include only messages authored by these usernames (repeatable)", metavar="<NAME>", rich_help_panel="Filters"),
 ) -> None:
     """Extract Instagram DMs from the official data ZIP export.
 
@@ -699,15 +715,17 @@ def instagram_pull(
 
 
 # iMessage audit command (report-only)
-@imessage_app.command("audit")
+@imessage_app.command("audit", help="Scan DB for missing local attachments; report-only.")
 def imessage_audit(
     db: Path = typer.Option(
         Path.home() / "Library/Messages/chat.db",
         "--db",
         help="Path to Messages database",
+        show_default=True,
+        metavar="<PATH>",
     ),
-    out: Path = typer.Option(Path("./out"), "--out", help="Output directory"),
-    contact: str | None = typer.Option(None, "--contact", help="Optional contact filter"),
+    out: Path = typer.Option(Path("./out"), "--out", help="Output directory", show_default=True, metavar="<DIR>"),
+    contact: str | None = typer.Option(None, "--contact", help="Optional contact filter", metavar="<ID>", rich_help_panel="Filters"),
 ) -> None:
     """Scan the database for missing/evicted attachment files and produce guidance.
 
@@ -759,12 +777,12 @@ def imessage_audit(
     return
 
 
-@imessage_app.command("pdf")
+@imessage_app.command("pdf", help="Ingest conversation PDF (text-first; OCR fallback).")
 def imessage_pdf(
-    pdf: Path = typer.Option(..., "--pdf", help="Path to conversation PDF export"),
-    out: Path = typer.Option(Path("./out"), "--out", help="Output directory"),
-    me: str = typer.Option(..., "--me", help="Your display name as it appears in the PDF"),
-    ocr: bool = typer.Option(False, "--ocr", help="Enable OCR fallback when no text layer"),
+    pdf: Path = typer.Option(..., "--pdf", help="Path to conversation PDF export", metavar="<PDF>"),
+    out: Path = typer.Option(Path("./out"), "--out", help="Output directory", show_default=True, metavar="<DIR>"),
+    me: str = typer.Option(..., "--me", help="Your display name as it appears in the PDF", metavar="<NAME>", rich_help_panel="Parsing"),
+    ocr: bool = typer.Option(False, "--ocr", help="Enable OCR fallback when no text layer", show_default=True, rich_help_panel="Parsing"),
 ) -> None:
     """Ingest a conversation PDF (text-first; OCR fallback) to canonical JSON.
 

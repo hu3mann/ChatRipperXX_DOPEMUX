@@ -280,6 +280,16 @@ def extract_messages_for_conversation(
                             attachments_dir = Path.home() / "Library" / "Messages" / "Attachments"
                             if check_attachment_file_exists(attachment.filename):
                                 audio_path = attachments_dir / attachment.filename
+                            # If in backup mode, resolve via Manifest.db (hashed fileID path)
+                            elif backup_dir is not None and attachment.filename:
+                                try:
+                                    from chatx.imessage.attachments import _relative_sms_attachments_path
+                                    from chatx.imessage.backup import resolve_backup_file
+                                    rel = _relative_sms_attachments_path(attachment.filename)
+                                    if rel:
+                                        audio_path = resolve_backup_file(Path(backup_dir), "HomeDomain", rel)
+                                except Exception:
+                                    audio_path = None
 
                         # Attempt transcription if file exists
                         if audio_path and audio_path.exists():
