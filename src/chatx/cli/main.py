@@ -181,23 +181,27 @@ def imessage_pull(
     out.mkdir(parents=True, exist_ok=True)
     
     try:
-        # Extract messages (placeholder - will be implemented in PR-1)
-        messages = extract_messages(
+        # Extract messages
+        messages = list(extract_messages(
             db_path=db,
             contact=contact,
             include_attachments=include_attachments,
             copy_binaries=copy_binaries,
             transcribe_audio=transcribe_audio,
             out_dir=out,
-        )
+        ))
         
-        # This will fail for now since extract_messages raises NotImplementedError
-        message_count = len(list(messages))
+        message_count = len(messages)
         console.print(f"[bold green]Extracted {message_count} messages[/bold green]")
         
-    except NotImplementedError:
-        console.print("[yellow]iMessage extraction implementation in progress (PR-1)[/yellow]")
-        console.print("[yellow]See docs/design/specifications/imessage-extractor.md for full spec[/yellow]")
+        if message_count > 0:
+            # Write JSON output with schema validation
+            from chatx.utils.json_output import write_messages_with_validation
+            
+            output_file = out / f"messages_{contact.replace('@', '_at_').replace('+', '_plus_')}.json"
+            write_messages_with_validation(messages, output_file)
+            console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
+        
     except Exception as e:
         console.print(f"[bold red]Error during extraction:[/bold red] {e}")
         raise typer.Exit(1)

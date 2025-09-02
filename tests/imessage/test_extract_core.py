@@ -36,26 +36,72 @@ class TestAppleTimestampConversion:
 class TestContactHandleResolution:
     """Test contact identifier resolution to handle IDs."""
     
-    def test_placeholder_implementation(self):
-        """Test placeholder returns empty list."""
-        # TODO: Remove this test when real implementation is added in PR-1
-        result = resolve_contact_handles(None, "test@example.com")
-        assert result == []
+    @pytest.fixture
+    def test_db(self, tmp_path):
+        """Create test database with handle data."""
+        import sqlite3
+        db_path = tmp_path / "chat.db"
+        
+        # Create minimal handle table for testing
+        conn = sqlite3.connect(db_path)
+        conn.execute("""
+            CREATE TABLE handle (
+                ROWID INTEGER PRIMARY KEY,
+                id TEXT,
+                service TEXT DEFAULT 'iMessage'
+            )
+        """)
+        conn.execute("INSERT INTO handle (ROWID, id) VALUES (1, '+15551234567')")
+        conn.execute("INSERT INTO handle (ROWID, id) VALUES (2, 'test@example.com')")
+        conn.commit()
+        conn.close()
+        
+        return db_path
+    
+    def test_exact_match_resolution(self, test_db):
+        """Test exact contact resolution."""
+        import sqlite3
+        conn = sqlite3.connect(test_db)
+        try:
+            result = resolve_contact_handles(conn, "test@example.com")
+            assert result == [2]
+        finally:
+            conn.close()
+    
+    def test_no_match_resolution(self, test_db):
+        """Test resolution for non-existent contact."""
+        import sqlite3
+        conn = sqlite3.connect(test_db)
+        try:
+            result = resolve_contact_handles(conn, "nonexistent@example.com")
+            assert result == []
+        finally:
+            conn.close()
 
 
 class TestExtractMessages:
     """Test main message extraction function."""
     
-    def test_not_implemented_error(self, tmp_path):
-        """Test that extract_messages raises NotImplementedError."""
+    def test_extract_empty_database(self, tmp_path):
+        """Test extraction from empty database."""
         from chatx.imessage.extract import extract_messages
+        import sqlite3
         
+        # Create empty database with proper schema
         fake_db = tmp_path / "chat.db"
-        fake_db.touch()
+        conn = sqlite3.connect(fake_db)
+        # Create minimal schema
+        conn.execute("CREATE TABLE handle (ROWID INTEGER PRIMARY KEY, id TEXT)")
+        conn.execute("CREATE TABLE message (ROWID INTEGER PRIMARY KEY, guid TEXT)")
+        conn.execute("CREATE TABLE chat (ROWID INTEGER PRIMARY KEY, guid TEXT)")  
+        conn.execute("CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER)")
+        conn.commit()
+        conn.close()
         
-        with pytest.raises(NotImplementedError, match="Implementation will be added"):
-            list(extract_messages(
-                db_path=fake_db,
-                contact="test@example.com",
-                out_dir=tmp_path
-            ))
+        # Should return empty iterator for non-existent contact
+        messages = list(extract_messages(
+            db_path=fake_db,
+            contact="test@example.com",
+            out_dir=tmp_path
+        ))
+        assert len(messages) == 0
