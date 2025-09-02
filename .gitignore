@@ -48,7 +48,6 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 npm-debug.log*
-
 # macOS
 .DS_Store
 .AppleDouble
@@ -59,13 +58,6 @@ npm-debug.log*
 # Editors/IDE
 .vscode/
 .idea/
-
-# Misc
-.DS_Store
-.AppleDouble
-.LSOverride
-.Spotlight-V100
-.Trashes
 
 # MkDocs/site
 site/

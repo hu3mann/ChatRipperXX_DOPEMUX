@@ -24,8 +24,8 @@ Make Claude Code produce **small, correct patches** that build and pass on the f
 
 ---
 
-## 1) MCP servers & tools (what’s available)
-MCP provides a standard “USB-C for AI” to connect tools and data sources. Claude Code can add servers from JSON and use them in sessions.
+## 1) MCP servers & tools (what's available)
+MCP provides a standard "USB-C for AI" to connect tools and data sources. Claude Code can add servers from JSON and use them in sessions.
 
 **Categories & examples (installed via `scripts/setup_mcp_servers.sh`):**
 - **Persistence**
@@ -77,7 +77,7 @@ Use project settings + hooks to control tools. Inspect and tweak permissions in 
 
 ---
 
-## 5) TDD loop (what “good” looks like)
+## 5) TDD loop (what "good" looks like)
 1) Read **AC** + **Interfaces** (already imported above).  
 2) Generate failing tests (unit + schema validation + **RFC-7807** negative paths).  
 3) Local checks:
