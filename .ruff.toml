@@ -1,4 +1,6 @@
 line-length = 100
 select = ["E", "W", "F", "I", "D", "UP", "B"]
 ignore = ["D401"]  # allow non-imperative docstring first line
-convention = "google"  # or "numpy"
+
+[pydocstyle]
+convention = "google"

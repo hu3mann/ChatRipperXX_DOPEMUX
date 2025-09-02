@@ -3,7 +3,7 @@
 import shutil
 import sqlite3
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
@@ -77,11 +77,10 @@ class IMessageExtractor(BaseExtractor):
         if abs(timestamp) >= 1e11:
             # Nanoseconds - divide by 1 billion
             timestamp = timestamp / 1_000_000_000
-            
+
         try:
-            return APPLE_EPOCH.replace(tzinfo=timezone.utc) + \
-                   datetime.fromtimestamp(timestamp, tz=timezone.utc).utctimetuple()
-        except (ValueError, OSError) as e:
+            return APPLE_EPOCH + timedelta(seconds=timestamp)
+        except (ValueError, OSError, OverflowError) as e:
             logger.warning(f"Failed to convert timestamp {timestamp}: {e}")
             return None
     
