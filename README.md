@@ -26,8 +26,14 @@ pip install -e ".[dev]"
 ### Basic Usage
 
 ```bash
-# Extract iMessage data
-chatx extract ~/Library/Messages/chat.db --platform imessage -o ./output
+# Extract iMessage for a contact
+chatx imessage pull --contact "+15551234567" --db ~/Library/Messages/chat.db --out ./out
+
+# Extract iMessage from an iPhone backup (Finder/iTunes MobileSync)
+chatx imessage pull --contact "+15551234567" --from-backup "~/Library/Application Support/MobileSync/Backup/<UDID>" --out ./out
+
+# Extract Instagram DMs for a single user (required)
+chatx instagram pull --zip ./instagram.zip --user "Your Name" --out ./out
 
 # Run full pipeline with privacy redaction
 chatx pipeline ~/Library/Messages/chat.db ./output --provider local
@@ -58,7 +64,7 @@ ChatX follows a pipeline architecture:
 | Platform | Status | Data Source |
 |----------|--------|-------------|
 | iMessage | ✅ Complete | macOS chat.db SQLite database |
-| Instagram DM | 🚧 Planned | JSON export files |  
+| Instagram DM | ✅ Initial extractor | Official data ZIP export |
 | WhatsApp | 🚧 Planned | Text export files |
 | Generic Text | 🚧 Planned | Plain text conversation files |
 

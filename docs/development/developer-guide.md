@@ -8,8 +8,10 @@ Setup
 	•	Optional local LLM via Ollama (e.g., gemma:2-9b-q4_K_M).
 	•	Copy .env.example to .env (do not commit). Cloud disabled by default.
 
-Running the Pipeline (iMessage-first)
-1.	Extract: chatx imessage pull --contact "<id>" --db ~/Library/Messages/chat.db --out ./out
+Running the Pipeline (Extraction)
+1.	iMessage (local DB): `chatx imessage pull --contact "<id>" --db ~/Library/Messages/chat.db --out ./out`
+2.	iMessage (iPhone backup): `chatx imessage pull --contact "<id>" --from-backup "~/Library/Application Support/MobileSync/Backup/<UDID>" --out ./out`
+3.	Instagram (official ZIP): `chatx instagram pull --zip ./instagram.zip --user "<Your Name>" --out ./out`
 
 Full Disk Access (FDA)
 - On macOS, grant Full Disk Access to your terminal: System Settings → Privacy & Security → Full Disk Access → enable for your terminal app. This allows reading `~/Library/Messages/chat.db` and `~/Library/Messages/Attachments/**`.
@@ -19,6 +21,7 @@ CLI Examples
 - Include attachments: `chatx imessage pull --contact "friend@example.com" --include-attachments --out ./out`
 - Copy binaries: `chatx imessage pull --contact "friend@example.com" --include-attachments --copy-binaries --out ./out`
 - Transcribe voice notes locally: `chatx imessage pull --contact "friend@example.com" --include-attachments --transcribe-audio local --out ./out`
+ - Instagram (author filter): `chatx instagram pull --zip ./instagram.zip --user "Your Name" --author-only "FriendA" --out ./out`
 
 Artifacts
 - Messages: `out/messages_<contact>.json`

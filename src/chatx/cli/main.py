@@ -386,3 +386,45 @@ def cli() -> None:
 
 if __name__ == "__main__":
     cli()
+
+# Instagram Commands
+instagram_app = typer.Typer(help="Instagram extraction commands")
+app.add_typer(instagram_app, name="instagram")
+
+
+@instagram_app.command("pull")
+def instagram_pull(
+    zip: Path = typer.Option(..., "--zip", help="Path to Instagram official data ZIP"),
+    out: Path = typer.Option(Path("./out"), "--out", help="Output directory"),
+    user: str = typer.Option(..., "--user", help="Your Instagram display name (filters threads; also marks is_me)"),
+    author_only: list[str] = typer.Option([], "--author-only", help="Include only messages authored by these usernames (repeatable)"),
+) -> None:
+    """Extract Instagram DMs from the official data ZIP export."""
+    from chatx.instagram.extract import extract_messages_from_zip
+    from chatx.utils.json_output import write_messages_with_validation
+
+    console.print(f"[bold green]Extracting Instagram from ZIP:[/bold green] {zip}")
+    console.print(f"[blue]Output:[/blue] {out}")
+
+    if not zip.exists():
+        console.print(f"[bold red]Error:[/bold red] ZIP file not found: {zip}")
+        raise typer.Exit(1)
+
+    out.mkdir(parents=True, exist_ok=True)
+
+    try:
+        messages = extract_messages_from_zip(
+            zip,
+            include_threads_with=[user],
+            authors_only=author_only or None,
+            me_username=user,
+        )
+        output_file = out / "instagram_messages.json"
+        write_messages_with_validation(messages, output_file)
+        console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
+    except ValueError as ve:
+        console.print(f"[bold red]ZIP validation error:[/bold red] {ve}")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[bold red]Error during extraction:[/bold red] {e}")
+        raise typer.Exit(1)

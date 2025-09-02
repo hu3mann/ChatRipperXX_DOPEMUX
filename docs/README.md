@@ -82,6 +82,12 @@
 # Extract iMessage conversations
 chatx imessage pull --contact "friend@example.com" --include-attachments --out ./out
 
+# Extract iMessage from iPhone backup (Finder/iTunes MobileSync)
+chatx imessage pull --contact "+15551234567" --from-backup "~/Library/Application Support/MobileSync/Backup/<UDID>" --out ./out
+
+# Extract Instagram DMs for a specific user (required)
+chatx instagram pull --zip ./instagram.zip --user "Your Name" --out ./out
+
 # Transform and redact for safety
 chatx transform --input ./out/messages.jsonl --chunk turns:40
 chatx redact --input ./out/chunks.jsonl --threshold 0.995
@@ -113,10 +119,10 @@ chatx enrich messages --backend hybrid --allow-cloud --contact "friend@example.c
 - 🚧 Validation and performance (PR-6)
 
 ### Platform Support
-- ✅ **iMessage** (macOS local disk) — In development
-- ⏳ **Instagram** — Planned
+- ✅ **iMessage** (macOS local disk)
+- ✅ **iPhone backups (iMessage)** — Initial support (read-only via Manifest.db)
+- ✅ **Instagram** — Initial extractor (official data ZIP)
 - ⏳ **WhatsApp** — Planned
-- ⏳ **iPhone backups** — Future
 - ⏳ **iCloud Messages** — Research phase
 
 ---
