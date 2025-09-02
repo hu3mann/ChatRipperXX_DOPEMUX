@@ -180,18 +180,17 @@ class TestAttachmentIntegration:
         import chatx.imessage.attachments as att_module
         original_copy_func = att_module.copy_attachment_files
         
-        def patched_copy_func(attachments, out_dir):
-            # Use fake file for testing
+        def patched_copy_func(attachments, out_dir, backup_dir=None, *, dedupe_map=None):
             updated_attachments = []
             for att in attachments:
                 if att.filename == "photo.jpg":
-                    # Simulate successful copy
                     dest_path = out_dir / "attachments" / "fake" / "copied_photo.jpg"
                     dest_path.parent.mkdir(parents=True, exist_ok=True)
                     dest_path.write_bytes(fake_file.read_bytes())
                     att.abs_path = str(dest_path)
+                    att.source_meta.setdefault("hash", {})["sha256"] = "deadbeef"
                 updated_attachments.append(att)
-            return updated_attachments
+            return updated_attachments, dedupe_map or {}
         
         # Patch the function temporarily
         att_module.copy_attachment_files = patched_copy_func
