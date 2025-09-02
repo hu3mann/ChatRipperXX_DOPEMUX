@@ -131,7 +131,7 @@ def _transcribe_whisper(audio_file_path: Path) -> Optional[Dict[str, str]]:
     except ImportError:
         # Whisper not available, return None
         return None
-    except Exception as e:
+    except Exception:
         # Transcription failed for some reason
         # Log error but don't raise exception (graceful degradation)
         return None

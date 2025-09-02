@@ -246,14 +246,14 @@ def redact(
         shield = PolicyShield(policy=policy, salt_file=salt_file)
         
         # Redact chunks
-        console.print(f"[blue]Starting redaction...[/blue]")
+        console.print("[blue]Starting redaction...[/blue]")
         redacted_chunks, redaction_report = shield.redact_chunks(chunks)
         
         finished_at = datetime.now()
         elapsed = (finished_at - started_at).total_seconds()
         
         # Show results
-        console.print(f"[bold green]Redaction complete![/bold green]")
+        console.print("[bold green]Redaction complete![/bold green]")
         console.print(f"[blue]Coverage achieved:[/blue] {redaction_report.coverage:.1%}")
         console.print(f"[blue]Tokens redacted:[/blue] {redaction_report.tokens_redacted}")
         console.print(f"[blue]Processing time:[/blue] {elapsed:.2f}s")
@@ -820,23 +820,4 @@ def imessage_pdf(
         console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
     except Exception as e:
         console.print(f"[bold red]PDF ingestion failed:[/bold red] {e}")
-        raise typer.Exit(1)
-
-    out.mkdir(parents=True, exist_ok=True)
-
-    try:
-        messages = extract_messages_from_zip(
-            zip,
-            include_threads_with=[user],
-            authors_only=author_only or None,
-            me_username=user,
-        )
-        output_file = out / "instagram_messages.json"
-        write_messages_with_validation(messages, output_file)
-        console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
-    except ValueError as ve:
-        console.print(f"[bold red]ZIP validation error:[/bold red] {ve}")
-        raise typer.Exit(1)
-    except Exception as e:
-        console.print(f"[bold red]Error during extraction:[/bold red] {e}")
         raise typer.Exit(1)
