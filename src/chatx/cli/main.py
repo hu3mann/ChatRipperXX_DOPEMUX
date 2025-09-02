@@ -164,6 +164,7 @@ def imessage_pull(
     include_attachments: bool = typer.Option(False, "--include-attachments", help="Extract attachment metadata"),
     copy_binaries: bool = typer.Option(False, "--copy-binaries", help="Copy attachment files to output"),
     transcribe_audio: str = typer.Option("off", "--transcribe-audio", help="Audio transcription mode (local|off)"),
+    report_missing: bool = typer.Option(True, "--report-missing/--no-report-missing", help="Generate missing attachments report"),
 ) -> None:
     """Extract iMessage conversations for a contact."""
     from chatx.imessage import extract_messages
@@ -201,6 +202,27 @@ def imessage_pull(
             output_file = out / f"messages_{contact.replace('@', '_at_').replace('+', '_plus_')}.json"
             write_messages_with_validation(messages, output_file)
             console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
+        
+        # Generate missing attachments report if requested and attachments enabled
+        if report_missing and include_attachments:
+            from chatx.imessage.db import copy_db_for_readonly, open_ro
+            from chatx.imessage.report import generate_missing_attachments_report
+            
+            console.print("[blue]Checking for missing attachments...[/blue]")
+            
+            with copy_db_for_readonly(db) as temp_db:
+                conn = open_ro(temp_db)
+                try:
+                    missing_counts = generate_missing_attachments_report(conn, out, contact)
+                    total_missing = sum(missing_counts.values())
+                    
+                    if total_missing > 0:
+                        console.print(f"[yellow]Found {total_missing} missing attachment(s) across {len(missing_counts)} conversation(s)[/yellow]")
+                        console.print(f"[yellow]Report written to:[/yellow] {out / 'missing_attachments_report.json'}")
+                    else:
+                        console.print("[green]All attachment files found on disk[/green]")
+                finally:
+                    conn.close()
         
     except Exception as e:
         console.print(f"[bold red]Error during extraction:[/bold red] {e}")
