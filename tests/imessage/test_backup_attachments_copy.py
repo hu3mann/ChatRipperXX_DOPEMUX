@@ -4,11 +4,11 @@ Validates that copy_attachment_files can resolve backup-stored attachments
 via Manifest.db (HomeDomain/Library/SMS/Attachments/.. -> fileID -> xx/fileID).
 """
 
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 
+from chatx.imessage.attachments import compute_file_hash, copy_attachment_files
 from chatx.schemas.message import Attachment
-from chatx.imessage.attachments import copy_attachment_files, compute_file_hash
 
 
 def _make_manifest_db(path: Path, mappings: list[tuple[str, str, str]]) -> None:

@@ -1,9 +1,8 @@
 """Tests for run report writer and validator."""
 
 from datetime import datetime, timedelta
-from pathlib import Path
 
-from chatx.utils.run_report import write_extract_run_report, validate_run_report
+from chatx.utils.run_report import validate_run_report, write_extract_run_report
 
 
 class TestRunReport:

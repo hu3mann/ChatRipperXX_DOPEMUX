@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import secrets
 
-from chatx.identity.normalize import _normalize_text, pseudonymize, normalize_sender
+from chatx.identity.normalize import _normalize_text, normalize_sender, pseudonymize
 
 
 def test_normalize_text_phone_and_email():

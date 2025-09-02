@@ -20,7 +20,7 @@ class TestAttachmentIntegration:
         fixture_sql = Path(__file__).parent.parent / "fixtures" / "imessage_test_data.sql"
         
         conn = sqlite3.connect(db_path)
-        with open(fixture_sql, 'r') as f:
+        with open(fixture_sql) as f:
             conn.executescript(f.read())
         conn.close()
         
@@ -63,7 +63,7 @@ class TestAttachmentIntegration:
         
         messages = list(extract_messages(
             db_path=test_db,
-            contact="+15551234567", 
+            contact="+15551234567",
             out_dir=out_dir,
             include_attachments=False
         ))
@@ -86,13 +86,16 @@ class TestAttachmentIntegration:
         conn.execute("CREATE TABLE chat (ROWID INTEGER PRIMARY KEY, guid TEXT)")
         conn.execute("INSERT INTO chat (ROWID, guid) VALUES (1, 'iMessage;-;+15551234567')")
         
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE message (
                 ROWID INTEGER PRIMARY KEY, guid TEXT, text TEXT, attributedBody BLOB,
                 is_from_me INTEGER, handle_id INTEGER, service TEXT DEFAULT 'iMessage',
-                date INTEGER, associated_message_guid TEXT, associated_message_type INTEGER DEFAULT 0
+                date INTEGER, associated_message_guid TEXT,
+                associated_message_type INTEGER DEFAULT 0
             )
-        """)
+            """
+        )
         
         conn.execute("""
             CREATE TABLE attachment (
@@ -110,10 +113,12 @@ class TestAttachmentIntegration:
         conn.execute("CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER)")
         
         # Insert test message
-        conn.execute("""
-            INSERT INTO message (ROWID, guid, text, is_from_me, date) 
+        conn.execute(
+            """
+            INSERT INTO message (ROWID, guid, text, is_from_me, date)
             VALUES (1, 'multi-attach', 'Multiple attachments', 1, 1000)
-        """)
+            """
+        )
         
         # Insert different attachment types
         conn.execute("""
@@ -127,7 +132,10 @@ class TestAttachmentIntegration:
         
         # Link all attachments to the message
         for att_id in range(1, 6):
-            conn.execute("INSERT INTO message_attachment_join (message_id, attachment_id) VALUES (1, ?)", (att_id,))
+            conn.execute(
+                "INSERT INTO message_attachment_join (message_id, attachment_id) VALUES (1, ?)",
+                (att_id,),
+            )
         
         conn.execute("INSERT INTO chat_message_join (chat_id, message_id) VALUES (1, 1)")
         

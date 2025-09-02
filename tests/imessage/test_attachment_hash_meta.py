@@ -41,8 +41,14 @@ def test_attachment_hash_emitted_in_source_meta(tmp_path: Path) -> None:
     )
     conn.execute("CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER)")
     # Insert message and attachment
-    conn.execute("INSERT INTO message (ROWID, guid, text, is_from_me, date) VALUES (1, 'guid-1', 'with photo', 1, 1000)")
-    conn.execute("INSERT INTO attachment (ROWID, filename, uti, mime_type, transfer_name) VALUES (1, 'photo.jpg', 'public.jpeg', 'image/jpeg', 'IMG.jpg')")
+    conn.execute(
+        "INSERT INTO message (ROWID, guid, text, is_from_me, date) VALUES "
+        "(1, 'guid-1', 'with photo', 1, 1000)"
+    )
+    conn.execute(
+        "INSERT INTO attachment (ROWID, filename, uti, mime_type, transfer_name) VALUES "
+        "(1, 'photo.jpg', 'public.jpeg', 'image/jpeg', 'IMG.jpg')"
+    )
     conn.execute("INSERT INTO message_attachment_join (message_id, attachment_id) VALUES (1, 1)")
     conn.execute("INSERT INTO chat_message_join (chat_id, message_id) VALUES (1, 1)")
     conn.commit()
