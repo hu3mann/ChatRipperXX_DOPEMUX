@@ -77,18 +77,24 @@ class IMessageExtractor(BaseExtractor):
         """
         if ts in (None, 0):
             return None
-            
-        # Determine if timestamp is in nanoseconds or seconds
-        if abs(timestamp) >= 1e11:
-            # Nanoseconds - divide by 1 billion
-            timestamp = timestamp / 1_000_000_000
-            
+
         try:
-            return APPLE_EPOCH.replace(tzinfo=timezone.utc) + \
-                   datetime.fromtimestamp(timestamp, tz=timezone.utc).utctimetuple()
-        except (ValueError, OSError) as e:
-            logger.warning(f"Failed to convert timestamp {timestamp}: {e}")
+            value = int(ts)
+        except (TypeError, ValueError):
             return None
+
+        # Heuristics based on magnitude to infer unit
+        # < 1e11 -> seconds (covers reasonable ranges)
+        # < 1e15 -> microseconds
+        # >= 1e15 -> nanoseconds
+        if value < 1_00_000_000_000:  # ~3,170 years in seconds; ample headroom
+            seconds = float(value)
+        elif value < 1_000_000_000_000_000:  # microseconds
+            seconds = value / 1_000_000.0
+        else:  # nanoseconds
+            seconds = value / 1_000_000_000.0
+
+        return APPLE_EPOCH + datetime.timedelta(seconds=seconds)
     
     def _copy_database(self) -> Path:
         """Copy database to temporary location to avoid file locks.
