@@ -1,25 +1,165 @@
-# Architecture
+# ChatX/ChatRipper Architecture
+*Status: Master | Owner: Team | Last Updated: 2025-09-02*
 
-## Context
-- Privacy‑first CLI that ingests chat exports and runs an offline pipeline.
-- Non‑Functional Requirements: local processing only, predictable runtime, strong redaction guarantees, and observable behavior.
+## Context & Goals
+
+**Problem:** We need a private, local-first forensic chat analysis tool that ingests large multi-platform exports, redacts and pseudonymizes sensitive data, enriches messages with structured meaning, and supports retrieval/analytics—while optionally escalating to cloud LLMs under strict controls.
+
+**Goals:**
+- Local-first enrichment with optional cloud escalation guarded by **Policy Shield**
+- Deterministic, schema-locked outputs with evidence links and full **provenance**
+- Fast ingestion/indexing and low-latency retrieval over large corpora (50k–1M messages)
+- CI-enforced **privacy, validation, and performance** gates
+- Extensible adapters for new sources, models, stores
+
+**Non-Goals:**
+- No always-on cloud processing (cloud is opt-in per run)
+- No GUI (CLI-only surface in this scope)
+- No attachment uploads to cloud
+
+---
+
+## System Overview (C4 Level 1-2)
+
+### External Systems & Users
+- **User (Analyst)** runs CLI on a workstation
+- **Cloud LLM Providers** (optional) receive only **redacted** text and **coarse** labels
+- **Filesystem** stores inputs, outputs, artifacts under `./out/`
+- **Optional: Vector Store (Chroma)** hosts per-contact collections on-device
+
+### Core Components
+
+1. **Ingestor** — parses iMessage DB/PDF, Instagram JSON, WhatsApp JSON, TXT into canonical **Message** records
+2. **Transformer** — normalizes, sessionizes, and **chunks** conversations (turns:40 or daily windows)
+3. **Policy Shield** — pseudonymizes people, tokenizes sensitive strings (⟦TKN:…⟧), measures redaction **coverage**; blocks hard-fail classes
+4. **Indexer** — writes redacted chunks + facets to **Chroma** collections (per contact) for retrieval
+5. **Local Enricher** — on-device LLM generates **Message/CU Enrichment** (schema-locked, deterministic)
+6. **Hybrid Orchestrator** — gates by confidence **τ=0.7** and preflight; if allowed, performs **Cloud Enrichment** with minimal context and token ceilings
+7. **Validator** — enforces JSON Schemas; clamps enums & bounds; quarantines invalid rows
+8. **Observer** — metrics, logs, artifacts (e.g., `redaction_report.json`, validation summaries)
+
+---
 
 ## Module Boundaries
+
 - **cli/** — argument parsing, commands
-- **core/** — business logic (pure functions where possible)
+- **core/** — business logic (pure functions where possible)  
 - **adapters/** — external integrations (HTTP, files, models)
+- **extractors/** — platform-specific data extraction (iMessage, Instagram, etc.)
 - **tests/** — unit + integration tests
 
-## Data & Flows (sketch)
-- **Extract → Transform → Redact → Enrich → Analyze**.
-- Extractors pull platform data into canonical JSON.
-- Transformers normalize fields and validate against schemas.
-- Redaction removes PII before any optional cloud work.
-- Enrichment augments messages with LLM‑generated metadata.
-- Analysis modules generate reports from enriched artifacts.
+---
+
+## Key Data Flows
+
+### 1. Extract → Transform → Redact → Index
+**Trigger:** `chatx <source> pull` → `chatx transform` → `chatx redact` → `chatx index`
+**Components:** Ingestor → Transformer → Policy Shield → Indexer
+**Data:** Raw platform data → canonical Message JSON → normalized chunks → redacted windows → indexed collections
+**Outcome:** Safe, searchable message corpus
+
+### 2. Enrich (Local-first, Hybrid Optional)
+**Trigger:** `chatx enrich messages|units --backend hybrid --tau 0.7 [--allow-cloud]`
+**Components:** Local Enricher → (optional) Hybrid Orchestrator → Cloud LLM
+**Data:** Redacted chunks → local enrichments → (gated) cloud enrichments
+**Outcome:** Schema-locked enrichment metadata with confidence scores
+
+### 3. Query & Analysis
+**Trigger:** `chatx query "<question>" --contact "<id>"`
+**Components:** Indexer (retrieval) → Local/Cloud LLM (synthesis)
+**Data:** Query → relevant chunks → contextual answer with citations
+**Outcome:** Evidence-backed responses
+
+---
+
+## Data at Rest Structure
+
+```
+./out/
+├── raw/           # Original platform exports
+├── messages/      # Canonical Message JSON
+├── chunks/        # Normalized conversation chunks  
+├── redacted/      # Pseudonymized, safe data
+├── enriched/      # LLM-generated metadata
+├── indexed/       # Vector embeddings & search indices
+├── reports/       # Validation, redaction, performance reports
+└── cache/         # Prompt/output cache for efficiency
+```
+
+---
+
+## Privacy & Security Architecture
+
+### Policy Shield (Core Security Component)
+- **Coverage Thresholds:** ≥99.5% redaction coverage required (99.9% in strict mode)
+- **Pseudonymization:** Consistent tokenization of PII across sessions
+- **Hard-fail Classes:** CSAM detection blocks all cloud operations
+- **Preflight Validation:** All cloud-bound data validated against coverage thresholds
+
+### Data Classification
+- **Fine-grained labels:** Remain local-only
+- **Coarse labels:** Shared to cloud when necessary for enrichment
+- **Attachments:** Never uploaded to cloud under any circumstances
+
+---
 
 ## Observability
-- Structured JSON logs at INFO level by default, DEBUG for troubleshooting.
-- Hook points for metrics backends to track pipeline duration and message counts.
+
+### Logging
+- Structured JSON logs at INFO level by default
+- DEBUG level for troubleshooting
+- All cloud API calls logged with request/response metadata (redacted)
+
+### Metrics & Reports
+- Pipeline duration and message throughput
+- Redaction coverage and validation statistics
+- Token usage and cost tracking for cloud operations
+- Schema validation success/failure rates
+
+### Artifacts
+- `redaction_report.json` — Coverage statistics and validation
+- `missing_attachments.json` — iCloud eviction reporting
+- `run_summary.json` — Performance and processing statistics
+
+---
+
+## Extensibility Points
+
+### New Platform Support
+Implement `BaseExtractor` interface:
+- `extract_messages()` → canonical Message schema
+- Platform-specific SQL/API parsing
+- Attachment handling with local-only policy
+
+### New LLM Backends
+Implement `BaseLLMClient` interface:
+- Local models via Ollama/llama.cpp
+- Cloud APIs with Policy Shield integration
+- Confidence calibration and fallback strategies
+
+### New Storage Backends
+Implement `BaseVectorStore` interface:
+- Chroma (default)
+- pgvector, Weaviate, etc.
+- Consistent query interface across implementations
+
+---
+
+## Performance Targets
+
+- **Extraction:** ≥5k messages/min/contact (dev laptop)
+- **Enrichment:** ≥1k messages/min local, ≥500/min hybrid
+- **Query Response:** <5s for typical queries over 100k message corpus
+- **Memory:** <4GB peak for 1M message processing
+
+---
+
+## References
+
+- [Acceptance Criteria](acceptance-criteria.md) — User stories and test scenarios
+- [Interfaces](interfaces.md) — CLI contracts and API specifications  
+- [Design Specifications](design/specifications/) — Detailed component specs
+- [ADRs](design/adrs/) — Architecture decision records
+- [Test Strategy](development/test-strategy.md) — Testing approach and coverage targets
 
 > Update this file when boundaries or flows change. Record critical decisions in ADRs.
