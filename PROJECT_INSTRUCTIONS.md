@@ -130,6 +130,7 @@ QUALITY BAR
 
 TOOLING NOTES FOR THIS PROJECT
 - Use Responses API primitives and tools when web or file retrieval is needed. Prefer File Search for your uploaded PDFs/specs so code and docs stay on-topic. :contentReference[oaicite:10]{index=10}
+- See `docs/CR-XactXtract/llm-context.md` for design/development LLM guardrails.
 
 ## FILE-CHANGE POLICY — DIFF-FIRST, NON-DESTRUCTIVE
 
@@ -169,6 +170,21 @@ When I ask for edits to any project file, you MUST follow this workflow:
 - Fallback (manual save):
   # Save the diff block to patch.diff, then:
   git apply --index patch.diff && git commit -m "<type>: <scope>: <summary>"
+
+DAY-TO-DAY LOOP (TDD + Claude Context + ChatGPT Diff-First)
+- Create a Feature issue (template includes user story + acceptance tests).
+- New branch: feat/<slug>.
+- Write a failing pytest derived from acceptance criteria.
+- In VS Code, use Claude Code + Claude Context to propose the **minimal diff** to go green.
+- Refactor, update /docs + ADRs, commit (aicommits drafts a proper Conventional Commit).
+- Open PR; CI enforces lint/type/tests and docs updated.
+
+CHATGPT-STYLE SESSION WORKFLOW
+- Always upload your repo ZIP first. The assistant MUST reply with:
+  1) a single fenced unified diff, and
+  2) a one-liner to apply the patch.
+- All edits MUST comply with **llm-context.md** (append-only for ADRs/NEXT/REFERENCES; diff-first everywhere).
+- Docs auto-deploy: merges to main trigger `.github/workflows/docs-deploy.yml` to publish to GitHub Pages.
 #### Clipboard-safe patch apply (macOS)
 Install the helper and function for robust, one-step application from the macOS clipboard (kitty/zsh safe; UTF-8 & CRLF normalized; auto strip-level; 3-way merge):
 
