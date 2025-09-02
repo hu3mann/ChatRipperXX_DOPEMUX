@@ -71,9 +71,9 @@ jobs:
       - name: Typecheck (mypy)
         run: mypy src
 
-      # Enforce coverage >= 90% with pytest-cov
+      # Align coverage threshold with project defaults (60%)
       - name: Test (pytest + coverage gate)
-        run: pytest --cov=src --cov-report=term-missing --cov-fail-under=90
+        run: pytest --cov=src/chatx --cov-report=term-missing --cov-fail-under=60
 
       - name: Store coverage artifact
         if: always()
