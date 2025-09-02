@@ -749,6 +749,22 @@ def imessage_pull(
             from chatx.utils.run_report import write_extract_run_report
             # Compute simple counters
             attachments_total = sum(len(m.attachments) for m in messages)
+            image_attachments = [
+                att for m in messages for att in m.attachments if att.type == "image"
+            ]
+            images_total = len(image_attachments)
+            unique_hashes = {}
+            bytes_copied = 0
+            for att in image_attachments:
+                h = att.source_meta.get("hash", {}).get("sha256")
+                p = att.abs_path
+                if h and p and h not in unique_hashes:
+                    unique_hashes[h] = p
+                    try:
+                        bytes_copied += Path(p).stat().st_size
+                    except OSError:
+                        pass
+            images_copied = len(unique_hashes)
             elapsed = max((finished_at - started_at).total_seconds(), 0.0)
             rate = (len(messages) / elapsed * 60.0) if elapsed > 0 else 0.0
 
@@ -779,6 +795,9 @@ def imessage_pull(
                 finished_at=finished_at,
                 messages_total=len(messages),
                 attachments_total=attachments_total,
+                images_total=images_total,
+                images_copied=images_copied,
+                bytes_copied=bytes_copied,
                 throughput_msgs_min=rate,
                 artifacts=artifacts,
                 warnings=warn_msgs,
@@ -792,6 +811,9 @@ def imessage_pull(
                 counters = {
                     "messages_total": len(messages),
                     "attachments_total": attachments_total,
+                    "images_total": images_total,
+                    "images_copied": images_copied,
+                    "bytes_copied": bytes_copied,
                     "throughput_msgs_min": rate,
                 }
                 metrics_path = append_metrics_event(

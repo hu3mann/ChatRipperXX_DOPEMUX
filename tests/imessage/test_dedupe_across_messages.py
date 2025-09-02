@@ -3,12 +3,12 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from chatx.imessage.attachments import compute_file_hash
 from chatx.imessage.extract import extract_messages
+from chatx.imessage.attachments import compute_file_hash
 
 
-def test_attachment_hash_emitted_in_source_meta(tmp_path: Path) -> None:
-    # Build small DB with one attachment on one message
+def test_dedupe_across_messages(tmp_path: Path) -> None:
+    # Setup DB with two messages referencing same attachment
     db = tmp_path / "chat.db"
     conn = sqlite3.connect(db)
     conn.execute("CREATE TABLE handle (ROWID INTEGER PRIMARY KEY, id TEXT)")
@@ -40,22 +40,35 @@ def test_attachment_hash_emitted_in_source_meta(tmp_path: Path) -> None:
         """
     )
     conn.execute("CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER)")
-    # Insert message and attachment
-    conn.execute("INSERT INTO message (ROWID, guid, text, is_from_me, date) VALUES (1, 'guid-1', 'with photo', 1, 1000)")
-    conn.execute("INSERT INTO attachment (ROWID, filename, uti, mime_type, transfer_name) VALUES (1, 'photo.jpg', 'public.jpeg', 'image/jpeg', 'IMG.jpg')")
-    conn.execute("INSERT INTO message_attachment_join (message_id, attachment_id) VALUES (1, 1)")
+    # Insert attachment row and two messages referencing it
+    conn.execute(
+        "INSERT INTO attachment (ROWID, filename, uti, mime_type, transfer_name) VALUES (1, 'photo.jpg', 'public.jpeg', 'image/jpeg', 'IMG.jpg')"
+    )
+    conn.execute(
+        "INSERT INTO message (ROWID, guid, text, attributedBody, is_from_me, handle_id, service, date) VALUES (1, 'guid-1', 'pic1', X'', 1, 1, 'iMessage', 1000)"
+    )
+    conn.execute(
+        "INSERT INTO message (ROWID, guid, text, attributedBody, is_from_me, handle_id, service, date) VALUES (2, 'guid-2', 'pic2', X'', 0, 1, 'iMessage', 1001)"
+    )
+    conn.execute(
+        "INSERT INTO message_attachment_join (message_id, attachment_id) VALUES (1, 1)"
+    )
+    conn.execute(
+        "INSERT INTO message_attachment_join (message_id, attachment_id) VALUES (2, 1)"
+    )
     conn.execute("INSERT INTO chat_message_join (chat_id, message_id) VALUES (1, 1)")
+    conn.execute("INSERT INTO chat_message_join (chat_id, message_id) VALUES (1, 2)")
     conn.commit()
     conn.close()
 
-    # Create a real file in the default attachments directory
+    # Create physical file
     attachments_dir = tmp_path / "Library" / "Messages" / "Attachments"
     attachments_dir.mkdir(parents=True)
     src = attachments_dir / "photo.jpg"
-    content = b"hash-me"
+    content = b"dedupe-me"
     src.write_bytes(content)
 
-    # Patch Path.home() to our tmp
+    # Patch Path.home
     import chatx.imessage.attachments as att_module
     original_home = att_module.Path.home
     att_module.Path.home = lambda: tmp_path
@@ -71,12 +84,11 @@ def test_attachment_hash_emitted_in_source_meta(tmp_path: Path) -> None:
                 copy_binaries=True,
             )
         )
-        assert messages
-        msg = messages[0]
-        assert msg.attachments
-        att = msg.attachments[0]
-        h = att.source_meta["hash"]["sha256"]
-        assert h == compute_file_hash(src)
+        assert len(messages) == 2
+        paths = {m.attachments[0].abs_path for m in messages}
+        hashes = {m.attachments[0].source_meta["hash"]["sha256"] for m in messages}
+        assert len(paths) == 1
+        assert len(hashes) == 1
+        assert next(iter(hashes)) == compute_file_hash(src)
     finally:
         att_module.Path.home = original_home
-
