@@ -1008,7 +1008,21 @@ def instagram_pull(
             console.print(f"[bold red]Error:[/bold red] ZIP file not found: {zip}")
         raise typer.Exit(1)
 
-    out.mkdir(parents=True, exist_ok=True)
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="DIR_CREATION_FAILED",
+                title="Failed to create output directory",
+                status=1,
+                detail=str(e),
+                instance=str(out),
+            )
+        else:
+            console.print(f"[bold red]Failed to create output directory:[/bold red] {e}")
+        raise typer.Exit(1)
 
     try:
         messages = extract_messages_from_zip(
