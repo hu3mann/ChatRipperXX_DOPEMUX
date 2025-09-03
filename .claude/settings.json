@@ -2,7 +2,7 @@
   "defaultMode": "plan",
   "permissions": {
     "allow": [
-      "Read(project:*)",
+      "Read(/**)",
       "Edit(project:src/**)",
       "Edit(project:tests/**)",
       "Bash(python:*)",
