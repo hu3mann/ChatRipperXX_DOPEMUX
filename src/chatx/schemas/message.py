@@ -27,8 +27,9 @@ class Attachment(BaseModel):
     mime_type: str | None = Field(None, description="MIME type")
     uti: str | None = Field(None, description="Apple UTI when available")
     transfer_name: str | None = Field(None, description="Transfer name")
+    # Keep attachment-specific metadata internal; exclude from JSON to satisfy schema
     source_meta: dict[str, Any] = Field(
-        default_factory=dict, description="Attachment-specific metadata"
+        default_factory=dict, description="Attachment-specific metadata", exclude=True
     )
 
 

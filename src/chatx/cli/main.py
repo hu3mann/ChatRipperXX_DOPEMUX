@@ -61,6 +61,7 @@ def extract(
     output: Path | None = typer.Option(None, "--output", "-o", help="Output directory"),
     platform: str | None = typer.Option(None, "--platform", "-p", help="Platform type"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be extracted"),
+    error_format: str = typer.Option("text", "--error-format", help="Error output format (text|json)"),
 ) -> None:
     """Extract chat data from various platforms.
     
@@ -73,7 +74,17 @@ def extract(
     console.print(f"[bold green]Extracting from:[/bold green] {source}")
 
     if not source.exists():
-        console.print(f"[bold red]Error:[/bold red] Source path does not exist: {source}")
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="INVALID_INPUT",
+                title="Source path not found",
+                status=1,
+                detail=f"Path does not exist: {source}",
+                instance=str(source),
+            )
+        else:
+            console.print(f"[bold red]Error:[/bold red] Source path does not exist: {source}")
         raise typer.Exit(1)
 
     if dry_run:
@@ -94,6 +105,7 @@ def transform(
     stride: int = typer.Option(10, "--stride", help="Overlap between chunks (turns method)"),
     char_limit: int = typer.Option(4000, "--char-limit", help="Character limit (fixed method)"),
     validate_schemas: bool = typer.Option(True, "--validate/--no-validate", help="Validate against schemas"),
+    error_format: str = typer.Option("text", "--error-format", help="Error output format (text|json)"),
 ) -> None:
     """Transform extracted messages into conversation chunks.
     
@@ -111,12 +123,32 @@ def transform(
     console.print(f"[bold green]Transforming:[/bold green] {input_file}")
 
     if not input_file.exists():
-        console.print(f"[bold red]Error:[/bold red] Input file does not exist: {input_file}")
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="INVALID_INPUT",
+                title="Input file not found",
+                status=1,
+                detail=f"Path does not exist: {input_file}",
+                instance=str(input_file),
+            )
+        else:
+            console.print(f"[bold red]Error:[/bold red] Input file does not exist: {input_file}")
         raise typer.Exit(1)
 
     if method not in ["turns", "daily", "fixed"]:
-        console.print(f"[bold red]Error:[/bold red] Invalid chunking method: {method}")
-        console.print("[blue]Valid methods:[/blue] turns, daily, fixed")
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="INVALID_INPUT",
+                title="Invalid chunking method",
+                status=1,
+                detail="Valid methods: turns, daily, fixed",
+                instance=method,
+            )
+        else:
+            console.print(f"[bold red]Error:[/bold red] Invalid chunking method: {method}")
+            console.print("[blue]Valid methods:[/blue] turns, daily, fixed")
         raise typer.Exit(1)
 
     try:
@@ -589,6 +621,7 @@ def imessage_pull(
         rich_help_panel="Transcription",
     ),
     report_missing: bool = typer.Option(True, "--report-missing/--no-report-missing", help="Generate missing attachments report", show_default=True, rich_help_panel="Attachments"),
+    error_format: str = typer.Option("text", "--error-format", help="Error output format (text|json)", rich_help_panel="Output"),
 ) -> None:
     """Extract iMessage conversations for a contact.
 
@@ -629,8 +662,18 @@ def imessage_pull(
     staged_db_path: Path | None = None
     if from_backup:
         if not from_backup.exists() or not from_backup.is_dir():
-            console.print(f"[bold red]Error:[/bold red] Backup directory not found: {_redact_path(from_backup)}")
-            console.print(f"[yellow]Hint:[/yellow] {canonical_mobilesync_hint()}")
+            if error_format == "json":
+                from chatx.cli_errors import emit_problem
+                emit_problem(
+                    code="MISSING_BACKUP_DIR",
+                    title="Backup directory not found",
+                    status=1,
+                    detail=f"Backup directory not found: {_redact_path(from_backup)}",
+                    instance=str(from_backup),
+                )
+            else:
+                console.print(f"[bold red]Error:[/bold red] Backup directory not found: {_redact_path(from_backup)}")
+                console.print(f"[yellow]Hint:[/yellow] {canonical_mobilesync_hint()}")
             raise typer.Exit(1)
         try:
             # Preflight checks (non-fatal info may be derived)
@@ -643,6 +686,16 @@ def imessage_pull(
             # Prompt for password if encrypted and none provided
             enc = backup_is_encrypted(from_backup)
             if enc is True and not backup_password:
+                if error_format == "json":
+                    from chatx.cli_errors import emit_problem
+                    emit_problem(
+                        code="ENCRYPTED_BACKUP_PASSWORD_REQUIRED",
+                        title="Encrypted backup password required",
+                        status=1,
+                        detail="Provide --backup-password or interactive input.",
+                        instance=str(from_backup),
+                    )
+                    raise typer.Exit(1)
                 backup_password = typer.prompt("Encrypted backup password", hide_input=True)
 
             ensure_backup_accessible(from_backup, backup_password)
@@ -651,8 +704,18 @@ def imessage_pull(
             raise typer.Exit(1)
     else:
         if not db.exists():
-            console.print(f"[bold red]Error:[/bold red] Messages database not found: {db}")
-            console.print("[yellow]Tip:[/yellow] Grant Full Disk Access to your terminal in System Settings > Privacy & Security")
+            if error_format == "json":
+                from chatx.cli_errors import emit_problem
+                emit_problem(
+                    code="MISSING_DB",
+                    title="Messages database not found",
+                    status=1,
+                    detail=f"Database not found: {db}",
+                    instance=str(db),
+                )
+            else:
+                console.print(f"[bold red]Error:[/bold red] Messages database not found: {db}")
+                console.print("[yellow]Tip:[/yellow] Grant Full Disk Access to your terminal in System Settings > Privacy & Security")
             raise typer.Exit(1)
     
     # Create output directory
@@ -694,8 +757,22 @@ def imessage_pull(
             from chatx.utils.json_output import write_messages_with_validation
             
             output_file = out / f"messages_{contact.replace('@', '_at_').replace('+', '_plus_')}.json"
-            write_messages_with_validation(messages, output_file)
+            valid_count, invalid_count = write_messages_with_validation(messages, output_file)
             console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
+            # Exit semantics: if zero valid rows, treat as fatal
+            if valid_count == 0:
+                if error_format == "json":
+                    from chatx.cli_errors import emit_problem
+                    emit_problem(
+                        code="NO_VALID_ROWS",
+                        title="No valid rows",
+                        status=1,
+                        detail="All rows failed schema validation; see quarantine/messages_bad.jsonl",
+                        instance=str(output_file),
+                    )
+                else:
+                    console.print("[bold red]No valid rows written (see quarantine/messages_bad.jsonl)[/bold red]")
+                raise typer.Exit(1)
             
             # Report transcription statistics if audio transcription was enabled
             if transcribe_audio != "off" and include_attachments:
@@ -899,6 +976,7 @@ def instagram_pull(
     out: Path = typer.Option(Path("./out"), "--out", help="Output directory", show_default=True, metavar="<DIR>"),
     user: str = typer.Option(..., "--user", help="Your Instagram display name (filters threads; also marks is_me)", metavar="<NAME>"),
     author_only: list[str] = typer.Option([], "--author-only", help="Include only messages authored by these usernames (repeatable)", metavar="<NAME>", rich_help_panel="Filters"),
+    error_format: str = typer.Option("text", "--error-format", help="Error output format (text|json)"),
 ) -> None:
     """Extract Instagram DMs from the official data ZIP export.
 
@@ -917,7 +995,86 @@ def instagram_pull(
     console.print(f"[blue]Output:[/blue] {out}")
 
     if not zip.exists():
-        console.print(f"[bold red]Error:[/bold red] ZIP file not found: {zip}")
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="MISSING_ZIP",
+                title="ZIP file not found",
+                status=1,
+                detail=f"ZIP not found: {zip}",
+                instance=str(zip),
+            )
+        else:
+            console.print(f"[bold red]Error:[/bold red] ZIP file not found: {zip}")
+        raise typer.Exit(1)
+
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="DIR_CREATION_FAILED",
+                title="Failed to create output directory",
+                status=1,
+                detail=str(e),
+                instance=str(out),
+            )
+        else:
+            console.print(f"[bold red]Failed to create output directory:[/bold red] {e}")
+        raise typer.Exit(1)
+
+    try:
+        messages = extract_messages_from_zip(
+            zip_path=zip,
+            include_threads_with=[user],
+            authors_only=author_only,
+            me_username=user,
+        )
+    except ValueError as e:
+        # Likely unsafe ZIP entry (Zip Slip) or similar validation failure
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="UNSAFE_ZIP_ENTRY",
+                title="Unsafe ZIP entry detected",
+                status=1,
+                detail=str(e),
+                instance=str(zip),
+            )
+        else:
+            console.print(f"[bold red]Unsafe ZIP entry detected[/bold red]: {e}")
+        raise typer.Exit(1)
+    except Exception as e:
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="INVALID_INPUT",
+                title="Failed to parse Instagram ZIP",
+                status=1,
+                detail=str(e),
+                instance=str(zip),
+            )
+        else:
+            console.print(f"[bold red]Failed to parse ZIP:[/bold red] {e}")
+        raise typer.Exit(1)
+
+    # Write output with schema validation
+    output_file = out / f"messages_instagram_{zip.stem}.json"
+    valid_count, invalid_count = write_messages_with_validation(messages, output_file)
+    console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
+    if valid_count == 0:
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="NO_VALID_ROWS",
+                title="No valid rows",
+                status=1,
+                detail="All rows failed schema validation; see quarantine/messages_bad.jsonl",
+                instance=str(output_file),
+            )
+        else:
+            console.print("[bold red]No valid rows written (see quarantine/messages_bad.jsonl)[/bold red]")
         raise typer.Exit(1)
 
 
@@ -955,9 +1112,15 @@ def imessage_audit(
     out.mkdir(parents=True, exist_ok=True)
 
     if not db.exists():
-        console.print(f"[bold red]Database not found:[/bold red] {db}")
-        console.print("[yellow]Tip:[/yellow] Grant Full Disk Access to your terminal in System Settings > Privacy & Security")
-        console.print(f"[yellow]Hint (iPhone backups):[/yellow] {canonical_mobilesync_hint()}")
+        # Prefer structured error in json mode; otherwise textual hints
+        from chatx.cli_errors import emit_problem
+        emit_problem(
+            code="MISSING_DB",
+            title="Messages database not found",
+            status=1,
+            detail=f"Database not found: {db}",
+            instance=str(db),
+        )
         raise typer.Exit(1)
 
     # Always exit 0 after report generation
