@@ -25,7 +25,7 @@ def test_decode_attributed_body_utf8_fallback(tmp_path: Path) -> None:
     db_path = tmp_path / "chat.db"
     db_path.touch()
     extractor = IMessageExtractor(db_path)
-    payload = "Some utf8 text with ✓".encode()
+    payload = "Some utf8 text with ✓".encode("utf-8")
     text = extractor._decode_attributed_body(payload)
     assert "Some utf8 text" in (text or "")
 

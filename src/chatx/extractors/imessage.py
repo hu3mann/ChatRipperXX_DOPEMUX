@@ -65,17 +65,22 @@ class IMessageExtractor(BaseExtractor):
             logger.warning(f"Failed to validate iMessage database: {e}")
             return False
     
-    def _decode_attributed_body(self, attributed_body: bytes | None) -> str | None:
+    def _decode_attributed_body(self, attributed_body: bytes | memoryview | None) -> str | None:
         """Best‑effort decode of attributedBody to extract plain text.
 
-        Attempts binary plist parsing first, then falls back to a UTF‑8 heuristic.
-        Returns None if no plausible text is found.
+        Tries plist parsing (binary or XML) first, then falls back to a UTF‑8
+        heuristic. If no meaningful text is found, returns a placeholder to
+        indicate attributed content is present.
         """
         if not attributed_body:
             return None
 
         try:
-            # Try plist parsing first (handles both binary and XML plists)
+            if isinstance(attributed_body, memoryview):
+                attributed_body = attributed_body.tobytes()
+
+            # Attempt plist parsing (handles both binary and XML)
+
             try:
                 data = plistlib.loads(attributed_body)
                 text_candidate = self._extract_text_from_nested(data)
@@ -83,18 +88,19 @@ class IMessageExtractor(BaseExtractor):
                     return text_candidate
             except Exception as e:
                 logger.debug(f"attributedBody plist parse failed: {e}")
-                if attributed_body.startswith(b"bplist00"):
-                    return "[ATTRIBUTED_BODY_CONTENT]"
 
             # Heuristic UTF‑8 scan as fallback
             decoded = attributed_body.decode("utf-8", errors="ignore")
-            # Normalize whitespace and filter out control characters
-            cleaned = ' '.join(''.join(ch if ch.isprintable() else ' ' for ch in decoded).split())
-            if cleaned:
+            cleaned = ' '.join(''.join(
+                ch if ch.isprintable() else ' ' for ch in decoded
+            ).split())
+            if cleaned and not cleaned.lower().startswith("bplist"):
                 return cleaned
         except Exception as e:
             logger.warning(f"Failed to decode attributedBody: {e}")
-        return None
+            return "[ATTRIBUTED_BODY_CONTENT]"
+
+        return "[ATTRIBUTED_BODY_CONTENT]"
     
     def _decode_message_summary_info(self, conn: sqlite3.Connection, msg_rowid: int) -> str | None:
         """Best‑effort decode of iOS 16+ message_summary_info (edited messages)."""
@@ -109,25 +115,28 @@ class IMessageExtractor(BaseExtractor):
                 return None
 
             blob = row[0]
-            raw = bytes(blob) if isinstance(blob, bytes | bytearray) else str(blob).encode("utf-8")
-            # Prefer plist parsing when possible (handles binary and XML)
-            try:
-                data = plistlib.loads(raw)
-                text_candidate = self._extract_text_from_nested(data)
-                if text_candidate:
-                    return text_candidate
-            except Exception as e:
-                logger.debug(f"message_summary_info plist parse failed: {e}")
-                if raw.startswith(b"bplist00"):
-                    return "[EDITED_MESSAGE_CONTENT]"
+            if isinstance(blob, memoryview):
+                blob = blob.tobytes()
 
-            # Fallback: UTF‑8 heuristic
-            try:
-                decoded = raw.decode("utf-8", errors="ignore")
-                cleaned = ' '.join(decoded.split())
-                return cleaned if cleaned else None
-            except Exception:
-                return None
+            if isinstance(blob, (bytes, bytearray)):
+                try:
+                    data = plistlib.loads(bytes(blob))
+                    text_candidate = self._extract_text_from_nested(data)
+                    if text_candidate:
+                        return text_candidate
+                except Exception as e:
+                    logger.debug(f"message_summary_info plist parse failed: {e}")
+
+                # Fallback: UTF‑8 heuristic
+                try:
+                    decoded = bytes(blob).decode("utf-8", errors="ignore")
+                    cleaned = ' '.join(decoded.split())
+                    if cleaned and not cleaned.lower().startswith("bplist"):
+                        return cleaned
+                except Exception:
+                    pass
+                return "[EDITED_MESSAGE_CONTENT]"
+
         except Exception as e:
             logger.warning(f"Failed to decode message_summary_info: {e}")
             return None
