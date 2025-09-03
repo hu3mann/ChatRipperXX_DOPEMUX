@@ -26,7 +26,7 @@ chatx whatsapp pull --input ./export.json|.txt [--out ./out]
 
 # Transform & Redact
 chatx transform --input ./out/messages.jsonl --to jsonl --chunk turns:40 --stride 10 --contact "<id>"
-chatx redact --input ./out/chunks.jsonl --pseudonymize --opaque --threshold 0.995 --salt-file ./salt.key --report ./out/redaction_report.json
+chatx redact --input ./out/chunks.jsonl --pseudonymize --opaque --threshold 0.995 --salt-file ./salt.key --report ./out/redaction_report.json [--enable-dp --dp-epsilon 1.0 --dp-delta 1e-6]
 chatx preflight cloud --input ./out/redacted/*.json --threshold 0.995 --hardfail-classes csam
 # Enrichment backends
 chatx enrich messages --contact "<key>" --backend local|cloud|hybrid \
@@ -35,7 +35,7 @@ chatx enrich messages --contact "<key>" --backend local|cloud|hybrid \
 chatx enrich units    --contact "<key>" --backend local|cloud|hybrid \
   --local-model "gemma-2-9b-q4_K_M" --tau 0.7 --tau-low 0.62 --tau-high 0.78 \
   --allow-cloud [--window turns:50]
-chatx redact    --input ./out/chunks/*.json --pseudonymize --opaque --threshold 0.995 [--strict] --salt-file ./salt.key --report ./out/redaction_report.json
+chatx redact    --input ./out/chunks/*.json --pseudonymize --opaque --threshold 0.995 [--strict] --salt-file ./salt.key --report ./out/redaction_report.json [--enable-dp --dp-epsilon 1.0 --dp-delta 1e-6]
 
 # Index
 chatx index     --input ./out/redacted/*.json --store chroma --collection chatx_<contact>
@@ -235,6 +235,34 @@ Required codes:
 - `CLOUD_DISABLED` — cloud requested when disabled or not explicitly allowed.
 - `TIMEOUT` — exceeded 60s without streaming.
 - `INTERNAL` — unexpected failure with correlation id.
+
+## Differential Privacy
+
+The system supports (ε,δ)-differential privacy for statistical aggregation, enabling safe sharing of aggregate insights while protecting individual privacy.
+
+### Privacy Parameters
+- **Epsilon (ε)**: Privacy parameter controlling noise level (default: 1.0, smaller = more private)
+- **Delta (δ)**: Failure probability for (ε,δ)-DP guarantees (default: 1e-6)
+- **Sensitivity**: Query sensitivity for noise calibration (automatically determined per query type)
+
+### Supported Query Types
+- **Count queries**: `COUNT(*)` with optional filters on coarse labels
+- **Sum queries**: `SUM(field)` for numerical aggregation  
+- **Mean queries**: `AVG(field)` with bounded value ranges
+- **Histogram queries**: Distribution analysis with configurable bins
+
+### Integration Points
+- **PolicyShield Integration**: `--enable-dp --dp-epsilon 1.0 --dp-delta 1e-6` on `chatx redact`
+- **Statistical Summaries**: Privacy-safe aggregate reports for cloud processing
+- **Budget Management**: Automatic privacy budget composition across multiple queries
+- **Deterministic Noise**: Reproducible results with salt-based seeding
+
+### Privacy Guarantees
+The implementation provides formal (ε,δ)-differential privacy with:
+- Calibrated Laplace noise injection based on query sensitivity
+- Privacy budget tracking and composition
+- Non-negativity constraints for realistic statistical outputs
+- Integration with existing redaction and preflight validation
 
 SLAs & Limits
 - Requests MUST finish in ≤60s or stream partials.

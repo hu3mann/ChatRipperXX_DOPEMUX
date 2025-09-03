@@ -6,6 +6,7 @@ ChatX is a privacy-focused, local-first CLI tool for forensic chat analysis. It 
 
 - **Multi-Platform Support**: iMessage, Instagram DM, WhatsApp, and text files
 - **Privacy-First**: Local processing with optional cloud LLM integration only after redaction  
+- **Differential Privacy**: (ε,δ)-DP statistical aggregation for safe cloud insights
 - **Lossless Extraction**: Preserves original data fidelity via source metadata
 - **Schema-Driven**: Well-defined JSON schemas for all data formats
 - **Extensible Architecture**: Plugin-based extractors for new platforms

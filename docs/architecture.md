@@ -32,11 +32,12 @@
 1. **Ingestor** — parses iMessage DB/PDF, Instagram JSON, WhatsApp JSON, TXT into canonical **Message** records
 2. **Transformer** — normalizes, sessionizes, and **chunks** conversations (turns:40 or daily windows)
 3. **Policy Shield** — pseudonymizes people, tokenizes sensitive strings (⟦TKN:…⟧), measures redaction **coverage**; blocks hard-fail classes
-4. **Indexer** — writes redacted chunks + facets to **Chroma** collections (per contact) for retrieval
-5. **Local Enricher** — on-device LLM generates **Message/CU Enrichment** (schema-locked, deterministic)
-6. **Hybrid Orchestrator** — gates by confidence **τ=0.7** and preflight; if allowed, performs **Cloud Enrichment** with minimal context and token ceilings
-7. **Validator** — enforces JSON Schemas; clamps enums & bounds; quarantines invalid rows
-8. **Observer** — metrics, logs, artifacts (e.g., `redaction_report.json`, validation summaries)
+4. **Differential Privacy Engine** — provides (ε,δ)-differential privacy for statistical aggregation with calibrated noise injection and budget management
+5. **Indexer** — writes redacted chunks + facets to **Chroma** collections (per contact) for retrieval
+6. **Local Enricher** — on-device LLM generates **Message/CU Enrichment** (schema-locked, deterministic)
+7. **Hybrid Orchestrator** — gates by confidence **τ=0.7** and preflight; if allowed, performs **Cloud Enrichment** with minimal context and token ceilings
+8. **Validator** — enforces JSON Schemas; clamps enums & bounds; quarantines invalid rows
+9. **Observer** — metrics, logs, artifacts (e.g., `redaction_report.json`, validation summaries)
 
 ---
 
@@ -46,6 +47,8 @@
 - **core/** — business logic (pure functions where possible)  
 - **adapters/** — external integrations (HTTP, files, models)
 - **extractors/** — platform-specific data extraction (iMessage, Instagram, etc.)
+- **privacy/** — differential privacy engine and mechanisms for statistical aggregation
+- **redaction/** — enhanced policy shield with PII detection and DP integration
 - **tests/** — unit + integration tests
 
 ---
@@ -69,6 +72,12 @@
 **Components:** Indexer (retrieval) → Local/Cloud LLM (synthesis)
 **Data:** Query → relevant chunks → contextual answer with citations
 **Outcome:** Evidence-backed responses
+
+### 4. Privacy-Safe Statistical Aggregation
+**Trigger:** PolicyShield statistical summary generation for cloud processing
+**Components:** Differential Privacy Engine → Privacy-safe statistical queries → Noisy aggregates
+**Data:** Redacted chunks → statistical queries → (ε,δ)-DP results → privacy-safe summaries
+**Outcome:** Safe statistical insights for cloud processing while protecting individual privacy
 
 ---
 
@@ -96,9 +105,17 @@
 - **Hard-fail Classes:** CSAM detection blocks all cloud operations
 - **Preflight Validation:** All cloud-bound data validated against coverage thresholds
 
+### Differential Privacy Engine
+- **Statistical Aggregation:** (ε,δ)-differential privacy for safe statistical queries
+- **Privacy Parameters:** Default ε=1.0, δ=1e-6 with calibrated Laplace noise
+- **Query Types:** Count, sum, mean, histogram with proper sensitivity analysis
+- **Budget Management:** Privacy budget composition and tracking across queries
+- **Integration:** Seamless integration with PolicyShield redaction pipeline
+
 ### Data Classification
 - **Fine-grained labels:** Remain local-only
 - **Coarse labels:** Shared to cloud when necessary for enrichment
+- **Statistical summaries:** Privacy-safe aggregates via differential privacy
 - **Attachments:** Never uploaded to cloud under any circumstances
 
 ---
