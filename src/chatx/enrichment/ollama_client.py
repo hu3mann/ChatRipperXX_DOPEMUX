@@ -239,7 +239,7 @@ class ProductionOllamaClient:
             for ctx_msg in request.context[-2:]:  # Last 2 messages for context
                 sender = "ME" if ctx_msg.get("is_me") else request.contact
                 context_msgs.append(f"{sender}: {ctx_msg.get('text', '')}")
-            context_str = f"Context:\n" + "\n".join(context_msgs) + "\n\n"
+            context_str = "Context:\n" + "\n".join(context_msgs) + "\n\n"
         
         prompt = f"""{context_str}Analyze this message and provide detailed enrichment following the exact JSON schema:
 
