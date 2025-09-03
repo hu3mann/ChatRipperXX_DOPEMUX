@@ -148,3 +148,7 @@ chatx enrich messages --backend hybrid --allow-cloud --contact "friend@example.c
 ---
 
 *Last updated: 2025-09-02*
+# Emit machine‑readable CLI errors
+# Add --error-format json to emit RFC-7807 Problem JSON on stderr and set non-zero exit codes
+chatx imessage pull --contact "+1555" --out ./out --error-format json
+chatx instagram pull --zip ./instagram.zip --user "Your Name" --out ./out --error-format json

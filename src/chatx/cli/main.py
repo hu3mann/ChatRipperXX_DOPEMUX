@@ -976,6 +976,7 @@ def instagram_pull(
     out: Path = typer.Option(Path("./out"), "--out", help="Output directory", show_default=True, metavar="<DIR>"),
     user: str = typer.Option(..., "--user", help="Your Instagram display name (filters threads; also marks is_me)", metavar="<NAME>"),
     author_only: list[str] = typer.Option([], "--author-only", help="Include only messages authored by these usernames (repeatable)", metavar="<NAME>", rich_help_panel="Filters"),
+    error_format: str = typer.Option("text", "--error-format", help="Error output format (text|json)"),
 ) -> None:
     """Extract Instagram DMs from the official data ZIP export.
 
@@ -994,7 +995,86 @@ def instagram_pull(
     console.print(f"[blue]Output:[/blue] {out}")
 
     if not zip.exists():
-        console.print(f"[bold red]Error:[/bold red] ZIP file not found: {zip}")
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="MISSING_ZIP",
+                title="ZIP file not found",
+                status=1,
+                detail=f"ZIP not found: {zip}",
+                instance=str(zip),
+            )
+        else:
+            console.print(f"[bold red]Error:[/bold red] ZIP file not found: {zip}")
+        raise typer.Exit(1)
+
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="DIR_CREATION_FAILED",
+                title="Failed to create output directory",
+                status=1,
+                detail=str(e),
+                instance=str(out),
+            )
+        else:
+            console.print(f"[bold red]Failed to create output directory:[/bold red] {e}")
+        raise typer.Exit(1)
+
+    try:
+        messages = extract_messages_from_zip(
+            zip_path=zip,
+            include_threads_with=[user],
+            authors_only=author_only,
+            me_username=user,
+        )
+    except ValueError as e:
+        # Likely unsafe ZIP entry (Zip Slip) or similar validation failure
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="UNSAFE_ZIP_ENTRY",
+                title="Unsafe ZIP entry detected",
+                status=1,
+                detail=str(e),
+                instance=str(zip),
+            )
+        else:
+            console.print(f"[bold red]Unsafe ZIP entry detected[/bold red]: {e}")
+        raise typer.Exit(1)
+    except Exception as e:
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="INVALID_INPUT",
+                title="Failed to parse Instagram ZIP",
+                status=1,
+                detail=str(e),
+                instance=str(zip),
+            )
+        else:
+            console.print(f"[bold red]Failed to parse ZIP:[/bold red] {e}")
+        raise typer.Exit(1)
+
+    # Write output with schema validation
+    output_file = out / f"messages_instagram_{zip.stem}.json"
+    valid_count, invalid_count = write_messages_with_validation(messages, output_file)
+    console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
+    if valid_count == 0:
+        if error_format == "json":
+            from chatx.cli_errors import emit_problem
+            emit_problem(
+                code="NO_VALID_ROWS",
+                title="No valid rows",
+                status=1,
+                detail="All rows failed schema validation; see quarantine/messages_bad.jsonl",
+                instance=str(output_file),
+            )
+        else:
+            console.print("[bold red]No valid rows written (see quarantine/messages_bad.jsonl)[/bold red]")
         raise typer.Exit(1)
 
 
