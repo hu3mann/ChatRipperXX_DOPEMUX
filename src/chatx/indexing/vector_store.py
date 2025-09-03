@@ -3,8 +3,7 @@
 import json
 import logging
 import uuid
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional
 from datetime import datetime
 from dataclasses import dataclass
 
@@ -42,8 +41,8 @@ class SearchResult:
     chunk_id: str
     score: float
     text: str
-    metadata: Dict[str, Any]
-    message_ids: List[str]
+    metadata: dict[str, Any]
+    message_ids: list[str]
 
 
 class ChromaDBVectorStore:
@@ -60,7 +59,7 @@ class ChromaDBVectorStore:
         
         self.config = config or IndexingConfig()
         self.client: Optional[chromadb.Client] = None
-        self.collections: Dict[str, chromadb.Collection] = {}
+        self.collections: dict[str, chromadb.Collection] = {}
         
         # Initialize embedding function
         if SentenceTransformer is not None:
@@ -153,7 +152,7 @@ class ChromaDBVectorStore:
             logger.error(f"Failed to create collection {collection_name}: {e}")
             raise
     
-    def _prepare_chunk_for_indexing(self, chunk: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
+    def _prepare_chunk_for_indexing(self, chunk: dict[str, Any]) -> tuple[str, str, dict[str, Any]]:
         """Prepare chunk data for indexing.
         
         Args:
@@ -196,11 +195,11 @@ class ChromaDBVectorStore:
         return chunk_id, text, search_metadata
     
     def index_chunks(
-        self, 
-        chunks: List[Dict[str, Any]], 
+        self,
+        chunks: list[dict[str, Any]],
         contact: str,
         batch_size: Optional[int] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Index conversation chunks for search.
         
         Args:
@@ -277,8 +276,8 @@ class ChromaDBVectorStore:
         query: str,
         contact: str,
         k: int = 10,
-        filters: Optional[Dict[str, Any]] = None
-    ) -> List[SearchResult]:
+        filters: Optional[dict[str, Any]] = None
+    ) -> list[SearchResult]:
         """Search for relevant chunks.
         
         Args:
@@ -347,7 +346,7 @@ class ChromaDBVectorStore:
         self,
         contact: str,
         chunk_id: str,
-        metadata_updates: Dict[str, Any]
+        metadata_updates: dict[str, Any]
     ) -> bool:
         """Update metadata for a specific chunk.
         
@@ -395,7 +394,7 @@ class ChromaDBVectorStore:
             logger.error(f"Error updating chunk metadata: {e}")
             return False
     
-    def get_collection_stats(self, contact: str) -> Dict[str, Any]:
+    def get_collection_stats(self, contact: str) -> dict[str, Any]:
         """Get statistics for a collection.
         
         Args:
@@ -467,7 +466,7 @@ class ChromaDBVectorStore:
             logger.error(f"Error getting collection stats: {e}")
             return {"exists": False, "error": str(e)}
     
-    def list_collections(self) -> List[Dict[str, Any]]:
+    def list_collections(self) -> list[dict[str, Any]]:
         """List all collections.
         
         Returns:

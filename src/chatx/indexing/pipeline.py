@@ -4,7 +4,7 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 from datetime import datetime
 from dataclasses import dataclass, asdict
 
@@ -26,7 +26,7 @@ class IndexingMetrics:
     collections_created: int = 0
     embeddings_generated: int = 0
     
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get metrics summary."""
         success_rate = (
             self.chunks_indexed / self.chunks_processed
@@ -51,8 +51,8 @@ class SearchConfig:
     k: int = 10  # Number of results
     score_threshold: float = 0.0  # Minimum similarity score
     date_range_days: Optional[int] = None  # Restrict to recent days
-    include_labels: Optional[List[str]] = None  # Include chunks with these labels
-    exclude_labels: Optional[List[str]] = None  # Exclude chunks with these labels
+    include_labels: Optional[list[str]] = None  # Include chunks with these labels
+    exclude_labels: Optional[list[str]] = None  # Exclude chunks with these labels
     platform_filter: Optional[str] = None  # Filter by platform
     redacted_only: bool = True  # Only search redacted content
 
@@ -102,7 +102,7 @@ class IndexingPipeline:
         if self.vector_store:
             self.vector_store.close()
     
-    def _validate_and_filter_chunks(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _validate_and_filter_chunks(self, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Validate chunks and filter invalid ones."""
         if not self.validate_schemas:
             return chunks
@@ -120,7 +120,7 @@ class IndexingPipeline:
         
         return valid_chunks
     
-    def _filter_chunks_for_indexing(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _filter_chunks_for_indexing(self, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Filter chunks suitable for indexing."""
         filtered_chunks = []
         
@@ -148,11 +148,11 @@ class IndexingPipeline:
     
     def index_chunks(
         self,
-        chunks: List[Dict[str, Any]],
+        chunks: list[dict[str, Any]],
         contact: str,
         overwrite_collection: bool = False,
         batch_size: Optional[int] = None
-    ) -> Tuple[Dict[str, Any], Path]:
+    ) -> tuple[dict[str, Any], Path]:
         """Index conversation chunks for search.
         
         Args:
@@ -182,11 +182,12 @@ class IndexingPipeline:
             # Create/get collection
             if overwrite_collection:
                 logger.info(f"Overwriting existing collection for contact: {contact}")
-            
+
             # Create or overwrite target collection
+
             self.vector_store.create_collection(contact, overwrite=overwrite_collection)
             self.metrics.collections_created = 1
-            
+
             # Index chunks
             indexing_stats = self.vector_store.index_chunks(
                 indexable_chunks,
@@ -234,7 +235,7 @@ class IndexingPipeline:
         query: str,
         contact: str,
         config: Optional[SearchConfig] = None
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Search for relevant chunks.
         
         Args:
@@ -299,9 +300,9 @@ class IndexingPipeline:
     
     def update_chunk_enrichments(
         self,
-        enrichments: List[Dict[str, Any]],
+        enrichments: list[dict[str, Any]],
         contact: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Update chunks with enrichment metadata.
         
         Args:
@@ -362,7 +363,7 @@ class IndexingPipeline:
         logger.info(f"Enrichment update complete: {stats}")
         return stats
     
-    def get_collection_info(self, contact: str) -> Dict[str, Any]:
+    def get_collection_info(self, contact: str) -> dict[str, Any]:
         """Get information about a collection.
         
         Args:
@@ -373,7 +374,7 @@ class IndexingPipeline:
         """
         return self.vector_store.get_collection_stats(contact)
     
-    def list_all_collections(self) -> List[Dict[str, Any]]:
+    def list_all_collections(self) -> list[dict[str, Any]]:
         """List all indexed collections.
         
         Returns:
@@ -381,7 +382,7 @@ class IndexingPipeline:
         """
         return self.vector_store.list_collections()
     
-    def _save_indexing_report(self, stats: Dict[str, Any]) -> Path:
+    def _save_indexing_report(self, stats: dict[str, Any]) -> Path:
         """Save indexing report to file.
         
         Args:
@@ -417,7 +418,7 @@ class IndexingPipeline:
         logger.info(f"Indexing report saved to: {report_file}")
         return report_file
     
-    def get_performance_metrics(self) -> Dict[str, Any]:
+    def get_performance_metrics(self) -> dict[str, Any]:
         """Get performance metrics for the indexing pipeline.
         
         Returns:
