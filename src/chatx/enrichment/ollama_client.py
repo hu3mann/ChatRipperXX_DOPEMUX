@@ -163,7 +163,6 @@ class OllamaMemoryOptimizer:
             "OLLAMA_GPU_MEMORY_FRACTION": "0.8",  # Reserve 20% GPU memory
         }
 
-        
         for key, value in config.items():
             os.environ[key] = value
             logger.debug(f"Set {key}={value}")
