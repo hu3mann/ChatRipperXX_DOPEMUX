@@ -20,7 +20,6 @@ nav:
   - Agent Workflows: agent-workflows.md
   - Repo Prompt XML Apply: repo-prompt-xml.md
   - Additional Docs:
-      - README: README.md
       - LLM Context: CR-XactXtract/llm-context.md
   - How-To:
       - iPhone Backup (iMessage): how-to/iphone-backup.md
