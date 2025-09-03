@@ -26,6 +26,10 @@ Status: Draft | Owner: You | Last Updated: 2025-09-02 PT
 * 2025-09-02: Wired CLI flags `--copy-binaries`, `--transcribe-audio local|off`, and `--report-missing`; added missing attachments report generation and validation; implemented local transcription path (mock/Whisper) and surfaced run stats.
 * 2025-09-02: Added MobileSync backup path support: stage sms.db via Manifest.db, resolve/copy attachments by fileID, and enable transcription from backup without copy.
 * 2025-09-02: Implemented best‑effort decoding for attributedBody and message_summary_info (plist parse + UTF‑8 fallback).
+* 2025-09-03: Extractor hardening (X3–X6):
+  - X3 — Row validation + quarantine wired; CLI exits non‑zero on zero valid rows.
+  - X5 — Introduced RFC‑7807 error model and `--error-format json|text` (machine‑readable errors).
+  - X6 — Attributed body normalization to clean text; raw preserved (base64) under `source_meta.raw.attributed_body`.
 * 2025-08-16: **CLOUD_ENRICHMENT.md** expanded with `provenance`, `shield`, and confidence calibration details; added field-visibility matrix.
 * 2025-08-16: **INTERFACES.md** updated to mirror enrichment fields, error codes, and visibility rules; enriched CLI contracts clarified.
 * 2025-08-16: **ACCEPTANCE_CRITERIA.md** extended with Gherkin for chunking, relationship labels, idempotency, and minimal-context checks.
