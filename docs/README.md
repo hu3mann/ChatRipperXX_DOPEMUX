@@ -23,6 +23,7 @@
 ### Planning & Decisions
 - **[Roadmap & Open Questions](design/next.md)** — What's next and what needs decisions
 - **[Architecture Decision Records](design/adrs/)** — Key technical decisions and rationale
+  - [ADR-0018: CLI Error Model (RFC‑7807)](design/adrs/0018-cli-error-model-rfc7807.md) — Problem JSON on stderr with `--error-format json` and standardized error codes
 
 ---
 
