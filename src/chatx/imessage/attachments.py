@@ -3,14 +3,14 @@
 import shutil
 import sqlite3
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from chatx.media.hash import sha256_stream
 from chatx.schemas.message import Attachment
 from chatx.media.thumbnail import generate_thumbnail
 
 # UTI to attachment type mapping (Apple Uniform Type Identifiers)
-UTI_TYPE_MAP: Dict[str, str] = {
+UTI_TYPE_MAP: dict[str, str] = {
     # Images
     "public.jpeg": "image",
     "public.png": "image", 
@@ -51,7 +51,7 @@ UTI_TYPE_MAP: Dict[str, str] = {
 }
 
 # MIME type fallback mapping
-MIME_TYPE_MAP: Dict[str, str] = {
+MIME_TYPE_MAP: dict[str, str] = {
     # Images
     "image/jpeg": "image",
     "image/png": "image",
@@ -161,9 +161,9 @@ def determine_attachment_type(uti: Optional[str], mime_type: Optional[str], file
 
 
 def extract_attachment_metadata(
-    conn: sqlite3.Connection, 
+    conn: sqlite3.Connection,
     message_rowid: int
-) -> List[Attachment]:
+) -> list[Attachment]:
     """Extract attachment metadata for a message.
     
     Args:
@@ -215,12 +215,12 @@ def extract_attachment_metadata(
 
 
 def copy_attachment_files(
-    attachments: List[Attachment],
+    attachments: list[Attachment],
     out_dir: Path,
     backup_dir: Optional[Path] = None,
     *,
-    dedupe_map: Optional[Dict[str, str]] = None,
-) -> Tuple[List[Attachment], Dict[str, str]]:
+    dedupe_map: Optional[dict[str, str]] = None,
+) -> tuple[list[Attachment], dict[str, str]]:
     """Copy attachment files to output directory with content hashing.
 
     Args:
@@ -236,7 +236,7 @@ def copy_attachment_files(
     out_dir/attachments/<sha256[:2]>/<sha256>/<original_basename>
     """
     updated_attachments = []
-    dedupe: Dict[str, str] = dedupe_map or {}
+    dedupe: dict[str, str] = dedupe_map or {}
 
     for attachment in attachments:
         # Resolve source file location
@@ -295,15 +295,15 @@ def _relative_sms_attachments_path(filename: str) -> Optional[str]:
 
 
 def generate_thumbnail_files(
-    attachments: List[Attachment],
+    attachments: list[Attachment],
     out_dir: Path,
     backup_dir: Optional[Path] = None,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Generate thumbnails for image attachments.
 
     Returns mapping of attachment filenames to thumbnail paths."""
 
-    thumb_paths: Dict[str, str] = {}
+    thumb_paths: dict[str, str] = {}
 
     for attachment in attachments:
         if attachment.type != "image":
