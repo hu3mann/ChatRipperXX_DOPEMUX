@@ -15,11 +15,13 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Architecture: architecture.md
-  - ADRs:
+  - Design:
+      - Specifications: design/specifications/index.md
       - ADR Index: design/adrs/index.md
   - Agent Workflows: agent-workflows.md
   - Repo Prompt XML Apply: repo-prompt-xml.md
   - Additional Docs:
+      - Overview: overview.md
       - LLM Context: CR-XactXtract/llm-context.md
   - How-To:
       - iPhone Backup (iMessage): how-to/iphone-backup.md
