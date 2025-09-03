@@ -795,7 +795,7 @@ def index(
         with store_impl:
             stats = store_impl.index_chunks(chunks, contact, batch_size=batch_size)
             
-            console.print(f"[bold green]Indexing complete![/bold green]")
+            console.print("[bold green]Indexing complete![/bold green]")
             if multi_vector:
                 console.print(f"[green]Total indexed:[/green] {stats.get('total_indexed', 0)}")
                 console.print(f"[red]Total errors:[/red] {stats.get('total_errors', 0)}")

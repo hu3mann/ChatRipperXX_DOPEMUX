@@ -76,7 +76,7 @@ def test_sample_enrichment():
         
         # Note: This will fail with Ollama connection error, but we can test structure
         try:
-            pipeline = MultiPassEnrichmentPipeline()
+            _ = MultiPassEnrichmentPipeline()
             print("✅ Pipeline initialized (connection will fail but structure is good)")
         except Exception as e:
             if "Connection" in str(e) or "Ollama" in str(e):
@@ -101,7 +101,7 @@ def test_multi_vector_config():
         from src.chatx.indexing.multi_vector_store import MultiVectorConfig, VectorSpace
         
         config = MultiVectorConfig()
-        print(f"✅ Default config created")
+        print("✅ Default config created")
         print(f"   - Collection prefix: {config.collection_prefix}")
         print(f"   - Vector spaces: {len(config.vector_spaces)}")
         
@@ -189,7 +189,7 @@ def main():
         print("   chatx enrich-multi chunks.jsonl --contact '<id>'")
         return True
     else:
-        print(f"⚠️  Some tests failed. System needs attention.")
+        print("⚠️  Some tests failed. System needs attention.")
         return False
 
 
