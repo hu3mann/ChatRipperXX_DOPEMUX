@@ -1,76 +1,55 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://xtractxact.dev/schemas/missing_attachments_report.schema.json",
+  "$id": "https://chatx.local/schemas/missing_attachments_report.schema.json",
   "title": "Missing Attachments Report",
-  "description": "Report of attachment files referenced in database but missing from disk (e.g., due to iCloud optimization)",
   "type": "object",
   "additionalProperties": false,
-  "required": ["items"],
+  "required": [
+    "generated_at",
+    "contact",
+    "items",
+    "summary",
+    "remediation_guidance"
+  ],
   "properties": {
-    "generated_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "ISO-8601 timestamp when report was generated"
-    },
-    "contact": {
-      "type": ["string", "null"],
-      "description": "Contact identifier extraction was run for"
-    },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "contact": { "type": ["string", "null"] },
     "items": {
       "type": "array",
-      "description": "List of missing attachment references",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["conv_guid", "msg_id", "filename"],
         "properties": {
-          "conv_guid": {
-            "type": "string",
-            "description": "Conversation GUID where attachment was referenced"
-          },
-          "msg_id": {
-            "type": "string",
-            "description": "Message ID that referenced the missing attachment"
-          },
-          "filename": {
-            "type": "string",
-            "description": "Original filename of the missing attachment"
-          }
+          "conv_guid": { "type": "string" },
+          "msg_id": { "type": "string" },
+          "filename": { "type": "string" }
         }
       }
     },
     "summary": {
       "type": "object",
-      "description": "Aggregate counts for operator guidance",
       "additionalProperties": false,
       "required": ["total_missing", "per_conversation"],
       "properties": {
-        "total_missing": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Total number of missing attachment references"
-        },
+        "total_missing": { "type": "integer", "minimum": 0 },
         "per_conversation": {
           "type": "object",
-          "description": "Missing count per conversation GUID",
-          "additionalProperties": {
-            "type": "integer",
-            "minimum": 0
-          }
+          "additionalProperties": { "type": "integer", "minimum": 0 }
         }
       }
     },
     "remediation_guidance": {
       "type": "object",
-      "description": "Instructions for manual remediation",
       "additionalProperties": false,
+      "required": ["manual_steps"],
       "properties": {
         "manual_steps": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Step-by-step manual remediation instructions"
+          "items": { "type": "string" }
         }
       }
     }
   }
 }
+
