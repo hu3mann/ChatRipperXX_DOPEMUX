@@ -84,7 +84,7 @@ class IMessageExtractor(BaseExtractor):
                         return text_candidate
                 except Exception as e:
                     logger.debug(f"attributedBody plist parse failed: {e}")
-                    return None
+                    # Do not return here; proceed to fallback
 
             # Heuristic UTF‑8 scan as fallback
             decoded = attributed_body.decode("utf-8", errors="ignore")
