@@ -1,10 +1,14 @@
-"""Stub tests for media.sniff."""
+"""Tests for media.sniff."""
 
-import pytest
+from pathlib import Path
 
 from chatx.media.sniff import sniff_mime
+from tests.fixtures.tiny_heic import tiny_heic_file
 
 
-@pytest.mark.xfail(raises=NotImplementedError, strict=True, reason="stub")
-def test_sniff_unimplemented():
-    sniff_mime("/dev/null")
+def test_sniff_heic(tmp_path: Path) -> None:
+    """HEIC files should be detected via magic."""
+    path = tiny_heic_file(tmp_path)
+    mime, uti = sniff_mime(str(path))
+    assert mime == "image/heic"
+    assert uti == "public.heic"

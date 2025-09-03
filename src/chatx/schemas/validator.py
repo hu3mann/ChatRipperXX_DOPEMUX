@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import jsonschema
 from jsonschema.validators import Draft202012Validator
@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 # Schema paths
 SCHEMA_DIR = Path(__file__).parent.parent.parent.parent / "schemas"
-SCHEMA_CACHE: Dict[str, Dict[str, Any]] = {}
+SCHEMA_CACHE: dict[str, dict[str, Any]] = {}
 
 
-def load_schema(schema_name: str) -> Dict[str, Any]:
+def load_schema(schema_name: str) -> dict[str, Any]:
     """Load and cache a JSON schema.
     
     Args:
@@ -36,7 +36,7 @@ def load_schema(schema_name: str) -> Dict[str, Any]:
         raise FileNotFoundError(f"Schema not found: {schema_file}")
     
     with open(schema_file) as f:
-        schema: Dict[str, Any] = json.load(f)
+        schema: dict[str, Any] = json.load(f)
     
     SCHEMA_CACHE[schema_name] = schema
     logger.debug(f"Loaded schema: {schema_name}")
@@ -44,10 +44,10 @@ def load_schema(schema_name: str) -> Dict[str, Any]:
 
 
 def validate_data(
-    data: Union[Dict[str, Any], List[Dict[str, Any]]],
+    data: Union[dict[str, Any], list[dict[str, Any]]],
     schema_name: str,
     strict: bool = True
-) -> tuple[bool, List[str]]:
+) -> tuple[bool, list[str]]:
     """Validate data against a schema.
     
     Args:
@@ -87,52 +87,52 @@ def validate_data(
     return is_valid, errors
 
 
-def validate_chunk(chunk: Dict[str, Any], strict: bool = True) -> tuple[bool, List[str]]:
+def validate_chunk(chunk: dict[str, Any], strict: bool = True) -> tuple[bool, list[str]]:
     """Validate a conversation chunk."""
     return validate_data(chunk, "chunk", strict)
 
 
 def validate_message_enrichment(
-    enrichment: Dict[str, Any], strict: bool = True
-) -> tuple[bool, List[str]]:
+    enrichment: dict[str, Any], strict: bool = True
+) -> tuple[bool, list[str]]:
     """Validate message-level enrichment."""
     return validate_data(enrichment, "enrichment_message", strict)
 
 
 def validate_cu_enrichment(
-    enrichment: Dict[str, Any], strict: bool = True
-) -> tuple[bool, List[str]]:
+    enrichment: dict[str, Any], strict: bool = True
+) -> tuple[bool, list[str]]:
     """Validate conversation unit enrichment."""
     return validate_data(enrichment, "enrichment_cu", strict)
 
 
 def validate_redaction_report(
-    report: Dict[str, Any], strict: bool = True
-) -> tuple[bool, List[str]]:
+    report: dict[str, Any], strict: bool = True
+) -> tuple[bool, list[str]]:
     """Validate redaction report."""
     return validate_data(report, "redaction_report", strict)
 
 
 def validate_run_report(
-    report: Dict[str, Any], strict: bool = True
-) -> tuple[bool, List[str]]:
+    report: dict[str, Any], strict: bool = True
+) -> tuple[bool, list[str]]:
     """Validate run report."""
     return validate_data(report, "run_report", strict)
 
 
 class ValidationError(Exception):
     """Custom validation error with details."""
-    
-    def __init__(self, message: str, errors: List[str]) -> None:
+
+    def __init__(self, message: str, errors: list[str]) -> None:
         super().__init__(message)
         self.errors = errors
 
 
 def quarantine_invalid_data(
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     schema_name: str,
     quarantine_dir: Optional[Path] = None
-) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Separate valid and invalid data items.
     
     Args:
@@ -169,11 +169,11 @@ def quarantine_invalid_data(
 
 
 def validate_pipeline_data(
-    messages: Optional[List[Dict[str, Any]]] = None,
-    chunks: Optional[List[Dict[str, Any]]] = None,
-    enrichments: Optional[List[Dict[str, Any]]] = None,
+    messages: Optional[list[dict[str, Any]]] = None,
+    chunks: Optional[list[dict[str, Any]]] = None,
+    enrichments: Optional[list[dict[str, Any]]] = None,
     strict: bool = False
-) -> Dict[str, tuple[bool, List[str]]]:
+) -> dict[str, tuple[bool, list[str]]]:
     """Validate multiple pipeline data types.
     
     Args:

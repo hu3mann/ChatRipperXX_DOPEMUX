@@ -7,7 +7,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
+from typing import Any, AsyncIterator, Optional
 from dataclasses import dataclass, asdict
 
 try:
@@ -89,7 +89,7 @@ class OllamaHealthMonitor:
         if self.client:
             await self.client.aclose()
     
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Comprehensive health check using Ollama API."""
         try:
             # Check server availability
@@ -146,7 +146,7 @@ class OllamaMemoryOptimizer:
     """Configure Ollama for optimal memory usage and performance."""
     
     @staticmethod
-    def configure_environment() -> Dict[str, str]:
+    def configure_environment() -> dict[str, str]:
         """Set environment variables for optimal performance."""
         config = {
             # Memory optimization (2025 features)
@@ -162,7 +162,7 @@ class OllamaMemoryOptimizer:
             "OLLAMA_GPU_LAYERS": "-1",  # Use all available GPU layers
             "OLLAMA_GPU_MEMORY_FRACTION": "0.8",  # Reserve 20% GPU memory
         }
-        
+
         for key, value in config.items():
             os.environ[key] = value
             logger.debug(f"Set {key}={value}")
@@ -193,7 +193,7 @@ class ProductionOllamaClient:
         
         # Performance tracking
         self.metrics = PerformanceMetrics()
-        self.latencies: List[float] = []
+        self.latencies: list[float] = []
         
         # Configure memory optimization
         OllamaMemoryOptimizer.configure_environment()
@@ -269,8 +269,8 @@ Respond with valid JSON matching the MessageEnrichment schema exactly."""
     async def _robust_chat_request(
         self, 
         prompt: str, 
-        schema: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        schema: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """Make robust chat request with automatic retry."""
         async with self.rate_limited_request():
             try:
@@ -313,11 +313,11 @@ Respond with valid JSON matching the MessageEnrichment schema exactly."""
                     
             except httpx.TimeoutException as e:
                 logger.warning(f"Request timeout: {e}")
-                raise RetryableOllamaError(f"Timeout: {e}")
+                raise RetryableOllamaError(f"Timeout: {e}") from e
             
             except httpx.ConnectError as e:
                 logger.warning(f"Connection error: {e}")
-                raise RetryableOllamaError(f"Connection error: {e}")
+                raise RetryableOllamaError(f"Connection error: {e}") from e
             
             except Exception as e:
                 error_msg = str(e).lower()
@@ -325,10 +325,10 @@ Respond with valid JSON matching the MessageEnrichment schema exactly."""
                     "rate limit", "too many requests", "overloaded", "busy"
                 ]):
                     logger.warning(f"Rate limit or overload: {e}")
-                    raise RetryableOllamaError(f"Retryable error: {e}")
+                    raise RetryableOllamaError(f"Retryable error: {e}") from e
                 else:
                     logger.error(f"Non-retryable error: {e}")
-                    raise OllamaError(f"Non-retryable error: {e}")
+                    raise OllamaError(f"Non-retryable error: {e}") from e
     
     async def enrich_message(self, request: EnrichmentRequest) -> EnrichmentResponse:
         """Enrich a single message with structured analysis."""
@@ -385,11 +385,11 @@ Respond with valid JSON matching the MessageEnrichment schema exactly."""
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decode error for {request.msg_id}: {e}")
                 logger.debug(f"Raw response: {message_content}")
-                raise OllamaError(f"Invalid JSON response: {e}")
+                raise OllamaError(f"Invalid JSON response: {e}") from e
             
             except Exception as e:
                 logger.error(f"Pydantic validation error for {request.msg_id}: {e}")
-                raise OllamaError(f"Schema validation error: {e}")
+                raise OllamaError(f"Schema validation error: {e}") from e
         
         except Exception as e:
             processing_time_ms = (time.time() - start_time) * 1000
@@ -493,7 +493,7 @@ Respond with valid JSON matching the MessageEnrichment schema exactly."""
             for response in batch_response.responses:
                 yield response
     
-    def get_performance_metrics(self) -> Dict[str, Any]:
+    def get_performance_metrics(self) -> dict[str, Any]:
         """Get current performance metrics."""
         p95_latency_ms = 0.0
         if self.latencies:

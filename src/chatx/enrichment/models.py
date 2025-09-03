@@ -1,6 +1,6 @@
 """Pydantic models for LLM-based message enrichment."""
 
-from typing import List, Optional, Literal, Dict, Any
+from typing import Optional, Literal, Any
 from enum import Enum
 from datetime import datetime
 import uuid
@@ -71,11 +71,11 @@ class MessageEnrichment(BaseModel):
     boundary_signal: BoundarySignalEnum = Field(description="Boundary-related signal")
     repair_attempt: bool = Field(description="Whether this is a repair attempt")
     inferred_meaning: str = Field(max_length=200, description="Concise meaning summary")
-    map_refs: List[str] = Field(default_factory=list, description="References to other messages")
+    map_refs: list[str] = Field(default_factory=list, description="References to other messages")
     
     # Labels - coarse are cloud-safe, fine are local-only
-    coarse_labels: List[str] = Field(default_factory=list, description="Cloud-safe labels")
-    fine_labels_local: List[str] = Field(
+    coarse_labels: list[str] = Field(default_factory=list, description="Cloud-safe labels")
+    fine_labels_local: list[str] = Field(
         default_factory=list, 
         description="LOCAL-ONLY; MUST NOT be sent to cloud"
     )
@@ -83,8 +83,8 @@ class MessageEnrichment(BaseModel):
     # Optional influence and relationship fields
     influence_class: Optional[str] = Field(None, description="Influence class from taxonomy")
     influence_score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Influence strength")
-    relationship_structure: List[str] = Field(default_factory=list, description="Relationship structure elements")
-    relationship_dynamic: List[str] = Field(default_factory=list, description="Dynamic patterns")
+    relationship_structure: list[str] = Field(default_factory=list, description="Relationship structure elements")
+    relationship_dynamic: list[str] = Field(default_factory=list, description="Dynamic patterns")
     
     # Metadata
     notes: Optional[str] = Field(None, max_length=500, description="Additional notes")
@@ -92,8 +92,8 @@ class MessageEnrichment(BaseModel):
     source: SourceEnum = Field(description="Source of analysis")
     
     # Provenance
-    provenance: Dict[str, Any] = Field(default_factory=dict, description="Analysis provenance")
-    shield: Optional[Dict[str, Any]] = Field(None, description="Policy shield context")
+    provenance: dict[str, Any] = Field(default_factory=dict, description="Analysis provenance")
+    shield: Optional[dict[str, Any]] = Field(None, description="Policy shield context")
     
     @validator('confidence_llm')
     def validate_confidence(cls, v):
@@ -130,13 +130,13 @@ class ConversationUnitEnrichment(BaseModel):
     
     cu_id: str = Field(description="Conversation unit identifier")
     topic_label: str = Field(max_length=50, description="Topic label (≤6 words)")
-    vibe_trajectory: List[str] = Field(description="Emotional trajectory through unit")
+    vibe_trajectory: list[str] = Field(description="Emotional trajectory through unit")
     escalation_curve: Literal["low", "spike", "high", "resolve"] = Field(
         description="Escalation pattern"
     )
     
     # Relationship ledgers
-    ledgers: Dict[str, List[Dict[str, Any]]] = Field(
+    ledgers: dict[str, list[dict[str, Any]]] = Field(
         default_factory=lambda: {
             "boundary": [],
             "consent": [],
@@ -147,23 +147,23 @@ class ConversationUnitEnrichment(BaseModel):
     )
     
     # Issue and episode references
-    issue_refs: List[str] = Field(default_factory=list, description="Referenced issues")
-    episode_ids: List[str] = Field(default_factory=list, description="Episode identifiers")
+    issue_refs: list[str] = Field(default_factory=list, description="Referenced issues")
+    episode_ids: list[str] = Field(default_factory=list, description="Episode identifiers")
     
     # Labels - same privacy model as MessageEnrichment
-    coarse_labels: List[str] = Field(default_factory=list, description="Cloud-safe labels")
-    fine_labels_local: List[str] = Field(
+    coarse_labels: list[str] = Field(default_factory=list, description="Cloud-safe labels")
+    fine_labels_local: list[str] = Field(
         default_factory=list,
         description="LOCAL-ONLY; MUST NOT be sent to cloud"
     )
     
     # Evidence and confidence
-    evidence_index: List[str] = Field(description="Message IDs used as evidence")
+    evidence_index: list[str] = Field(description="Message IDs used as evidence")
     confidence_llm: float = Field(ge=0.0, le=1.0, description="LLM confidence in analysis")
     source: SourceEnum = Field(description="Source of analysis")
     
     # Provenance
-    provenance: Dict[str, Any] = Field(default_factory=dict, description="Analysis provenance")
+    provenance: dict[str, Any] = Field(default_factory=dict, description="Analysis provenance")
     
     @validator('topic_label')
     def validate_topic_length(cls, v):
@@ -191,7 +191,7 @@ class EnrichmentRequest(BaseModel):
     
     msg_id: str = Field(description="Message identifier")
     text: str = Field(description="Message text to analyze")
-    context: Optional[List[Dict[str, Any]]] = Field(
+    context: Optional[list[dict[str, Any]]] = Field(
         None, 
         description="Optional context messages (±2 turns)"
     )
@@ -228,8 +228,8 @@ class EnrichmentResponse(BaseModel):
 class BatchEnrichmentRequest(BaseModel):
     """Request for batch message enrichment."""
     
-    requests: List[EnrichmentRequest] = Field(description="List of enrichment requests")
-    model_config: Optional[Dict[str, Any]] = Field(None, description="Model configuration")
+    requests: list[EnrichmentRequest] = Field(description="List of enrichment requests")
+    model_config: Optional[dict[str, Any]] = Field(None, description="Model configuration")
     batch_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Batch identifier")
     
     @validator('requests')
@@ -243,7 +243,7 @@ class BatchEnrichmentResponse(BaseModel):
     """Response from batch enrichment processing."""
     
     batch_id: str = Field(description="Batch identifier")
-    responses: List[EnrichmentResponse] = Field(description="Individual responses")
+    responses: list[EnrichmentResponse] = Field(description="Individual responses")
     total_processing_time_ms: float = Field(description="Total batch processing time")
     success_count: int = Field(description="Number of successful enrichments")
     error_count: int = Field(description="Number of failed enrichments")
