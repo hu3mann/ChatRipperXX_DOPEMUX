@@ -1046,7 +1046,6 @@ def instagram_pull(
         raise typer.Exit(1)
 
     # Write output with schema validation
-    from chatx.utils.json_output import write_messages_with_validation
     output_file = out / f"messages_instagram_{zip.stem}.json"
     valid_count, invalid_count = write_messages_with_validation(messages, output_file)
     console.print(f"[bold green]Messages written to:[/bold green] {output_file}")
