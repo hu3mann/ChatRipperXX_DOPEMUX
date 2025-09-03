@@ -4,11 +4,11 @@ Validates that copy_attachment_files can resolve backup-stored attachments
 via Manifest.db (HomeDomain/Library/SMS/Attachments/.. -> fileID -> xx/fileID).
 """
 
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 
+from chatx.imessage.attachments import compute_file_hash, copy_attachment_files
 from chatx.schemas.message import Attachment
-from chatx.imessage.attachments import copy_attachment_files, compute_file_hash
 
 
 def _make_manifest_db(path: Path, mappings: list[tuple[str, str, str]]) -> None:
@@ -60,7 +60,7 @@ def test_copy_from_backup_manifest(tmp_path: Path) -> None:
     )
 
     out_dir = tmp_path / "out"
-    updated = copy_attachment_files([att], out_dir, backup_dir=backup)
+    updated, _ = copy_attachment_files([att], out_dir, backup_dir=backup)
 
     assert len(updated) == 1
     new_att = updated[0]
@@ -71,5 +71,7 @@ def test_copy_from_backup_manifest(tmp_path: Path) -> None:
     # Ensure hashing scheme used in destination path
     assert copied_path.name.endswith("_file.jpg")
     # Hash prefix matches content hash
-    assert copied_path.name.split("_", 1)[0] == compute_file_hash(physical_file)
+    h = compute_file_hash(physical_file)
+    assert copied_path.name.split("_", 1)[0] == h
+    assert new_att.source_meta["hash"]["sha256"] == h
 

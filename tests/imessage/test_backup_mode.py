@@ -107,3 +107,16 @@ def test_backup_encrypted_requires_password(tmp_path: Path) -> None:
     with pytest.raises(PermissionError):
         ensure_backup_accessible(backup_dir, backup_password=None)
 
+
+def test_backup_encrypted_with_password(tmp_path: Path) -> None:
+    """Providing a password for an encrypted backup should pass preflight."""
+    backup_dir = tmp_path / "Backup" / "ENCRYPTED_OK"
+    backup_dir.mkdir(parents=True)
+
+    _init_manifest_db(backup_dir / "Manifest.db")
+    with (backup_dir / "Status.plist").open("wb") as f:
+        plistlib.dump({"IsEncrypted": True}, f)
+
+    # Should not raise when password is supplied
+    ensure_backup_accessible(backup_dir, backup_password="secret")
+

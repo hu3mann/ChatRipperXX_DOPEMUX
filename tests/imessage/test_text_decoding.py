@@ -5,9 +5,9 @@ Covers:
 - message_summary_info decoding via binary plist and UTF-8 heuristic
 """
 
-from pathlib import Path
 import plistlib
 import sqlite3
+from pathlib import Path
 
 from chatx.extractors.imessage import IMessageExtractor
 

@@ -7,7 +7,6 @@ from typer.testing import CliRunner
 
 from chatx.cli.main import app
 
-
 runner = CliRunner()
 
 
@@ -42,8 +41,14 @@ def _make_db_with_attachment(db_path: Path) -> None:
         """
     )
     conn.execute("CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER)")
-    conn.execute("INSERT INTO message (ROWID, guid, text, is_from_me, date) VALUES (1, 'g1', 'photo', 1, 1000)")
-    conn.execute("INSERT INTO attachment (ROWID, filename, uti, mime_type, transfer_name) VALUES (1, 'missing.jpg', 'public.jpeg', 'image/jpeg', 'IMG.jpg')")
+    conn.execute(
+        "INSERT INTO message (ROWID, guid, text, is_from_me, date) "
+        "VALUES (1, 'g1', 'photo', 1, 1000)"
+    )
+    conn.execute(
+        "INSERT INTO attachment (ROWID, filename, uti, mime_type, transfer_name) "
+        "VALUES (1, 'missing.jpg', 'public.jpeg', 'image/jpeg', 'IMG.jpg')"
+    )
     conn.execute("INSERT INTO message_attachment_join (message_id, attachment_id) VALUES (1, 1)")
     conn.execute("INSERT INTO chat_message_join (chat_id, message_id) VALUES (1, 1)")
     conn.commit()

@@ -18,6 +18,7 @@ def extract_messages(
     *,
     include_attachments: bool = False,
     copy_binaries: bool = False,
+    thumbnails: bool = False,
     transcribe_audio: str = "off",
     out_dir: Path,
     backup_dir: Optional[Path] = None,
@@ -54,8 +55,15 @@ def extract_messages(
             # Extract messages for each conversation
             for conv_guid in conv_guids:
                 yield from extract_messages_for_conversation(
-                    conn, conv_guid, str(db_path), include_attachments, copy_binaries,
-                    transcribe_audio, out_dir, backup_dir
+                    conn,
+                    conv_guid,
+                    str(db_path),
+                    include_attachments,
+                    copy_binaries,
+                    thumbnails,
+                    transcribe_audio,
+                    out_dir,
+                    backup_dir,
                 )
                 
         finally:
@@ -64,10 +72,11 @@ def extract_messages(
 
 def extract_messages_for_conversation(
     conn: sqlite3.Connection,
-    conv_guid: str, 
+    conv_guid: str,
     original_db_path: str,
     include_attachments: bool,
     copy_binaries: bool,
+    thumbnails: bool,
     transcribe_audio: str,
     out_dir: Path,
     backup_dir: Optional[Path] = None,
@@ -147,11 +156,20 @@ def extract_messages_for_conversation(
             sender = handle_address or f"Unknown_{handle_id}"
             sender_id = handle_address or f"unknown_{handle_id}"
         
-        # Handle text content (attributed body takes precedence if present)
+        # Handle text content (normalize attributed body if present and no plain text)
         message_text = text
+        raw_attr_b64: str | None = None
         if attributed_body and not text:
-            # Placeholder for attributed content until full parser lands
-            message_text = "[ATTRIBUTED_BODY_CONTENT]"
+            try:
+                from chatx.imessage.body_normalize import normalize_attributed_body
+                normalized = normalize_attributed_body(attributed_body)
+                if normalized:
+                    message_text = normalized
+                import base64
+                raw_attr_b64 = base64.b64encode(attributed_body).decode("ascii")
+            except Exception:
+                # Keep placeholder on failure
+                message_text = message_text or "[ATTRIBUTED_BODY_CONTENT]"
         
         # Determine reply threading (will be resolved after all messages collected)
         reply_to_guid = None
@@ -185,6 +203,11 @@ def extract_messages_for_conversation(
                 "has_attributed_body": bool(attributed_body)
             }
         )
+        # Preserve raw attributedBody for provenance
+        if raw_attr_b64:
+            message.source_meta.setdefault("raw", {})
+            message.source_meta["raw"]["attributed_body"] = raw_attr_b64
+
         # Add pseudonymous sender token (does not change sender_id to keep compatibility)
         try:
             from chatx.identity.normalize import load_local_salt, pseudonymize
@@ -240,6 +263,7 @@ def extract_messages_for_conversation(
         from chatx.imessage.attachments import (
             extract_attachment_metadata,
             copy_attachment_files,
+            generate_thumbnail_files,
         )
         from chatx.imessage.transcribe import (
             is_audio_attachment,
@@ -249,28 +273,30 @@ def extract_messages_for_conversation(
         
         attachments_with_transcripts = 0
         failed_transcriptions = 0
-        
+        dedupe_map: Dict[str, str] = {}
+
         for message, _ in regular_messages:
             # Extract attachment metadata
             attachments = extract_attachment_metadata(conn, message.source_meta["rowid"]) 
             
             # Copy binary files if requested
             if copy_binaries and attachments:
-                attachments = copy_attachment_files(attachments, out_dir)
+                attachments, dedupe_map = copy_attachment_files(
+                    attachments, out_dir, dedupe_map=dedupe_map
+                )
                 # Emit attachment hashes into source_meta for observability/dedupe
                 infos = []
                 for att in attachments:
                     if att.abs_path:
-                        try:
-                            name = Path(att.abs_path).name
-                            file_hash = name.split("_", 1)[0]
-                            infos.append({
-                                "filename": att.filename,
-                                "hash": file_hash,
-                                "path": att.abs_path,
-                            })
-                        except Exception:
-                            pass
+                        file_hash = att.source_meta.get("hash", {}).get("sha256")
+                        if file_hash:
+                            infos.append(
+                                {
+                                    "filename": att.filename,
+                                    "hash": file_hash,
+                                    "path": att.abs_path,
+                                }
+                            )
                 if infos:
                     message.source_meta.setdefault("attachments_info", infos)
             
@@ -326,6 +352,17 @@ def extract_messages_for_conversation(
             
             # Add attachments to message
             message.attachments = attachments
+            # Generate thumbnails on demand
+            if thumbnails and attachments:
+                try:
+                    from chatx.imessage.attachments import generate_thumbnail_files
+                    thumb_map = generate_thumbnail_files(attachments, out_dir, backup_dir)
+                    # Record a representative thumbnail path for observability
+                    if thumb_map:
+                        first_path = next(iter(thumb_map.values()))
+                        message.source_meta.setdefault("image", {})["thumb_path"] = first_path
+                except Exception:
+                    pass
     
     # Yield all regular messages (now with reactions, replies, and attachments resolved)
     for message, _ in regular_messages:

@@ -5,7 +5,7 @@ import shutil
 import sqlite3
 import tempfile
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -80,6 +80,7 @@ class IMessageExtractor(BaseExtractor):
                 attributed_body = attributed_body.tobytes()
 
             # Attempt plist parsing (handles both binary and XML)
+
             try:
                 data = plistlib.loads(attributed_body)
                 text_candidate = self._extract_text_from_nested(data)
@@ -135,6 +136,7 @@ class IMessageExtractor(BaseExtractor):
                 except Exception:
                     pass
                 return "[EDITED_MESSAGE_CONTENT]"
+
         except Exception as e:
             logger.warning(f"Failed to decode message_summary_info: {e}")
             return None
@@ -224,7 +226,7 @@ class IMessageExtractor(BaseExtractor):
                     res = self._extract_text_from_nested(v)
                     if isinstance(res, str):
                         consider(res)
-            elif isinstance(obj, (list, tuple, set)):
+            elif isinstance(obj, list | tuple | set):
                 for v in obj:
                     res = self._extract_text_from_nested(v)
                     if isinstance(res, str):

@@ -1,8 +1,8 @@
 """Performance smoke tests for iMessage extraction."""
 
 import os
-import time
 import sqlite3
+import time
 from pathlib import Path
 
 import pytest
@@ -24,12 +24,18 @@ class TestExtractionPerformance:
             CREATE TABLE message (
                 ROWID INTEGER PRIMARY KEY, guid TEXT, text TEXT, attributedBody BLOB,
                 is_from_me INTEGER, handle_id INTEGER, service TEXT DEFAULT 'iMessage',
-                date INTEGER, associated_message_guid TEXT, associated_message_type INTEGER DEFAULT 0
+                date INTEGER,
+                associated_message_guid TEXT,
+                associated_message_type INTEGER DEFAULT 0
             )
             """
         )
-        conn.execute("CREATE TABLE message_attachment_join (message_id INTEGER, attachment_id INTEGER)")
-        conn.execute("CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER)")
+        conn.execute(
+            "CREATE TABLE message_attachment_join (message_id INTEGER, attachment_id INTEGER)"
+        )
+        conn.execute(
+            "CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER)"
+        )
 
         # Seed one contact and chat
         conn.execute("INSERT INTO handle (ROWID, id) VALUES (1, '+15551234567')")
@@ -50,10 +56,26 @@ class TestExtractionPerformance:
             cmj_rows.append((1, i))
 
         conn.executemany(
-            "INSERT INTO message (ROWID, guid, text, attributedBody, is_from_me, handle_id, service, date, associated_message_guid, associated_message_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            """
+            INSERT INTO message (
+                ROWID,
+                guid,
+                text,
+                attributedBody,
+                is_from_me,
+                handle_id,
+                service,
+                date,
+                associated_message_guid,
+                associated_message_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
             rows,
         )
-        conn.executemany("INSERT INTO chat_message_join (chat_id, message_id) VALUES (?, ?)", cmj_rows)
+        conn.executemany(
+            "INSERT INTO chat_message_join (chat_id, message_id) VALUES (?, ?)",
+            cmj_rows,
+        )
         conn.commit()
         conn.close()
 
