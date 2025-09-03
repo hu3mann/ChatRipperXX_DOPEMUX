@@ -59,8 +59,8 @@ jobs:
       - name: Install project + tooling
         run: |
           python -m pip install -U pip wheel
-          # Prefer PEP 621 extras if available; fall back to explicit deps.
-          (python -m pip install -e .[dev]) || true
+          # Install project with dev extras (provides runtime + tooling)
+          python -m pip install -e .[dev]
           python -m pip install mypy pytest pytest-cov
 
       # Ruff via the official action (runs `ruff check` by default)
