@@ -578,6 +578,394 @@ def analyze(
     console.print("[yellow]Analysis not yet implemented[/yellow]")
 
 
+@app.command("enrich-multi")
+def enrich_multi_pass(
+    input_file: Path = typer.Argument(..., help="Input file containing redacted chunks"),
+    contact: str = typer.Option(..., "--contact", help="Contact identifier"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Output file path"),
+    model: str = typer.Option("gemma2:9b-instruct-q4_K_M", "--model", help="Ollama model to use"),
+    batch_size: int = typer.Option(20, "--batch-size", help="Batch size for processing"),
+    taxonomy_file: Path | None = typer.Option(None, "--taxonomy", help="Path to labels.yml taxonomy file"),
+    privacy_tier: str = typer.Option("local_only", "--privacy-tier", help="Privacy tier (local_only|cloud_safe)"),
+    ollama_url: str = typer.Option("http://localhost:11434", "--ollama-url", help="Ollama server URL"),
+) -> None:
+    """Comprehensive 4-pass enrichment using sophisticated labels.yml taxonomy.
+    
+    This command performs deep psychological analysis through 4 passes:
+    1. Entity extraction and pattern matching
+    2. Communication structure and speech acts analysis  
+    3. Psychological and emotional analysis with 150+ labels
+    4. Relationship dynamics and temporal patterns
+    
+    Examples:
+        chatx enrich-multi chunks.jsonl --contact "friend@example.com"
+        chatx enrich-multi chunks.jsonl --contact "+15551234567" --privacy-tier cloud_safe
+        chatx enrich-multi chunks.jsonl --contact "person" --taxonomy ./my_labels.yml
+    """
+    from chatx.enrichment.multi_pass_pipeline import MultiPassEnrichmentPipeline
+    import json
+    from datetime import datetime
+    
+    console.print(f"[bold green]Multi-pass enrichment:[/bold green] {input_file}")
+    console.print(f"[blue]Contact:[/blue] {contact}")
+    console.print(f"[blue]Model:[/blue] {model}")
+    console.print(f"[blue]Privacy tier:[/blue] {privacy_tier}")
+    
+    if not input_file.exists():
+        console.print(f"[bold red]Error:[/bold red] Input file does not exist: {input_file}")
+        raise typer.Exit(1)
+    
+    if privacy_tier not in ["local_only", "cloud_safe"]:
+        console.print(f"[bold red]Error:[/bold red] Invalid privacy tier: {privacy_tier}")
+        console.print("[blue]Valid options:[/blue] local_only, cloud_safe")
+        raise typer.Exit(1)
+    
+    try:
+        started_at = datetime.now()
+        
+        # Load chunks
+        console.print(f"[blue]Loading chunks from:[/blue] {input_file}")
+        with open(input_file, 'r') as f:
+            if input_file.suffix == '.jsonl':
+                chunks = [json.loads(line) for line in f if line.strip()]
+            else:
+                data = json.load(f)
+                chunks = data if isinstance(data, list) else [data]
+        
+        if not chunks:
+            console.print("[yellow]No chunks found in input file[/yellow]")
+            return
+        
+        console.print(f"[blue]Loaded:[/blue] {len(chunks)} chunks")
+        
+        # Initialize multi-pass pipeline
+        console.print("[blue]Initializing 4-pass enrichment pipeline...[/blue]")
+        pipeline = MultiPassEnrichmentPipeline(
+            taxonomy_file=taxonomy_file,
+            local_model=model,
+            ollama_base_url=ollama_url
+        )
+        
+        # Run multi-pass enrichment
+        console.print("[blue]Starting comprehensive analysis...[/blue]")
+        console.print("[dim]Pass 1: Entity extraction and pattern matching[/dim]")
+        console.print("[dim]Pass 2: Communication structure and speech acts[/dim]")
+        console.print("[dim]Pass 3: Psychological and emotional analysis[/dim]")
+        console.print("[dim]Pass 4: Relationship dynamics and temporal patterns[/dim]")
+        
+        enriched_chunks = pipeline.enrich_chunks_batch(
+            chunks=chunks,
+            contact=contact,
+            batch_size=batch_size
+        )
+        
+        finished_at = datetime.now()
+        total_time = (finished_at - started_at).total_seconds()
+        
+        # Determine output path
+        if output:
+            output_path = output
+        else:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_path = input_file.parent / f"enriched_multi_{contact}_{timestamp}.jsonl"
+        
+        # Save enriched chunks
+        console.print(f"[blue]Saving to:[/blue] {output_path}")
+        with open(output_path, 'w') as f:
+            for chunk in enriched_chunks:
+                f.write(json.dumps(chunk) + '\n')
+        
+        # Calculate statistics
+        total_labels = 0
+        coarse_labels = set()
+        fine_labels = set()
+        processing_times = []
+        
+        for chunk in enriched_chunks:
+            meta = chunk.get("meta", {})
+            enrichment = chunk.get("enrichment", {})
+            
+            coarse = meta.get("labels_coarse", [])
+            fine = meta.get("labels_fine_local", [])
+            
+            total_labels += len(coarse) + len(fine)
+            coarse_labels.update(coarse)
+            fine_labels.update(fine)
+            
+            if "processing_time_ms" in enrichment:
+                processing_times.append(enrichment["processing_time_ms"])
+        
+        # Show comprehensive results
+        console.print("[bold green]Multi-pass enrichment complete![/bold green]")
+        console.print(f"[green]Processed:[/green] {len(enriched_chunks)} chunks")
+        console.print(f"[green]Total labels applied:[/green] {total_labels}")
+        console.print(f"[green]Unique coarse labels:[/green] {len(coarse_labels)}")
+        console.print(f"[green]Unique fine labels:[/green] {len(fine_labels)}")
+        console.print(f"[blue]Total time:[/blue] {total_time:.2f}s")
+        
+        if processing_times:
+            avg_time = sum(processing_times) / len(processing_times)
+            console.print(f"[blue]Average processing time per chunk:[/blue] {avg_time:.0f}ms")
+        
+        if total_time > 0:
+            throughput = len(enriched_chunks) / total_time
+            console.print(f"[blue]Throughput:[/blue] {throughput:.1f} chunks/s")
+        
+        console.print(f"[bold green]Output saved to:[/bold green] {output_path}")
+        
+        # Show top labels applied
+        if coarse_labels:
+            top_coarse = list(coarse_labels)[:10]
+            console.print(f"[blue]Top coarse labels:[/blue] {', '.join(top_coarse)}")
+        
+        if fine_labels and privacy_tier == "local_only":
+            top_fine = list(fine_labels)[:10]
+            console.print(f"[blue]Top fine labels (local-only):[/blue] {', '.join(top_fine)}")
+        
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Multi-pass enrichment interrupted by user[/yellow]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[bold red]Error during multi-pass enrichment:[/bold red] {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def index(
+    input_file: Path = typer.Argument(..., help="Input file containing redacted chunks (JSON/JSONL)"),
+    contact: str = typer.Option(..., "--contact", help="Contact identifier"),
+    store: str = typer.Option("chroma", "--store", help="Vector store backend (chroma|multi)"),
+    collection: str | None = typer.Option(None, "--collection", help="Collection name override"),
+    multi_vector: bool = typer.Option(False, "--multi-vector", help="Enable multi-vector psychology-aware indexing"),
+    batch_size: int = typer.Option(100, "--batch-size", help="Batch size for indexing"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite existing collection"),
+) -> None:
+    """Index conversation chunks for fast retrieval."""
+    from chatx.indexing.multi_vector_store import MultiVectorChromaDBStore, MultiVectorConfig
+    from chatx.indexing.vector_store import ChromaDBVectorStore, IndexingConfig
+    import json
+    
+    console.print(f"[bold green]Indexing chunks:[/bold green] {input_file}")
+    console.print(f"[blue]Contact:[/blue] {contact}")
+    console.print(f"[blue]Store:[/blue] {store}")
+    
+    if multi_vector:
+        console.print("[blue]Mode:[/blue] Multi-vector psychology-aware indexing")
+    
+    if not input_file.exists():
+        console.print(f"[bold red]Error:[/bold red] Input file does not exist: {input_file}")
+        raise typer.Exit(1)
+
+    try:
+        # Load chunks
+        chunks = []
+        with open(input_file, 'r') as f:
+            if input_file.suffix == '.jsonl':
+                for line in f:
+                    if line.strip():
+                        chunks.append(json.loads(line))
+            else:
+                data = json.load(f)
+                if isinstance(data, list):
+                    chunks = data
+                else:
+                    chunks = [data]
+        
+        if not chunks:
+            console.print("[yellow]No chunks found in input file[/yellow]")
+            return
+        
+        console.print(f"[blue]Loaded:[/blue] {len(chunks)} chunks")
+        
+        # Initialize vector store
+        if multi_vector or store == "multi":
+            config = MultiVectorConfig(
+                collection_prefix=collection or "chatx_multi",
+                batch_size=batch_size
+            )
+            store_impl = MultiVectorChromaDBStore(config)
+        else:
+            config = IndexingConfig(
+                collection_prefix=collection or "chatx",
+                batch_size=batch_size
+            )
+            store_impl = ChromaDBVectorStore(config)
+        
+        # Index chunks
+        with store_impl:
+            stats = store_impl.index_chunks(chunks, contact, batch_size=batch_size)
+            
+            console.print(f"[bold green]Indexing complete![/bold green]")
+            if multi_vector:
+                console.print(f"[green]Total indexed:[/green] {stats.get('total_indexed', 0)}")
+                console.print(f"[red]Total errors:[/red] {stats.get('total_errors', 0)}")
+                
+                # Show per-space statistics
+                collections_stats = stats.get('collections', {})
+                for space_name, space_stats in collections_stats.items():
+                    console.print(f"[blue]{space_name}:[/blue] {space_stats.get('indexed', 0)} indexed, {space_stats.get('errors', 0)} errors")
+            else:
+                console.print(f"[green]Indexed:[/green] {stats.get('indexed', 0)}")
+                console.print(f"[red]Errors:[/red] {stats.get('errors', 0)}")
+                console.print(f"[blue]Collection:[/blue] {stats.get('collection', 'unknown')}")
+            
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Indexing interrupted by user[/yellow]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[bold red]Error during indexing:[/bold red] {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def query(
+    question: str = typer.Argument(..., help="Question to ask about the conversations"),
+    contact: str = typer.Option(..., "--contact", help="Contact identifier"),
+    k: int = typer.Option(10, "--k", help="Number of results to retrieve"),
+    store: str = typer.Option("chroma", "--store", help="Vector store backend (chroma|multi)"),
+    multi_vector: bool = typer.Option(False, "--multi-vector", help="Use multi-vector psychology-aware search"),
+    psychology_weight: float = typer.Option(0.3, "--psychology-weight", help="Weight for psychological vectors (0.0-1.0)"),
+    temporal_weight: float = typer.Option(0.2, "--temporal-weight", help="Weight for temporal vectors (0.0-1.0)"),
+    since: str | None = typer.Option(None, "--since", help="Start date filter (ISO format)"),
+    until: str | None = typer.Option(None, "--until", help="End date filter (ISO format)"),
+    labels_any: list[str] = typer.Option([], "--labels-any", help="Match any of these labels"),
+    labels_all: list[str] = typer.Option([], "--labels-all", help="Match all of these labels"),
+    labels_not: list[str] = typer.Option([], "--labels-not", help="Exclude these labels"),
+    privacy_tier: str | None = typer.Option(None, "--privacy-tier", help="Privacy tier filter (local_only|cloud_safe)"),
+    insights: bool = typer.Option(False, "--insights", help="Show psychological insights"),
+) -> None:
+    """Query conversations with psychology-aware search."""
+    from chatx.indexing.multi_vector_store import MultiVectorChromaDBStore, MultiVectorConfig, VectorSpace
+    from chatx.indexing.vector_store import ChromaDBVectorStore, IndexingConfig
+    from datetime import datetime
+    
+    console.print(f"[bold green]Querying:[/bold green] {question}")
+    console.print(f"[blue]Contact:[/blue] {contact}")
+    
+    if multi_vector:
+        console.print("[blue]Mode:[/blue] Multi-vector psychology-aware search")
+        console.print(f"[blue]Psychology weight:[/blue] {psychology_weight}")
+        console.print(f"[blue]Temporal weight:[/blue] {temporal_weight}")
+    
+    try:
+        # Build filters
+        filters = {}
+        if since:
+            filters["date_start"] = {"$gte": since}
+        if until:
+            filters["date_end"] = {"$lte": until}
+        if labels_any:
+            filters["labels_coarse"] = {"$in": labels_any}
+        # TODO: Add support for labels_all and labels_not
+        
+        # Initialize vector store
+        if multi_vector or store == "multi":
+            config = MultiVectorConfig()
+            store_impl = MultiVectorChromaDBStore(config)
+            
+            # Set vector weights
+            vector_weights = {
+                VectorSpace.SEMANTIC: 0.4,
+                VectorSpace.PSYCHOLOGICAL: psychology_weight,
+                VectorSpace.TEMPORAL: temporal_weight,
+                VectorSpace.STRUCTURAL: 0.1
+            }
+            
+            with store_impl:
+                results = store_impl.search_multi_vector(
+                    query=question,
+                    contact=contact,
+                    k=k,
+                    vector_weights=vector_weights,
+                    filters=filters,
+                    require_privacy_tier=privacy_tier
+                )
+                
+                if not results:
+                    console.print("[yellow]No results found[/yellow]")
+                    return
+                
+                console.print(f"[bold green]Found {len(results)} results:[/bold green]")
+                for i, result in enumerate(results, 1):
+                    console.print(f"\n[blue]Result {i}:[/blue] (Combined Score: {result.combined_score:.3f})")
+                    
+                    # Show vector space contributions
+                    contributions = []
+                    for space, contrib in result.vector_contributions.items():
+                        contributions.append(f"{space.value}: {contrib:.3f}")
+                    console.print(f"[dim]Vector contributions: {', '.join(contributions)}[/dim]")
+                    
+                    # Show privacy tier
+                    privacy_color = "green" if result.privacy_tier == "cloud_safe" else "yellow"
+                    console.print(f"[{privacy_color}]Privacy tier:[/{privacy_color}] {result.privacy_tier}")
+                    
+                    # Show labels if available
+                    metadata = result.metadata
+                    labels = metadata.get("labels_coarse", []) + metadata.get("labels_fine_local", [])
+                    if labels:
+                        console.print(f"[dim]Labels: {', '.join(labels)}[/dim]")
+                    
+                    # Show text preview
+                    text_preview = result.text[:200] + "..." if len(result.text) > 200 else result.text
+                    console.print(f"[white]{text_preview}[/white]")
+                    
+                    # Show message IDs for citation
+                    if result.message_ids:
+                        console.print(f"[dim]Messages: {', '.join(result.message_ids[:3])}{' ...' if len(result.message_ids) > 3 else ''}[/dim]")
+                
+                # Show insights if requested
+                if insights:
+                    console.print("\n[bold blue]Psychological Insights:[/bold blue]")
+                    time_range = (since, until) if since and until else None
+                    insight_data = store_impl.get_psychology_insights(
+                        contact=contact,
+                        time_range=time_range,
+                        label_focus=labels_any if labels_any else None
+                    )
+                    
+                    if "error" not in insight_data:
+                        console.print(f"[blue]Total chunks analyzed:[/blue] {insight_data.get('total_chunks', 0)}")
+                        
+                        top_labels = insight_data.get('top_labels', [])[:5]
+                        if top_labels:
+                            console.print(f"[blue]Top labels:[/blue] {', '.join(top_labels)}")
+                        
+                        privacy_dist = insight_data.get('privacy_distribution', {})
+                        console.print(f"[blue]Privacy distribution:[/blue] Local-only: {privacy_dist.get('local_only', 0)}, Cloud-safe: {privacy_dist.get('cloud_safe', 0)}")
+        else:
+            # Standard single-vector search
+            config = IndexingConfig()
+            store_impl = ChromaDBVectorStore(config)
+            
+            with store_impl:
+                results = store_impl.search(
+                    query=question,
+                    contact=contact,
+                    k=k,
+                    filters=filters
+                )
+                
+                if not results:
+                    console.print("[yellow]No results found[/yellow]")
+                    return
+                
+                console.print(f"[bold green]Found {len(results)} results:[/bold green]")
+                for i, result in enumerate(results, 1):
+                    console.print(f"\n[blue]Result {i}:[/blue] (Score: {result.score:.3f})")
+                    text_preview = result.text[:200] + "..." if len(result.text) > 200 else result.text
+                    console.print(f"[white]{text_preview}[/white]")
+                    
+                    if result.message_ids:
+                        console.print(f"[dim]Messages: {', '.join(result.message_ids[:3])}{' ...' if len(result.message_ids) > 3 else ''}[/dim]")
+        
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Query interrupted by user[/yellow]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[bold red]Error during query:[/bold red] {e}")
+        raise typer.Exit(1)
+
+
 # iMessage Commands
 imessage_app = typer.Typer(help="iMessage extraction commands")
 app.add_typer(imessage_app, name="imessage")

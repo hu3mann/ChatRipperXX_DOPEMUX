@@ -101,7 +101,7 @@ class MessageEnrichment(BaseModel):
             raise ValueError('confidence_llm must be between 0.0 and 1.0')
         return v
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_influence_consistency(cls, values):
         influence_class = values.get('influence_class')
         influence_score = values.get('influence_score')

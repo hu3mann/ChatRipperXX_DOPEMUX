@@ -184,7 +184,7 @@ class IndexingPipeline:
                 logger.info(f"Overwriting existing collection for contact: {contact}")
                 
             # Create or overwrite target collection
-   
+
             self.vector_store.create_collection(contact, overwrite=overwrite_collection)
             self.metrics.collections_created = 1
 
