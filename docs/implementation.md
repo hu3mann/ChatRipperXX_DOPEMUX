@@ -5,9 +5,9 @@
 
 ChatX (ChatRipper-XX Dopemux) is a sophisticated **privacy-focused, local-first CLI tool** for forensic chat analysis. The system extracts conversations from multiple platforms, applies rigorous privacy redaction through "Policy Shield," and provides optional LLM-based enrichment with strict cloud processing controls. This document provides a comprehensive overview of the current implementation state, architectural patterns, and key technical decisions.
 
-`★ Insight ─────────────────────────────────────`
+`*** Insight ***`
 The codebase demonstrates mature privacy engineering with differential privacy implementation, sophisticated message schema design with provenance tracking, and a modular extractor architecture that prioritizes data fidelity through source metadata preservation.
-`─────────────────────────────────────────────────`
+`===============================================`
 
 ## Core Architecture
 
@@ -41,9 +41,9 @@ The codebase follows clean architecture principles with well-defined module boun
 - **`src/chatx/privacy/`** - Differential privacy engine for statistical aggregation
 - **`src/chatx/utils/`** - Shared utilities and observability
 
-`★ Insight ─────────────────────────────────────`
+`*** Insight ***`
 The modular design enables independent testing and deployment of components while maintaining clear data flow boundaries. The separation of extractors from the core pipeline allows easy addition of new platforms without touching business logic.
-`─────────────────────────────────────────────────`
+`===============================================`
 
 ## Data Models & Schemas
 
@@ -96,9 +96,9 @@ class MessageEnrichment(BaseModel):
     provenance: dict                # Full audit trail
 ```
 
-`★ Insight ─────────────────────────────────────`
+`*** Insight ***`
 The dual-label system (coarse/fine) enables sophisticated psychological analysis while maintaining strict privacy boundaries. Fine-grained labels remain local-only, while coarse labels can be shared to cloud services when explicitly authorized by the user.
-`─────────────────────────────────────────────────`
+`===============================================`
 
 ## Core Components
 
@@ -388,9 +388,9 @@ The codebase implements several performance optimizations:
 4. **Streaming**: Large dataset processing with memory-efficient iterators
 5. **Quantized Models**: 4-bit model quantization for faster local inference
 
-`★ Insight ─────────────────────────────────────`
+`*** Insight ***`
 The performance architecture balances throughput with privacy. Local processing prioritizes deterministic results over raw speed, while the async pipeline design ensures efficient resource utilization during I/O-bound operations like LLM inference.
-`─────────────────────────────────────────────────`
+`===============================================`
 
 ## Security & Privacy Implementation
 
@@ -505,9 +505,9 @@ The ChatX implementation represents a **mature, production-ready forensic chat a
 
 The system successfully balances the competing demands of **analytical power** and **privacy protection**, providing a robust foundation for secure chat forensics and relationship analysis.
 
-`★ Insight ─────────────────────────────────────`
+`*** Insight ***`
 The implementation showcases advanced privacy engineering practices rarely seen in forensic tools, combining formal differential privacy guarantees with practical usability. The dual-label taxonomy and policy shield architecture enable sophisticated psychological analysis while maintaining strict data governance—a compelling technical achievement.
-`─────────────────────────────────────────────────`
+`===============================================`
 
 ---
 
