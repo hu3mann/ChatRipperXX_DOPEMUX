@@ -278,11 +278,132 @@
         ],
         "status": "pending",
         "subtasks": []
+      },
+      {
+        "id": 21,
+        "title": "Test `aggregate_statistics_with_dp`",
+        "description": "Write a test to ensure that the `aggregate_statistics_with_dp` method correctly aggregates statistics with differential privacy. This test should verify that the results are within a reasonable range of the actual values, given the added noise.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 22,
+        "title": "Test `generate_privacy_safe_summary`",
+        "description": "Write a test to ensure that the `generate_privacy_safe_summary` method generates a privacy-safe summary of the redacted data. This test should verify that the summary contains the expected fields and that the label distribution is correctly calculated.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 23,
+        "title": "Implement per-query sensitivity",
+        "description": "Update the `aggregate_statistics_with_dp` method to allow for per-query sensitivity. This will allow for more accurate results for queries with different sensitivity levels.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 24,
+        "title": "Add support for more query types",
+        "description": "Add support for more query types to the `DifferentialPrivacyEngine`, such as `median` and `percentile`.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 25,
+        "title": "Refactor `generate_privacy_safe_summary`",
+        "description": "Refactor the `generate_privacy_safe_summary` method to improve its readability and maintainability.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "low",
+        "subtasks": []
+      },
+      {
+        "id": 26,
+        "title": "Add documentation",
+        "description": "Add comprehensive documentation to the `differential_privacy.py` and `policy_shield.py` files, explaining how to use the differential privacy features and how to interpret the results.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "low",
+        "subtasks": []
+      },
+      {
+        "id": 27,
+        "title": "Upgrade to SOTA embedding models",
+        "description": "Upgrade to SOTA embedding models (Stella-1.5B-v5, Cohere v3.0)",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 28,
+        "title": "Implement three-pass Local→Cloud→Local processing architecture",
+        "description": "Implement three-pass Local→Cloud→Local processing architecture",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 29,
+        "title": "Implement graph-based relationship analysis",
+        "description": "Implement graph-based relationship analysis",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 30,
+        "title": "Add sparse-dense hybrid search with RRF",
+        "description": "Add sparse-dense hybrid search with RRF",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 31,
+        "title": "Create comprehensive privacy boundary testing framework",
+        "description": "Create comprehensive privacy boundary testing framework",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-09-05T23:06:32.151Z",
-      "updated": "2025-09-05T23:18:30.661Z",
+      "updated": "2025-09-06T01:57:17.817Z",
       "description": "Tasks for master context"
     }
   }
