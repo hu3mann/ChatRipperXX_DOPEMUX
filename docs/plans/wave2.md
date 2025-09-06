@@ -18,110 +18,9 @@
 
 ### Definition of Done (applies to each PR)
 
-* Schema-valid outputs; new code ≥90% coverage; mypy/ruff clean; CI gates pass.
-* Privacy rules enforced (cloud off; attachments never uploaded).
-* Determinism/provenance preserved.
-
----
-
-## Short next-actions
-
-1. Spin branch `feat/wave2`.
-2. Start **PR-10** (iPhone backup mode), then **PR-12** (Instagram ZIP)—both have explicit ACs now.
-3. Decide on **PR-16** ADR (local transcription engine) so **PR-17** can wire the real plugin.
-4. Add **PR-15** (missing_attachments schema) to harden CI before scaling runs.
-5. Land **PR-19** observability to get throughput/latency visibility against NFRs.
-
----
-
-## Codex-Ready Prompts (PR-10 → PR-20)
-
-### PR-10 — `feat(imessage): iPhone backup mode (--from-backup)`
-
-You are implementing **backup mode** for iMessage extraction.
-
-Goal
-
-Add `--from-backup <backup_dir>` (and `--backup-password` if encrypted) to locate **Manifest.db** in an iTunes/Finder backup, resolve the **hashed files → domains/relativePath**, copy **`HomeDomain/Library/SMS/sms.db`** (and `-wal`, `-shm` if present) to a temp dir, open SQLite with `mode=ro&immutable=1`, and reuse our existing normalizer to emit canonical `Message` JSONL with replies, reactions, and attachments referenced (not uploaded). Use the official MobileSync paths and iCloud behavior notes. Open DB safely with **SQLite URI + immutable** to avoid locks.
-
-Scope & files
-
-* `src/chatx/imessage/backup.py` (new): find `Manifest.db`; query `Files(domain,relativePath,fileID)` to resolve `Library/SMS/sms.db` and `Library/SMS/Attachments/...`. Copy to a staging dir preserving filenames.
-* `src/chatx/cli.py`: extend `chatx imessage pull` with `--from-backup`, `--backup-password` (masked prompt if omitted).
-* `tests/imessage/test_backup_mode.py`: synthetic backup tree fixture; encrypted/unencrypted cases.
-* Use `sqlite3.connect("file:{path}?mode=ro&immutable=1", uri=True)` for safety.
-
-Behavior
-
-* If `Manifest.db` absent → actionable error. If encrypted backup and no/wrong password, error that references Apple’s encrypted backups doc; suggest creating a **new unencrypted** backup or providing the correct password (we do **not** attempt cracking).
-* Map attachments by consulting `attachment` table paths and Manifest mapping; do not upload; include SHA-256 later (PR-14).
-* Provenance: set `source_meta.path` = absolute path(s) to staged DB; include backup UDID dir.
-* Timestamps normalized to UTC.
-
-Tests
-
-* Unencrypted fixture resolves DB+attachments via `Manifest.db` and emits schema-valid JSONL.
-* Encrypted fixture: password required; wrong password fails cleanly (no partial output).
-* WAL present case: copy `-wal/-shm` and still open `immutable=1`.
-
----
-
-### PR-11 — `chore(imessage): backup UX & guards`
-
-Harden CLI/UX around backup mode.
-
-Requirements
-
-* Improve `--help` with **Finder path** hint: `~/Library/Application Support/MobileSync/Backup/`.
-* Preflight: check presence of `Manifest.db`, `Info.plist`, `Status.plist`, and at least one `[00]..[ff]` shard dir (modern structure).
-* If encrypted: prompt securely; never echo; redact paths in logs.
-* Documentation snippet: explain FDA (Full Disk Access) and Apple’s encrypted backup expectations and where users can change encryption.
-
-Tests
-
-* Missing `Manifest.db` ⇒ machine-readable error.
-* Wrong path ⇒ hints the canonical MobileSync path.
-
----
-
-### PR-12 — `feat(instagram): parse official data ZIP`
-
-Implement `chatx instagram pull --zip ./instagram.zip --out ./out`.
-
-Best-practice highlights
-
-* Do not extract blindly (Zip Slip). Iterate entries via `zipfile.ZipFile` and validate canonicalized paths (no `..`, no absolute).
-* Modern exports place DMs under `messages/inbox/<thread>/message_1.json`, `message_2.json`, etc. Merge chronologically; fold likes/reactions; reference media by relative paths only.
-* Official “Download your information” exists; JSON is supported. (Use this only to guide users in docs, not in code.)
-
-Scope
-
-* `src/chatx/instagram/extract.py` : stream read JSON parts; normalize to canonical Message JSONL; `platform="instagram"`.
-* Tests: golden ZIP with two threads and media.
-
-Tests
-
-* Validates against schema; detects and rejects path traversal; merges `message_*.json` correctly.
-
----
-
-### PR-13 — `feat(extractor): identity resolution (handles → contact id)`
-
-Create deterministic **pseudonymous** IDs for senders across platforms.
-
-Best-practice highlights
-
-* Use **HMAC-SHA256**(salt, input) (deterministic, keyed) rather than raw hash; store salt locally (not in artifacts). Reserve literal `ME` for the local user; for phone numbers/emails/usernames, normalize then HMAC.
-
-Scope
-
-* `src/chatx/identity/normalize.py` with `normalize_sender(text, salt: bytes) -> {sender_display, sender_id}`.
-* Integrate into iMessage + Instagram codepaths.
-
-Tests
-
-* Stable across runs with same salt; different salt ⇒ different tokens.
-* No salt leakage to logs/artifacts.
+* Schema-valid outputs; new code ≥90% coverage; mypy/ruff clean
+* Deterministic behavior; sensitive data never leaves device; clear error messages
+* Proper artifacts: manifest + run_report, metrics JSONL, quarantine (if any)
 
 ---
 
@@ -238,5 +137,3 @@ Scope
 * ZIP safety: avoid Zip Slip by validating entry paths before writing/extracting.
 * Pseudonymisation: use a keyed hash (HMAC) with a local secret salt; document rotation plan.
 * Transcription: faster-whisper (CTranslate2) offers local, faster inference; chunking/VAD improves throughput.
-* Manual redownload of attachments: use the Info → Download button per conversation in Messages on Mac; there’s no system-wide bulk API.
-

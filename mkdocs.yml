@@ -1,4 +1,4 @@
-site_name: CR-XactXtract_workspace Docs
+site_name: ChatX Documentation
 theme:
   name: material
   features:
@@ -14,17 +14,34 @@ markdown_extensions:
   - codehilite
 nav:
   - Home: index.md
+  - Overview: overview.md
   - Architecture: architecture.md
   - Design:
       - Specifications: design/specifications/index.md
-      - ADR Index: design/adrs/index.md
-  - Agent Workflows: agent-workflows.md
-  - Repo Prompt XML Apply: repo-prompt-xml.md
-  - Additional Docs:
-      - Overview: overview.md
-      - LLM Context: CR-XactXtract/llm-context.md
+      - ADRs: design/adrs/index.md
+  - Development:
+      - Developer Guide: development/developer-guide.md
+      - Test Strategy: development/test-strategy.md
+      - Contributing: development/contributing.md
   - How-To:
       - iPhone Backup (iMessage): how-to/iphone-backup.md
       - Instagram ZIP: how-to/instagram-zip.md
       - PDF Ingestion: how-to/pdf-ingestion.md
       - Local Transcription: how-to/transcription-local.md
+  - Operations:
+      - Security Threat Model: operations/security-threat-model.md
+      - Non-Functional Requirements: operations/non-functional-requirements.md
+  - Reference:
+      - Interfaces: interfaces.md
+      - FAQ: reference/faq.md
+      - Changelog: reference/changelog.md
+      - Commands: reference/commands/index.md
+  - Plans:
+      - Extractor Hardening: plans/extractor-hardening.md
+      - Wave 2: plans/wave2.md
+  - Research:
+      - Image Enrichment: research/image-enrichment.md
+      - Image Psychology Model Plan: research/image-psychology-model-research-plan.md
+  - Policies:
+      - Code of Conduct: policy/code-of-conduct.md
+      - Security & Reporting: policy/security.md

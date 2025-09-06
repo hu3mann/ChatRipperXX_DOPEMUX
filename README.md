@@ -134,8 +134,8 @@ mkdocs build
 
 ## Contributing
 
-1. Read the [Contributing Guide](docs/CONTRIBUTING.md)
-2. Review the [Code of Conduct](CODE_OF_CONDUCT.md)
+1. Read the [Contributing Guide](docs/development/contributing.md)
+2. Review the [Code of Conduct](docs/policy/code-of-conduct.md)
 3. Check existing [Issues](https://github.com/hue/Dopemux-ChatRipperXX/issues)
 4. Follow the development process in [CLAUDE.md](CLAUDE.md)
 
@@ -145,4 +145,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Security
 
-This tool handles sensitive personal data. Please review the [Security Documentation](docs/CR-XactXtract/PROJECT_DESIGN_FILES/SECURITY_THREAT_MODEL.md), see [SECURITY.md](SECURITY.md) for vulnerability reporting, and follow security best practices.
+This tool handles sensitive personal data. Please review the [Security Threat Model](docs/operations/security-threat-model.md), see our [Security & Vulnerability Reporting](docs/policy/security.md) guidance, and follow security best practices.

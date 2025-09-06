@@ -174,7 +174,7 @@ Implement `BaseVectorStore` interface:
 ## References
 
 - [Acceptance Criteria](acceptance-criteria.md) — User stories and test scenarios
-- [Interfaces](interfaces.md) — CLI contracts and API specifications  
+- [Interfaces](interfaces.md) — CLI contracts and API specifications
 - [Design Specifications](design/specifications/imessage-extractor.md) — Detailed component specs
 - [ADRs](design/adrs/index.md) — Architecture decision records
 - [Test Strategy](development/test-strategy.md) — Testing approach and coverage targets
