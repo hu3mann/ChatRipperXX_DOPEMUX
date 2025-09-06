@@ -1,1 +1,1 @@
-Use sequential_thinking to produce ≤5 steps with files & tests; store in ConPort.
+Use sequential_thinking for multi-step reasoning; produce ≤5 steps with explicit files & tests; store in ConPort. Include design decisions and risk analysis.
