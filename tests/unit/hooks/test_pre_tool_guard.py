@@ -115,7 +115,7 @@ class TestPreToolGuard:
             # Medium risk commands
             medium_risk_result = evaluate_adaptive_security("pip install requests", context)
             assert medium_risk_result[0] in ["ask"]
-            assert 0.3 <= medium_risk_result[2] < 0.8  # FIXED: Updated range
+            assert 0.3 <= medium_risk_result[2] < 0.8
 
             # Low risk commands
             low_risk_result = evaluate_adaptive_security("ls -la", context)
