@@ -97,35 +97,30 @@ class TestPreContextBudget:
         assert len(suggestions) > 0
         assert any("continuation_id" in suggestion for suggestion in suggestions)
 
-    @patch('pre_context_budget.SMART_OPTIMIZATION')
-    def test_record_usage_with_smart_optimization_disabled(self, mock_smart_opt):
+    def test_record_usage_with_smart_optimization_disabled(self):
         """Test that usage recording is skipped when smart optimization is disabled"""
-        mock_smart_opt.return_value = False
+        with patch('pre_context_budget.SMART_OPTIMIZATION', False):
+            with patch("builtins.open") as mock_open:
+                record_usage("test_tool", {}, "allow", "test reason")
+                mock_open.assert_not_called()
 
-        with patch("builtins.open") as mock_open:
-            record_usage("test_tool", {}, "allow", "test reason")
-            mock_open.assert_not_called()
-
-    @patch('pre_context_budget.SMART_OPTIMIZATION')
-    def test_record_usage_with_smart_optimization_enabled(self, mock_smart_opt, tmp_path):
+    def test_record_usage_with_smart_optimization_enabled(self, tmp_path):
         """Test usage recording when smart optimization is enabled"""
-        mock_smart_opt.return_value = True
+        with patch('pre_context_budget.SMART_OPTIMIZATION', True):
+            # Create temporary data directory
+            data_dir = tmp_path / ".claude" / "hooks" / "data"
+            data_dir.mkdir(parents=True)
 
-        # Create temporary data directory
-        data_dir = tmp_path / ".claude" / "hooks" / "data"
-        data_dir.mkdir(parents=True)
+            with patch("os.makedirs"), \
+                 patch("builtins.open") as mock_open:
 
-        with patch("os.makedirs"), \
-             patch("builtins.open") as mock_open:
+                mock_file = MagicMock()
+                mock_open.return_value.__enter__.return_value = mock_file
 
-            mock_file = MagicMock()
-            mock_open.return_value.__enter__.return_value = mock_file
+                record_usage("test_tool", {"param": "value"}, "allow", "test reason")
 
-            record_usage("test_tool", {"param": "value"}, "allow", "test reason")
-
-            # Verify file operations
-            assert mock_open.call_count >= 1
-
+                # Verify file operations
+                assert mock_open.call_count >= 1
     def test_out_function_json_output(self, capsys):
         """Test that out function produces valid JSON output"""
         out("allow", "Test token budget message")
