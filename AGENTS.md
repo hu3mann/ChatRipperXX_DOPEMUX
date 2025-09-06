@@ -52,3 +52,7 @@ Follow CLAUDE.md: Bootstrap → Research → Story → Plan → Implement → De
 - Start/check/stop helpers: `bash scripts/mcp/start.sh` · `bash scripts/mcp/check.sh` · `bash scripts/mcp/stop.sh`.
 - Env vars: set `OPENAI_API_KEY`, `GEMINI_API_KEY`/`GOOGLE_API_KEY`, and `OPENMEMORY_API_KEY` (see `.env.example`).
 - Servers: fast‑markdown (Docker `devdocs-mcp`), OpenMemory (`npx openmemory`), Zen (`uvx … zen-mcp-server`).
+- Advanced: `python scripts/mcp/mcpctl.py list|start-all|start <name>|check|stop[-all]` merges project and user configs. Optional per‑server health in config:
+  - `"health": { "type": "http", "url": "http://127.0.0.1:8000/health", "expect": "ok" }`
+  - or `{"type": "tcp", "host": "127.0.0.1", "port": 8000}`
+  - or `{"type": "cmd", "cmd": ["docker", "ps"], "expect": "devdocs-mcp"}`

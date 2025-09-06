@@ -133,15 +133,76 @@ def stop_server(name: str) -> int:
     return 0
 
 
-def check_server(name: str) -> int:
+def _check_http(url: str, expect: str | None = None, timeout: float = 2.0) -> bool:
+    try:
+        import urllib.request
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            body = resp.read(4096).decode("utf-8", errors="ignore")
+            if expect:
+                return expect in body
+            return 200 <= resp.status < 300
+    except Exception:
+        return False
+
+
+def _check_tcp(host: str, port: int, timeout: float = 2.0) -> bool:
+    import socket
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+
+def _check_cmd(cmd: list[str], expect: str | None = None, timeout: float = 5.0) -> bool:
+    try:
+        out = subprocess.check_output(cmd, timeout=timeout, stderr=subprocess.STDOUT)
+        if expect:
+            return expect in out.decode("utf-8", errors="ignore")
+        return True
+    except Exception:
+        return False
+
+
+def check_server(name: str, spec: Dict[str, Any] | None = None) -> int:
+    # Process/PID check
+    pid_state = "unknown"
+    pid_alive = False
     try:
         pid, _ = read_pid(name)
-        alive = is_alive(pid)
-        print(f"{name}: {'alive' if alive else 'dead'} (pid={pid})")
-        return 0 if alive else 1
+        pid_alive = is_alive(pid)
+        pid_state = f"{'alive' if pid_alive else 'dead'} (pid={pid})"
     except FileNotFoundError:
-        print(f"{name}: unknown (no pid)")
-        return 2
+        pid_state = "unknown (no pid)"
+
+    # Health check (optional via config)
+    health_ok = None
+    if spec is None:
+        servers = read_configs()
+        spec = servers.get(name, {})
+    health = (spec or {}).get("health") or {}
+    if health:
+        htype = health.get("type")
+        if htype == "http":
+            health_ok = _check_http(health.get("url", ""), health.get("expect"))
+        elif htype == "tcp":
+            host = health.get("host", "127.0.0.1")
+            port = int(health.get("port", 0) or 0)
+            health_ok = _check_tcp(host, port)
+        elif htype == "cmd":
+            cmd = health.get("cmd") or []
+            if isinstance(cmd, str):
+                cmd = cmd.split()
+            health_ok = _check_cmd(cmd, health.get("expect"))
+
+    # Report
+    if health_ok is None:
+        print(f"{name}: {pid_state}")
+        return 0 if pid_alive else 1
+    else:
+        status = "healthy" if health_ok else "unhealthy"
+        print(f"{name}: {status}; {pid_state}")
+        return 0 if (health_ok and pid_alive) else 1
 
 
 def main(argv: list[str]) -> int:
@@ -200,8 +261,8 @@ def main(argv: list[str]) -> int:
 
     if args.cmd == "check":
         rc = 0
-        for name in servers.keys():
-            rc |= check_server(name)
+        for name, spec in servers.items():
+            rc |= check_server(name, spec)
         return rc
 
     return 0
@@ -209,4 +270,3 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
-
