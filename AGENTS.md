@@ -46,3 +46,9 @@ Follow CLAUDE.md: Bootstrap → Research → Story → Plan → Implement → De
 - Local‑first privacy: attachments never leave device; redact before any optional cloud use.
 - Don’t commit secrets (`.env`, keys). On macOS grant Full Disk Access for iMessage paths.
 - Vector DB artifacts under `context_portal/` are ignored by `.gitignore`.
+
+## MCP Integration & Setup
+- Config lives in `.claude/` and user overrides in `~/.claude.json` (may include secrets; do not commit). See `.claude/mcp.config.json`.
+- Start/check/stop helpers: `bash scripts/mcp/start.sh` · `bash scripts/mcp/check.sh` · `bash scripts/mcp/stop.sh`.
+- Env vars: set `OPENAI_API_KEY`, `GEMINI_API_KEY`/`GOOGLE_API_KEY`, and `OPENMEMORY_API_KEY` (see `.env.example`).
+- Servers: fast‑markdown (Docker `devdocs-mcp`), OpenMemory (`npx openmemory`), Zen (`uvx … zen-mcp-server`).
