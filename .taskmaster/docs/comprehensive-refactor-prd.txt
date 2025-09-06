@@ -1,0 +1,67 @@
+# ChatX/ChatRipper Comprehensive Refactor & SOTA Upgrade PRD
+
+## Project Overview
+Upgrade ChatX/ChatRipper to SOTA embedding models (Stella-1.5B-v5, Cohere v3.0) while addressing technical debt and architectural improvements identified in code review.
+
+## Objectives
+1. **Primary**: Implement SOTA embedding model support for enhanced multi-vector system
+2. **Secondary**: Address code quality issues from comprehensive review
+3. **Tertiary**: Clean repository structure and improve documentation
+
+## Key Requirements
+
+### Phase 1: Foundation Cleanup & Architecture Fixes
+- Fix Graph Storage Connection Management - migrate to AsyncDriver with proper connection lifecycle
+- Fix Psychology Embedding Model Loading - implement lazy loading with async initialization  
+- Standardize Error Handling - implement RFC-7807 problem+json format across modules
+- Complete repository structure cleanup (filename fixes, documentation organization)
+
+### Phase 2: SOTA Embedding Integration
+- Research and validate Stella-1.5B-v5 integration requirements
+- Research and validate Cohere v3.0 integration requirements
+- Design embedding provider abstraction for multiple SOTA models
+- Implement provider selection and fallback mechanisms
+- Create benchmarking suite for embedding quality comparison
+
+### Phase 3: Multi-Vector System Enhancement  
+- Enhance psychology embedding provider with SOTA models
+- Implement efficient embedding caching and storage
+- Add embedding similarity and retrieval optimizations
+- Create embedding model hot-swapping capabilities
+
+### Phase 4: Integration & Testing
+- Comprehensive integration testing with existing pipeline
+- Performance benchmarking against current implementation
+- Memory usage optimization for large models
+- Documentation and deployment guides
+
+## Technical Constraints
+- Privacy-first: Local processing with optional cloud via --allow-cloud flag
+- Quality: ≥90% test coverage, lint+mypy clean, RFC-7807 error handling
+- Performance: Maintain or improve current processing speeds
+- Memory: Efficient model loading and caching strategies
+
+## Success Criteria
+- SOTA embedding models fully integrated and tested
+- All technical debt items from code review addressed
+- Performance benchmarks show improvement or parity
+- Clean repository structure with organized documentation
+- Comprehensive test coverage maintained
+
+## Non-Functional Requirements
+- Backward compatibility with existing embeddings
+- Graceful degradation if SOTA models unavailable
+- Clear migration path from current implementation
+- Comprehensive logging and monitoring
+
+## Dependencies
+- Sentence Transformers library updates
+- Neo4j AsyncDriver migration
+- Cohere API integration (if cloud mode enabled)
+- Hardware optimization for local Stella-1.5B-v5
+
+## Risk Mitigation
+- Maintain fallback to existing embedding providers
+- Incremental rollout with feature flags
+- Comprehensive testing before deprecating old providers
+- Performance monitoring during transition

@@ -37,6 +37,7 @@ class BenchmarkResult:
     peak_memory_mb: float
     batch_performance: Dict[int, float]  # batch_size -> time_per_text
     dimension: int
+    psychology_metrics: Optional[Dict[str, float]] = None  # Psychology-specific metrics
 
 
 class BenchmarkRunner:
@@ -304,5 +305,323 @@ def create_test_corpus(num_texts: int = 1000,
                 text = " ".join(words[:-1])
         
         corpus.append(text)
+    
+    return corpus
+
+
+class PsychologyBenchmarkRunner(BenchmarkRunner):
+    """Psychology-specialized benchmarking for embedding providers."""
+
+    # Psychology test cases with known ground truth labels
+    PSYCHOLOGY_TEST_CASES = [
+        # Boundary violations
+        ("You always ignore what I say", ["boundary_violation", "invalidation"]),
+        ("Stop telling me what to do", ["boundary_setting", "assertiveness"]),
+        ("I feel like you don't respect my decisions", ["autonomy", "respect"]),
+        
+        # Emotional manipulation
+        ("If you loved me, you would do this", ["manipulation", "guilt_tripping"]),
+        ("You're being too sensitive", ["gaslighting", "minimization"]),
+        ("I never said that", ["gaslighting", "reality_denial"]),
+        
+        # Power dynamics
+        ("You need to listen to me", ["control", "dominance"]),
+        ("I'm just trying to help you", ["codependence", "enabling"]),
+        ("You can't handle this on your own", ["undermining", "dependence"]),
+        
+        # Emotional states
+        ("I feel anxious about our relationship", ["anxiety", "relationship_concern"]),
+        ("I'm devastated by what happened", ["grief", "emotional_pain"]),
+        ("I feel so connected to you right now", ["intimacy", "positive_emotion"]),
+        
+        # Repair attempts
+        ("I'm sorry, I was wrong", ["repair", "accountability"]),
+        ("Can we talk about what happened?", ["repair", "communication"]),
+        ("I want to understand your perspective", ["empathy", "repair"]),
+        
+        # Escalation patterns
+        ("This is ridiculous!", ["escalation", "frustration"]),
+        ("Fine, whatever!", ["withdrawal", "escalation"]),
+        ("You always do this!", ["criticism", "pattern_accusation"]),
+    ]
+
+    def __init__(self, config: BenchmarkConfig):
+        """Initialize psychology benchmark runner."""
+        super().__init__(config)
+
+    async def run_psychology_benchmark(self, provider: BaseEmbeddingProvider, 
+                                     device: str) -> BenchmarkResult:
+        """Run psychology-specialized benchmark.
+        
+        Args:
+            provider: Psychology embedding provider to benchmark
+            device: Device being used for inference
+            
+        Returns:
+            BenchmarkResult with psychology-specific metrics
+        """
+        # Run standard benchmark first
+        standard_result = await super().run_benchmark(provider, device)
+        
+        # Add psychology-specific metrics
+        psychology_metrics = await self._run_psychology_tests(provider)
+        
+        # Return enhanced result
+        return BenchmarkResult(
+            model_name=standard_result.model_name,
+            device=standard_result.device,
+            avg_time_per_text=standard_result.avg_time_per_text,
+            throughput_texts_per_second=standard_result.throughput_texts_per_second,
+            peak_memory_mb=standard_result.peak_memory_mb,
+            batch_performance=standard_result.batch_performance,
+            dimension=standard_result.dimension,
+            psychology_metrics=psychology_metrics
+        )
+
+    async def _run_psychology_tests(self, provider: BaseEmbeddingProvider) -> Dict[str, float]:
+        """Run psychology-specific evaluation tests.
+        
+        Args:
+            provider: Provider to test
+            
+        Returns:
+            Dictionary of psychology metric scores
+        """
+        try:
+            # Test psychology content detection if provider supports it
+            if hasattr(provider, 'get_psychology_confidence'):
+                psychology_detection_score = await self._test_psychology_detection(provider)
+            else:
+                psychology_detection_score = 0.0
+            
+            # Test embedding similarity for psychological constructs
+            construct_similarity_score = await self._test_construct_similarity(provider)
+            
+            # Test consistency on psychology vs generic content
+            consistency_score = await self._test_psychology_consistency(provider)
+            
+            return {
+                'psychology_detection_accuracy': psychology_detection_score,
+                'psychological_construct_similarity': construct_similarity_score,
+                'psychology_generic_consistency': consistency_score,
+                'overall_psychology_score': (
+                    psychology_detection_score * 0.4 +
+                    construct_similarity_score * 0.4 + 
+                    consistency_score * 0.2
+                )
+            }
+            
+        except Exception as e:
+            logger.warning(f"Psychology benchmarking failed: {e}")
+            return {'error': str(e)}
+
+    async def _test_psychology_detection(self, provider) -> float:
+        """Test psychology content detection accuracy."""
+        correct_predictions = 0
+        total_tests = 0
+        
+        # Test on known psychology vs non-psychology content
+        psychology_texts = [text for text, _ in self.PSYCHOLOGY_TEST_CASES[:10]]
+        generic_texts = [
+            "The weather is nice today",
+            "I need to go to the store", 
+            "The meeting is at 3pm",
+            "Can you pass the salt?",
+            "The movie was interesting"
+        ]
+        
+        for text in psychology_texts:
+            confidence = provider.get_psychology_confidence(text)
+            if confidence > 0.5:  # Should detect as psychological
+                correct_predictions += 1
+            total_tests += 1
+        
+        for text in generic_texts:
+            confidence = provider.get_psychology_confidence(text)
+            if confidence <= 0.5:  # Should detect as non-psychological
+                correct_predictions += 1
+            total_tests += 1
+        
+        return correct_predictions / total_tests if total_tests > 0 else 0.0
+
+    async def _test_construct_similarity(self, provider: BaseEmbeddingProvider) -> float:
+        """Test embedding similarity for related psychological constructs."""
+        # Test pairs of related psychological concepts
+        related_pairs = [
+            ("I feel manipulated", "You're gaslighting me"),
+            ("I'm setting a boundary", "I need you to respect my limits"),
+            ("I feel anxious", "This makes me worried"),
+            ("I'm sorry I hurt you", "I want to make this right"),
+            ("You're controlling me", "I feel dominated by you")
+        ]
+        
+        unrelated_pairs = [
+            ("I feel anxious", "The weather is nice"),
+            ("You're manipulating me", "I need groceries"),
+            ("I'm setting boundaries", "The car is red"),
+        ]
+        
+        try:
+            # Get embeddings for all texts
+            related_similarities = []
+            for text1, text2 in related_pairs:
+                emb1 = await provider.encode(text1)
+                emb2 = await provider.encode(text2)
+                similarity = self._cosine_similarity(emb1, emb2)
+                related_similarities.append(similarity)
+            
+            unrelated_similarities = []
+            for text1, text2 in unrelated_pairs:
+                emb1 = await provider.encode(text1)
+                emb2 = await provider.encode(text2)
+                similarity = self._cosine_similarity(emb1, emb2)
+                unrelated_similarities.append(similarity)
+            
+            # Related pairs should have higher similarity than unrelated
+            avg_related = sum(related_similarities) / len(related_similarities)
+            avg_unrelated = sum(unrelated_similarities) / len(unrelated_similarities)
+            
+            # Score based on separation between related and unrelated
+            separation = avg_related - avg_unrelated
+            return min(max(separation, 0.0), 1.0)  # Clamp between 0 and 1
+            
+        except Exception as e:
+            logger.warning(f"Construct similarity test failed: {e}")
+            return 0.0
+
+    async def _test_psychology_consistency(self, provider: BaseEmbeddingProvider) -> float:
+        """Test consistency of embeddings across multiple runs."""
+        test_text = "I feel like you're violating my boundaries"
+        
+        try:
+            # Generate embeddings multiple times
+            embeddings = []
+            for _ in range(5):
+                emb = await provider.encode(test_text)
+                embeddings.append(emb)
+            
+            # Calculate pairwise similarities
+            similarities = []
+            for i in range(len(embeddings)):
+                for j in range(i + 1, len(embeddings)):
+                    sim = self._cosine_similarity(embeddings[i], embeddings[j])
+                    similarities.append(sim)
+            
+            # Return average similarity (should be close to 1.0 for deterministic models)
+            return sum(similarities) / len(similarities) if similarities else 0.0
+            
+        except Exception as e:
+            logger.warning(f"Consistency test failed: {e}")
+            return 0.0
+
+    def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
+        """Calculate cosine similarity between two vectors."""
+        try:
+            import math
+            
+            # Calculate dot product
+            dot_product = sum(a * b for a, b in zip(vec1, vec2))
+            
+            # Calculate magnitudes
+            magnitude1 = math.sqrt(sum(a * a for a in vec1))
+            magnitude2 = math.sqrt(sum(a * a for a in vec2))
+            
+            # Avoid division by zero
+            if magnitude1 == 0 or magnitude2 == 0:
+                return 0.0
+            
+            return dot_product / (magnitude1 * magnitude2)
+            
+        except Exception:
+            return 0.0
+
+
+def create_psychology_test_corpus(num_texts: int = 1000) -> List[str]:
+    """Create a psychology-focused test corpus for benchmarking.
+    
+    Args:
+        num_texts: Number of texts to generate
+        
+    Returns:
+        List of psychology-focused test texts
+    """
+    psychology_patterns = [
+        # Boundary and autonomy patterns
+        "I need you to respect my {boundary_type} about {topic}",
+        "You're crossing my boundaries when you {behavior}",
+        "I feel like you don't respect my {autonomy_aspect}",
+        
+        # Emotional manipulation patterns  
+        "If you really {cared_verb} me, you would {demand}",
+        "You're being too {dismissive_word} about {concern}",
+        "I never said {denial_phrase}",
+        
+        # Relationship dynamics
+        "I feel {emotion} when you {behavior}",
+        "This relationship feels {dynamic_type}",
+        "I'm {repair_verb} about what happened {timeframe}",
+        
+        # Power and control
+        "You need to {control_verb} and let me {autonomy_verb}",
+        "I feel {power_emotion} in this relationship",
+        "Stop {controlling_behavior} me",
+    ]
+    
+    # Fill-in values for psychological patterns
+    boundary_types = ["boundaries", "limits", "space", "privacy", "decisions"]
+    topics = ["work", "family", "money", "time", "friendships", "personal choices"]
+    behaviors = ["interrupting", "dismissing", "controlling", "criticizing", "ignoring"]
+    autonomy_aspects = ["decisions", "feelings", "perspective", "choices", "values"]
+    
+    cared_verbs = ["loved", "cared about", "understood", "respected", "valued"]
+    demands = ["do this for me", "change your plans", "put me first", "agree with me"]
+    dismissive_words = ["sensitive", "dramatic", "emotional", "reactive", "needy"]
+    concerns = ["my feelings", "this issue", "what happened", "my perspective"]
+    denial_phrases = ["that", "those words", "anything like that", "what you heard"]
+    
+    emotions = ["anxious", "hurt", "frustrated", "disconnected", "unheard", "unseen"]
+    dynamic_types = ["codependent", "toxic", "imbalanced", "unhealthy", "strained"]
+    repair_verbs = ["sorry", "apologetic", "remorseful", "regretful", "concerned"]
+    timeframes = ["yesterday", "earlier", "last week", "between us", "in our fight"]
+    
+    control_verbs = ["stop", "listen", "back off", "give me space", "respect"]
+    autonomy_verbs = ["decide", "choose", "think", "feel", "be myself"]
+    power_emotions = ["powerless", "controlled", "dominated", "manipulated", "trapped"]
+    controlling_behaviors = ["telling", "forcing", "pressuring", "guilting", "manipulating"]
+    
+    corpus = []
+    fill_values = {
+        'boundary_type': boundary_types,
+        'topic': topics, 
+        'behavior': behaviors,
+        'autonomy_aspect': autonomy_aspects,
+        'cared_verb': cared_verbs,
+        'demand': demands,
+        'dismissive_word': dismissive_words,
+        'concern': concerns,
+        'denial_phrase': denial_phrases,
+        'emotion': emotions,
+        'dynamic_type': dynamic_types,
+        'repair_verb': repair_verbs,
+        'timeframe': timeframes,
+        'control_verb': control_verbs,
+        'autonomy_verb': autonomy_verbs,
+        'power_emotion': power_emotions,
+        'controlling_behavior': controlling_behaviors,
+    }
+    
+    for _ in range(num_texts):
+        pattern = random.choice(psychology_patterns)
+        
+        # Fill in pattern variables
+        filled_pattern = pattern
+        for var, values in fill_values.items():
+            if '{' + var + '}' in filled_pattern:
+                filled_pattern = filled_pattern.replace(
+                    '{' + var + '}', 
+                    random.choice(values)
+                )
+        
+        corpus.append(filled_pattern)
     
     return corpus

@@ -1,5 +1,1 @@
-Debug loop:
-- Repro: minimal failing test.
-- Isolate: narrow suspect modules; instrument logs.
-- Fix: smallest patch; add guard tests.
-- Document root cause + prevention → memory-bank:/docs/postmortems/<short>.md
+Repro→isolate→fix; cite DevDocs sections; add guard tests; ConPort postmortem.

@@ -20,11 +20,19 @@ Raw Platform Data → Extract → Transform → Redact → Index → Enrich → 
      ↓                ↓          ↓         ↓       ↓       ↓         ↓
 [iMessage DB]   [Canonical]  [Chunks]  [Safe]  [Vector] [Meta]  [Insights]
 [Instagram ZIP]  [Messages]  [Windows] [Data]  [Store] [Data]  [Reports]
-[WhatsApp TXT]      |                     |                      
-[PDF Export]        |                     |                      
-                    ↓                     ↓                      
-              [Source Fidelity]    [Privacy Shield]              
-              [Traceability]       [Coverage ≥99.5%]             
+[WhatsApp TXT]      |                     |       |       |         |
+[PDF Export]        |                     |       |       |         |
+                    ↓                     ↓       ↓       ↓         ↓
+              [Source Fidelity]    [Privacy Shield] [Psychology] [Graph]
+              [Traceability]       [Coverage ≥99.5%] [Analysis] [Relationships]
+                                                      |         |
+                                                      ↓         ↓
+                                                 [ChromaDB] [Neo4j]
+                                                 [Semantic] [Temporal]
+                                                      |         |
+                                                      ↓         ↓
+                                                 [Hybrid Query Engine]
+                                                 [Forensic Evidence Chains]
 ```
 
 ### Module Boundaries
@@ -38,6 +46,9 @@ The codebase follows clean architecture principles with well-defined module boun
 - **`src/chatx/redaction/`** - Policy Shield privacy system with differential privacy
 - **`src/chatx/enrichment/`** - LLM integration with confidence gating
 - **`src/chatx/indexing/`** - Vector storage using ChromaDB
+- **`src/chatx/storage/`** - Graph storage with Neo4j for temporal relationship modeling
+- **`src/chatx/psychology/`** - Psychology-specialized analysis and label mapping
+- **`src/chatx/query/`** - Hybrid query engine combining semantic and graph analysis
 - **`src/chatx/privacy/`** - Differential privacy engine for statistical aggregation
 - **`src/chatx/utils/`** - Shared utilities and observability
 
@@ -332,6 +343,12 @@ tests/
    - Multi-pass enrichment pipeline for advanced analysis
    - Local-first processing with optional cloud escalation
 
+7. **Psychology-Graph Integration** (NEW - ADR-008)
+   - Neo4j temporal graph database with 12 relationship types and 6 pattern types
+   - Psychology-specialized embedding provider with mental/mental-bert-base-uncased
+   - Complete graph data structures and base interfaces
+   - Comprehensive test suite with psychology relationship modeling
+
 ### 🚧 Partially Implemented
 
 1. **Platform Extractors**
@@ -348,6 +365,12 @@ tests/
    - Issue and episode detection framework started
    - Relationship dynamics analysis partially implemented
    - Temporal pattern analysis needs completion
+
+4. **Psychology-Graph Integration** (IN DEVELOPMENT - ADR-008)
+   - Label mapping system (470+ constructs → graph relationships) - PLANNED
+   - Psychology-informed graph construction with confidence weighting - PLANNED
+   - Token-preserving cloud reconstruction for safe cloud analysis - PLANNED
+   - Hybrid query engine combining ChromaDB + Neo4j - PLANNED
 
 ### ❌ Not Yet Implemented
 

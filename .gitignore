@@ -42,12 +42,17 @@ conda.yml
 venv/
 env/
 
-# Node.js
+# Node.js (not used in this Python project)
 node_modules/
+package.json
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+.yarn/
 # macOS
 .DS_Store
 .AppleDouble
@@ -65,10 +70,18 @@ site/
 # Misc
 .cache/
 .env
+.env.*
 mcp.config.expanded.json
 
-# Local cache
-.cache/
+# Additional logs
+dev-debug.log
 
-.env
-mcp.config.expanded.json
+.claude/mcp.config.json
+
+# Task files
+# tasks.json
+# tasks/ 
+
+# Context portal generated data (binary artifacts)
+context_portal/conport_vector_data/
+context_portal/context.db

@@ -1,0 +1,289 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Repository cleanup, tooling, and baseline quality gates",
+        "description": "Restructure repository, standardize tooling, enforce type/lint/test gates, and prepare for async + multi-provider architecture.",
+        "details": "Implementation:\n- Restructure to src layout\n  - src/chatripper/__init__.py\n  - src/chatripper/config/\n  - src/chatripper/storage/\n  - src/chatripper/embeddings/ (providers, cache, abstractions)\n  - src/chatripper/utils/ (logging, errors, feature_flags)\n  - src/chatripper/cli/\n  - tests/\n  - docs/\n- pyproject.toml with tools:\n  - python>=3.10\n  - ruff>=0.6.9, mypy>=1.11, pytest>=8.3, pytest-asyncio>=0.23\n  - black (optional if ruff-format), coverage[toml]>=7.6\n  - type stubs: types-requests, types-setuptools as needed\n- Add dependencies (pin conservative upper bounds):\n  - neo4j>=5.23,<6\n  - sentence-transformers>=3.2.1,<4\n  - transformers>=4.44.2,<5\n  - torch>=2.4.1,<2.6; platform-specific CUDA builds if GPU available\n  - bitsandbytes>=0.43.3,<0.44 (optional for 4-bit quant)\n  - accelerate>=1.2.1,<2 (optional)\n  - cohere>=5.5.0,<6\n  - httpx>=0.27,<0.28 (for any async HTTP utils)\n  - pydantic>=2.8,<3; pydantic-settings>=2.4,<3\n  - aiosqlite>=0.20,<0.21; blake3>=0.4,<0.5; numpy>=1.26,<3\n  - structlog>=24.4,<25\n  - watchdog>=4.0,<5 (for hot-swap file watch)\n  - testcontainers[neo4j]>=4.7,<5 (for integration tests)\n- Pre-commit hooks: ruff, mypy, pytest -q (quick subset), check-merge-conflict, end-of-file-fixer\n- Add CODEOWNERS, CONTRIBUTING.md, SECURITY.md, and docs/adr/0001-repo-structure.md\n- Implement feature flags via environment + pydantic-settings:\n  - ALLOW_CLOUD (bool), ENABLE_SOTA (bool), DEFAULT_PROVIDER (str), FALLBACK_CHAIN (comma list)\n- Structured logging with structlog, JSON logs in non-dev\n- Add Makefile/justfile targets: fmt, lint, typecheck, test, cov, bench\n- Set coverage fail-under to 90%\nPseudocode:\n- pydantic settings\nclass Settings(BaseSettings):\n  allow_cloud: bool = False\n  enable_sota: bool = True\n  default_provider: str = \"stella\"\n  fallback_chain: list[str] = [\"stella\",\"cohere\",\"legacy\"]\n  neo4j_uri: str\n  neo4j_user: str\n  neo4j_password: str\n  model_ids: dict[str,str] = {}\nsettings = Settings()\n",
+        "testStrategy": "- Run pre-commit across repository to ensure lint/type/test gates pass\n- Verify settings load from .env and environment overrides\n- Snapshot tests for logging format in dev vs prod\n- Ensure coverage reports >=90% on sample tests",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Migrate Graph Storage to Neo4j AsyncDriver with proper lifecycle",
+        "description": "Replace synchronous driver with neo4j AsyncDriver, implement connection lifecycle, pooling, health checks, and vector index utilities.",
+        "details": "Implementation:\n- Use neo4j>=5.23 AsyncGraphDatabase\n- Create async connection manager with startup/shutdown hooks and health checks\n- Configure pooling & timeouts; implement retry-on-transient failures\n- Provide vector index helpers for multi-vector properties\nPseudocode:\nfrom neo4j import AsyncGraphDatabase, AsyncDriver\nclass Neo4jClient:\n  def __init__(self, uri, auth, max_pool=50, fetch_size=1000):\n    self._driver: AsyncDriver | None = None\n    self._uri, self._auth = uri, auth\n    self._max_pool = max_pool\n  async def start(self):\n    self._driver = AsyncGraphDatabase.driver(\n      self._uri, auth=self._auth,\n      max_connection_pool_size=self._max_pool,\n      connection_timeout=15,\n      max_transaction_retry_time=15,\n    )\n    await self._driver.verify_connectivity()\n  async def close(self):\n    if self._driver: await self._driver.close()\n  async def run(self, cypher, params=None, db=None):\n    assert self._driver\n    async with self._driver.session(database=db) as session:\n      return await session.run(cypher, params or {})\n# Vector index creation (Neo4j 5.x vector indexes)\nCREATE VECTOR INDEX chunk_psych_idx IF NOT EXISTS FOR (c:Chunk) ON (c.embedding_psych)\nOPTIONS { indexConfig: { 'vector.dimensions': $dim, 'vector.similarity_function': 'cosine' } };\n- Retrieval example:\nCALL db.index.vector.queryNodes($index, $k, $qv) YIELD node, score RETURN node, score;\n- Add docker-compose/testcontainers for local Neo4j with APOC if needed\n- Ensure graceful shutdown on SIGINT/SIGTERM\n- Add backpressure consideration: limit concurrent sessions via semaphore in higher-level service\nSecurity:\n- Don’t log credentials; pull from settings\n",
+        "testStrategy": "- Integration tests with Testcontainers Neo4j 5: start container, apply indexes, run basic create/query, assert async flow\n- Simulate transient errors and verify retry behavior\n- Verify vector index can be created and queried; assert cosine similarity ordering\n- Health check tests using verify_connectivity",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Standardize RFC 7807 problem+json error handling",
+        "description": "Implement a unified error representation and mappers to RFC-7807 across CLI/services and modules.",
+        "details": "Implementation:\n- Define ProblemDetails model (pydantic) and exception types; add helpers to serialize/deserialize\n- Map internal exceptions (I/O, model load, provider errors, DB) to problem+json\n- Provide CLI/JSON output and optional HTTP middleware wrapper if used by API gateway\nModel:\nclass ProblemDetails(BaseModel):\n  type: AnyUrl = 'about:blank'\n  title: str\n  status: int\n  detail: str | None = None\n  instance: str | None = None\n  extensions: dict[str, Any] = {}\nclass AppError(Exception):\n  def __init__(self, title, status=500, detail=None, type='about:blank', ext=None):\n    super().__init__(title)\n    self.problem = ProblemDetails(title=title, status=status, detail=detail, type=type, extensions=ext or {})\n# Usage: raise AppError('Model unavailable', 503, detail='Stella not loaded')\n- Add decorators/utilities to wrap async entrypoints and return problem+json on failure\n- Ensure errors redact secrets and large payloads\n- Logging: log as structured JSON with problem fields\n",
+        "testStrategy": "- Unit tests mapping representative exceptions to ProblemDetails\n- Snapshot test JSON structure matches RFC-7807 (type, title, status, detail, instance)\n- Ensure secrets are not leaked in problem details\n- Tests for CLI mode verify pretty printed problem and JSON mode emits correct content",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Async lazy-loading infrastructure for embedding models",
+        "description": "Introduce a generic async lazy-loader with lifecycle hooks to load heavy models only when first used, with concurrency safety.",
+        "details": "Implementation:\n- Create AsyncLazyResource for thread-safe, once-only init across tasks\n- Ensure GPU/CPU device selection and memory checks\n- Provide unload hooks for hot-swap\nPseudocode:\nclass AsyncLazyResource[T]:\n  def __init__(self, init_fn: Callable[[], Awaitable[T]]):\n    self._init_fn = init_fn\n    self._obj: T | None = None\n    self._lock = asyncio.Lock()\n  async def get(self) -> T:\n    if self._obj is None:\n      async with self._lock:\n        if self._obj is None:\n          self._obj = await self._init_fn()\n    return self._obj\n  async def reset(self):\n    async with self._lock:\n      self._obj = None\n- Utilities for device:\nimport torch\n def pick_device():\n   if torch.cuda.is_available(): return 'cuda'\n   if torch.backends.mps.is_available(): return 'mps'\n   return 'cpu'\n- Add memory probe: torch.cuda.mem_get_info for CUDA if available; warn if insufficient\n- Ensure initialization runs in a thread executor if blocking (load models via to_thread)\n",
+        "testStrategy": "- Concurrency tests: launch 50 tasks calling get(); only one init must run\n- Reset tests: after reset(), next get() re-initializes\n- Simulate OOM: mock torch memory probe to trigger graceful failure with ProblemDetails",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Embedding provider abstraction, selection, and fallback",
+        "description": "Design a unified interface for multiple SOTA embedding providers with provider registry, selection logic, allow-cloud gating, and graceful fallback.",
+        "details": "Implementation:\n- Define interface:\nclass EmbeddingProvider(Protocol):\n  name: str\n  model_id: str\n  dim: int\n  async def embed(self, texts: list[str], input_type: str = 'search_document') -> list[list[float]]: ...\n  async def close(self): ...\n- Registry + config-driven selection and ordered fallbacks from settings.fallback_chain\n- Feature flags: settings.allow_cloud gate any network-based provider\n- Provider health check: lightweight self test (e.g., embed([\"ping\"])) with timeout\n- Add exceptions ProviderUnavailable(AppError subclass)\n- Selection pseudocode:\nasync def get_provider_chain(primary: str, registry: dict[str, EmbeddingProvider]):\n  order = [primary] + [p for p in settings.fallback_chain if p != primary]\n  for name in order:\n    prov = registry.get(name)\n    if not prov: continue\n    try:\n      await asyncio.wait_for(prov.embed([\"ping\"], 'search_document'), timeout=5)\n      yield prov\n    except Exception as e:\n      log.warn(\"provider_unavailable\", provider=name, err=str(e))\n      continue\n- Backward compatibility: include legacy provider wrapper exposing current embedding implementation\n- Ensure deterministic fingerprint for caching: model_id + provider_version + input_type + norm setting\n",
+        "testStrategy": "- Unit tests for selection ordering and fallback when primary fails\n- Test allow_cloud=False blocks Cohere provider with explicit ProblemDetails\n- Ensure legacy provider remains selectable and functions\n- Contract tests: all providers implement embed close and return correct dims",
+        "priority": "high",
+        "dependencies": [
+          1,
+          3,
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Integrate local Stella-1.5B-v5 embedding provider with memory optimization",
+        "description": "Add a local SOTA provider for Stella-1.5B-v5 with FP16/4-bit options, async lazy load, and standardized output.",
+        "details": "Implementation:\n- Model sourcing: configure via settings.model_ids['stella'] to the correct HF repo for Stella-1.5B-v5\n- Load path options:\n  1) sentence-transformers API if the repo is ST-compatible\n     from sentence_transformers import SentenceTransformer\n     model = SentenceTransformer(model_id, device=pick_device())\n  2) transformers + custom pooling when needed\n     from transformers import AutoModel, AutoTokenizer\n     tok = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)\n     kwargs = {}\n     if torch.cuda.is_available(): kwargs.update({\"torch_dtype\": torch.float16})\n     if settings.enable_4bit: kwargs.update({\"load_in_4bit\": True})\n     mdl = AutoModel.from_pretrained(model_id, trust_remote_code=True, **kwargs)\n     def encode(texts):\n       batch = tok(texts, padding=True, truncation=True, return_tensors='pt').to(device)\n       with torch.inference_mode(): out = mdl(**batch)\n       # Pooling: mean pooling over last_hidden_state masked by attention\n       emb = (out.last_hidden_state * batch.attention_mask.unsqueeze(-1)).sum(dim=1) / batch.attention_mask.sum(dim=1, keepdim=True)\n       return torch.nn.functional.normalize(emb, p=2, dim=1).cpu().tolist()\n- Wrap in EmbeddingProvider impl with AsyncLazyResource init\n- Provide config knobs: max_seq_len, normalize=True, device_map='auto', enable_4bit (requires bitsandbytes)\n- Determine dim at runtime by a test encode and len(vector)\n- Security/perf: set torch.set_grad_enabled(False)\n- Logging: log model id, dtype, device, dim\n- Hardware considerations: document minimum VRAM; 4-bit suggested for 1.5B on 8–12GB GPUs\n",
+        "testStrategy": "- Unit test provider encodes sample inputs and returns consistent dims, cosine sim of duplicate texts ~1.0\n- If CUDA available, ensure dtype is float16; otherwise CPU path works\n- Benchmark micro-test within test marked slow to ensure throughput reasonable and no memory leak\n- Skip tests gracefully if model cannot be downloaded (offline), asserting ProblemDetails on failure",
+        "priority": "high",
+        "dependencies": [
+          5,
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Integrate Cohere v3.0 embedding provider with allow-cloud gating",
+        "description": "Add Cohere embeddings (embed-english-v3.0 / embed-multilingual-v3.0) with robust error handling, rate limiting, and privacy gate.",
+        "details": "Implementation:\n- SDK: cohere>=5.5.0\n- Client init lazily, read COHERE_API_KEY from env via settings; refuse to init when settings.allow_cloud=False\n- Parameters: model='embed-english-v3.0' or 'embed-multilingual-v3.0'; input_type in {'search_document','search_query','classification','clustering'}; truncate='END'\n- Implement backoff on 429/5xx with exponential jitter (e.g., 100ms -> 2s, max 5 retries)\nPseudocode:\nimport cohere, asyncio, time, random\nclass CohereProvider(EmbeddingProvider):\n  name = 'cohere'\n  def __init__(self, model_id: str): self.model_id = model_id; self.dim = 1024  # per v3 models\n  async def embed(self, texts: list[str], input_type='search_document'):\n    if not settings.allow_cloud: raise ProviderUnavailable('Cloud disabled', status=412)\n    def call():\n      client = cohere.Client(api_key=settings.cohere_api_key)\n      return client.embed(texts=texts, model=self.model_id, input_type=input_type, truncate='END')\n    for attempt in range(5):\n      try:\n        resp = await asyncio.to_thread(call)\n        return resp.embeddings\n      except cohere.RateLimitError:\n        await asyncio.sleep(min(2 ** attempt / 10 + random.random()/10, 2.0))\n      except Exception as e:\n        if attempt==4: raise ProviderUnavailable('Cohere error', detail=str(e))\n- Ensure no PII is logged; mask API key\n",
+        "testStrategy": "- Mock cohere.Client in unit tests; simulate 429 then success to verify backoff\n- Verify allow_cloud=False raises ProblemDetails/ProviderUnavailable\n- Dimension sanity check for returned vectors\n- Contract tests same as other providers",
+        "priority": "high",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Multi-vector schema and retrieval enhancements",
+        "description": "Extend storage schema to support multiple embeddings (e.g., psychology vs general), add Neo4j vector indexes, and optimize similarity retrieval.",
+        "details": "Implementation:\n- Node properties: embedding_psych (List<Float>), embedding_general (List<Float>), embedding_legacy (optional for backward compatibility)\n- Backward compatibility: maintain reading from legacy property/index when new vectors absent\n- Create indexes:\n  CREATE VECTOR INDEX chunk_psych_idx IF NOT EXISTS FOR (c:Chunk) ON (c.embedding_psych)\n  OPTIONS { indexConfig: { 'vector.dimensions': $psych_dim, 'vector.similarity_function': 'cosine' } };\n  CREATE VECTOR INDEX chunk_general_idx IF NOT EXISTS FOR (c:Chunk) ON (c.embedding_general)\n  OPTIONS { indexConfig: { 'vector.dimensions': $gen_dim, 'vector.similarity_function': 'cosine' } };\n- Retrieval API:\nasync def query_similar(space: str, query_vec: list[float], k: int=20):\n  index = 'chunk_psych_idx' if space=='psych' else 'chunk_general_idx'\n  cy = \"CALL db.index.vector.queryNodes($index, $k, $qv) YIELD node, score RETURN node, score\"\n  res = await neo4j.run(cy, {\"index\": index, \"k\": k, \"qv\": query_vec})\n  return await res.data()\n- Normalization: ensure provider returns L2-normalized vectors for cosine similarity\n- Add re-ranking option: small MLP/cosine with metadata weights (keep simple: optional BM25/text-overlap rerank)\n- Migration script: copy existing embedding -> embedding_legacy; leave legacy retrieval path until deprecation\n",
+        "testStrategy": "- Integration test creates nodes with both psych and general vectors; queries return expected nearest items\n- If new vectors missing, retrieval falls back to legacy index/property without error\n- Performance test: ensure latency within target and indexes utilized (PROFILE in Cypher)\n- Validate cosine similarity monotonicity after normalization",
+        "priority": "high",
+        "dependencies": [
+          2,
+          5,
+          6,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Deterministic embedding cache (disk, async-safe)",
+        "description": "Implement an on-disk cache to avoid recomputing embeddings, keyed by text+provider+model+params, with TTL/invalidations.",
+        "details": "Implementation:\n- Storage: SQLite via aiosqlite (privacy-first, local); table schema:\n  CREATE TABLE IF NOT EXISTS embed_cache (\n    key TEXT PRIMARY KEY,\n    provider TEXT NOT NULL,\n    model_id TEXT NOT NULL,\n    dim INTEGER NOT NULL,\n    created_at INTEGER NOT NULL,\n    vector BLOB NOT NULL\n  );\n- Key derivation: blake3(hash(text) + provider + model_id + input_type + norm + version)\n- Encoding: numpy float32 array -> bytes via .tobytes(); store dim to reconstruct; normalize vectors before caching to ensure retrieval consistency\n- API:\nclass EmbeddingCache:\n  async def get(self, key) -> list[float] | None: ...\n  async def set(self, key, vec: list[float], dim: int): ...\n  async def invalidate_model(self, model_id: str): ...\n- Integrate into provider chain wrapper:\nasync def cached_embed(texts):\n  miss_idx, results = [], [None]*len(texts)\n  for i,t in enumerate(texts):\n    k = make_key(t, provider)\n    v = await cache.get(k)\n    if v is None: miss_idx.append(i)\n    else: results[i]=v\n  if miss_idx:\n    new_vecs = await provider.embed([texts[i] for i in miss_idx])\n    for j, i in enumerate(miss_idx):\n      await cache.set(make_key(texts[i], provider), new_vecs[j], provider.dim)\n      results[i] = new_vecs[j]\n  return results\n- Concurrency: use aiosqlite with WAL mode; add asyncio.Lock per key to prevent thundering herd\n",
+        "testStrategy": "- Unit tests for cache hit/miss, binary roundtrip accuracy (np.allclose)\n- Concurrency test: many coroutines request same text; only one provider call occurs\n- Invalidate tests by model_id remove rows and cause recomputation\n- Performance test on large batch shows reduced provider invocations",
+        "priority": "medium",
+        "dependencies": [
+          5,
+          6,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Embedding model hot-swapping and runtime reconfiguration",
+        "description": "Enable switching active embedding models at runtime with minimal disruption, using feature flags, file-watch, and safe provider swaps.",
+        "details": "Implementation:\n- Config source: settings file (e.g., config.yaml/.env) + env; watch for changes with watchdog Observer\n- Use an AsyncRWLock to swap provider chain atomically\n- Provide a CLI/API command to trigger swap (e.g., chatripper models switch --to stella)\n- On swap: warm-up new provider (lazy get), then atomically replace current provider handle; old provider.close()\n- Respect cache: cache key includes model_id so old entries remain valid for backfilled docs\nPseudocode:\nclass ProviderManager:\n  def __init__(self, registry): self._prov = None; self._lock = AsyncRWLock()\n  async def current(self):\n    async with self._lock.read_lock: return self._prov\n  async def switch(self, name):\n    async with self._lock.write_lock:\n      new = build_provider(name)\n      await new.embed([\"ping\"])  # warm\n      old = self._prov; self._prov = new\n      if old: await old.close()\n- Emit events/logs for observability; integrate with ProblemDetails on failure\n",
+        "testStrategy": "- Unit test switch path: after switch, subsequent calls use new provider; old provider closed\n- Simulate failed warm-up -> no swap occurs, error surfaced\n- File-watch test modifies config; manager receives event and swaps\n- Concurrency test: ongoing queries unaffected by swap (readers/writers lock correctness)",
+        "priority": "high",
+        "dependencies": [
+          5,
+          6,
+          7,
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Benchmarking suite for quality, performance, and memory",
+        "description": "Create a reproducible benchmarking CLI to compare SOTA models vs baseline on domain datasets, measuring accuracy, latency, throughput, and memory.",
+        "details": "Implementation:\n- CLI: chatripper-bench with subcommands: quality, perf, mem\n- Datasets: local corpus hooks (privacy-first) + optional MTEB tasks if allowed; input via path\n- Metrics:\n  - Quality: nDCG@k/MRR on retrieval pairs; cosine similarity distributions\n  - Perf: p50/p95 latency per 1/8/32 batch; tokens/sec where applicable\n  - Memory: peak RSS (psutil), CUDA reserved/allocated (torch.cuda.memory_stats)\n- Compare providers: stella vs cohere vs legacy; export JSON and Markdown reports\n- Benchmark harness pseudocode:\nasync def bench_provider(provider, dataset):\n  t0=time.perf_counter(); embs=await provider.embed(dataset.texts)\n  dt=time.perf_counter()-t0\n  mem = get_mem();\n  return {\"latency\": dt/len(dataset), \"throughput\": len(dataset)/dt, \"mem\": mem}\n- Plotting optional (saving CSV/JSON is sufficient for CI artifacts)\n- Add CI job to run small smoke benchmark to detect regressions\n",
+        "testStrategy": "- Use synthetic dataset with known neighbors to validate metric math\n- Run small sample bench in CI and assert no worse than baseline thresholds (configurable)\n- Manual large-run instructions documented; ensure repeatability across runs (seeded shuffling)\n- Validate memory probes work on CPU/GPU machines (skip CUDA probes if not available)",
+        "priority": "medium",
+        "dependencies": [
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Integration tests, optimization pass, and documentation",
+        "description": "Execute comprehensive integration tests with existing pipeline, optimize memory/speed for large models, finalize documentation and deployment guides.",
+        "details": "Implementation:\n- Integration tests:\n  - End-to-end: ingest -> embed (cache on/off) -> store -> retrieve (multi-vector) -> results\n  - Feature flags: allow_cloud off/on; fallback chains; hot-swap during workload\n  - Error handling: assert ProblemDetails shapes for network/model/db errors\n- Memory/speed optimization for local Stella:\n  - Enable torch.inference_mode(), torch.set_grad_enabled(False)\n  - Prefer FP16 on GPU; try 4-bit via bitsandbytes when VRAM constrained\n  - Batch sizing auto-tuner: find largest batch that fits (catch CUDA OOM and reduce)\n  - Use device_map='auto' if model supports\n- Documentation:\n  - docs/setup.md: prerequisites, GPU/CPU paths\n  - docs/models.md: configuring Stella-1.5B-v5 (HF repo id), Cohere v3.0 models, flags\n  - docs/migration.md: legacy -> multi-vector schema; index creation scripts; fallback behavior\n  - docs/benchmarking.md: how to run and interpret\n  - docs/ops.md: env vars, feature flags, hot-swap, monitoring/logging\n- CI updates: parallelize tests, coverage collection, artifact upload for bench outputs\n- Backward compatibility validation: ensure legacy embeddings remain queryable until migration completes\n",
+        "testStrategy": "- Achieve >=90% coverage: unit + integration; coverage report enforced by CI\n- Performance regression tests compare against stored baselines; fail if >X% slower (configurable)\n- Memory tests: ensure no leaks across multiple embed cycles (track RSS/CUDA)\n- Documentation link check and examples runnable end-to-end",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Migrate Neo4j Driver to Async API",
+        "description": "Replace synchronous Neo4j driver usage with the async driver to ensure non-blocking database operations.",
+        "details": "Update src/chatx/storage/graph.py to use neo4j.AsyncGraphDatabase.driver instead of GraphDatabase.driver. Refactor all affected functions to async def and ensure all Neo4j operations are awaited. Use Python 3.9+ for best async driver support. Example:\n\n```python\nfrom neo4j import AsyncGraphDatabase\nasync def get_data():\n    async with AsyncGraphDatabase.driver(uri, auth=auth) as driver:\n        async with driver.session() as session:\n            result = await session.run(query)\n            ...\n```\nReview all usages of the driver to ensure no blocking calls remain. Remove any synchronous context managers or blocking patterns.",
+        "testStrategy": "Write unit and integration tests to verify all database operations are non-blocking and functionally correct. Use asyncio event loop monitoring tools to confirm no blocking calls. Run performance benchmarks to compare async vs. previous sync implementation.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Configure Neo4j Connection Pooling for Async Driver",
+        "description": "Explicitly configure connection pooling parameters for the async Neo4j driver to optimize concurrent access.",
+        "details": "Set connection pool parameters (e.g., max_connection_pool_size, connection_acquisition_timeout) in the AsyncGraphDatabase.driver config. Example:\n\n```python\ndriver = AsyncGraphDatabase.driver(uri, auth=auth, max_connection_pool_size=50, connection_acquisition_timeout=30)\n```\nTune pool size based on expected concurrency and load testing results. Document configuration in code and external documentation.",
+        "testStrategy": "Simulate high-concurrency scenarios using async test clients. Monitor connection pool metrics and ensure no connection starvation or excessive queuing. Validate performance improvements over default settings.",
+        "priority": "high",
+        "dependencies": [
+          13
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Optimize Graph Update Operations with MERGE-based Upserts",
+        "description": "Replace inefficient DETACH DELETE/CREATE patterns with MERGE-based upsert operations for graph updates.",
+        "details": "Refactor Cypher queries in src/chatx/storage/graph.py (lines 54-55, 425-429) to use MERGE for upserts. Example:\n\n```cypher\nMERGE (n:Label {id: $id})\nON CREATE SET n.prop = $value\nON MATCH SET n.prop = $value\n```\nEnsure all graph update operations avoid unnecessary deletes and re-creations. Validate that MERGE logic preserves data integrity and avoids race conditions in async contexts.",
+        "testStrategy": "Write unit tests for all upsert operations. Use integration tests to verify data consistency and idempotency. Benchmark update throughput before and after refactor.",
+        "priority": "high",
+        "dependencies": [
+          13,
+          14
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Implement Advanced Differential Privacy Composition",
+        "description": "Enhance privacy budget management by implementing advanced composition techniques for differential privacy queries.",
+        "details": "Research and implement optimal composition strategies (e.g., Moments Accountant, Rényi Differential Privacy) in src/chatx/privacy/differential_privacy.py. Replace basic composition logic with a more accurate noise calibration method. Use libraries such as Google’s Differential Privacy library (python-dp) if compatible, or implement custom logic as needed.",
+        "testStrategy": "Add unit tests for privacy budget calculations. Validate noise distribution and privacy guarantees using statistical tests. Ensure all privacy queries meet specified epsilon/delta requirements.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Remove Dead Code in Privacy and Redaction Modules",
+        "description": "Eliminate unreachable numpy array handling branches in noise generation and other dead code.",
+        "details": "Audit src/chatx/redaction/policy_shield.py (lines 384-386) and src/chatx/privacy/differential_privacy.py (lines 141-146) for unreachable or obsolete code. Remove all dead branches and update related documentation. Ensure no references remain to removed code.",
+        "testStrategy": "Run static analysis tools (e.g., pylint, mypy) to confirm dead code removal. Ensure all tests pass and code coverage remains at or above 90%.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 18,
+        "title": "Externalize Model Configurations",
+        "description": "Move hardcoded model configurations to external YAML or JSON files for easier management and deployment.",
+        "details": "Identify all hardcoded model configs in src/chatx/embeddings/psychology.py (lines 30-48, 51-65). Create YAML/JSON schema for configs. Use PyYAML (>=6.0) or Python’s built-in json module to load configs at runtime. Refactor code to read from external files and validate schema on load.",
+        "testStrategy": "Write unit tests to verify correct loading and validation of configuration files. Test fallback behavior for missing or malformed configs. Ensure backward compatibility where required.",
+        "priority": "low",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 19,
+        "title": "Enhance Semantic Content Detection for Psychology Module",
+        "description": "Improve psychology content detection by moving beyond simple keyword matching to more robust semantic analysis.",
+        "details": "Integrate a lightweight NLP library (e.g., spaCy >=3.7, or HuggingFace Transformers for small models) to perform semantic similarity or intent classification. Refactor src/chatx/embeddings/psychology.py to use vector-based or transformer-based detection. Tune model for performance and accuracy. Document new detection logic.",
+        "testStrategy": "Create a labeled dataset for psychology content. Write tests to measure precision, recall, and F1 score of new detection logic. Benchmark performance impact and optimize as needed.",
+        "priority": "low",
+        "dependencies": [
+          18
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 20,
+        "title": "Maintain and Validate Code Coverage and Performance Benchmarks",
+        "description": "Ensure code coverage remains at 90%+ for all modified modules and validate async throughput improvements.",
+        "details": "Update and expand test suites for all affected modules. Use pytest-cov (>=4.1) for coverage reporting. Set up CI pipeline to enforce coverage threshold. Implement async performance benchmarks using pytest-asyncio and asynctest. Compare throughput and latency before and after changes.",
+        "testStrategy": "Automate coverage and performance reporting in CI. Block merges if coverage drops below 90%. Document benchmark results and validate against success criteria.",
+        "priority": "high",
+        "dependencies": [
+          13,
+          14,
+          15
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-09-05T23:06:32.151Z",
+      "updated": "2025-09-05T23:18:30.661Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

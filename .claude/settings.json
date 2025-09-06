@@ -31,28 +31,67 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "*",
+        "matcher": "Bash|Read|Write|mcp__conport__.*|mcp__claude-context__.*|mcp__claude_context__.*|mcp__exa__.*|mcp__task-master-ai__.*|mcp__zen__.*|mcp__devdocs__.*|mcp__openmemory__.*|mcp__fast-markdown__.*|mcp__serena__.*",
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-dangerous.py",
-            "timeout": 10
+            "command": "python3 .claude/hooks/pre_tool_guard.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/pre_context_budget.py"
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "matcher": "Edit|MultiEdit|Write|mcp__serena__.*",
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check-style.sh",
-            "timeout": 120
+            "command": "python3 .claude/hooks/privacy_validation.py"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post_quality_gate.sh"
           }
         ]
       }
     ]
   },
-  "outputStyle": "Explanatory"
+  "outputStyle": "Explanatory",
+  "slashCommands": {
+    "/git-commit": ".claude/commands/git/git-commit.md",
+    "/pr-create": ".claude/commands/gh/pr-create.md",
+    "/pr-checks": ".claude/commands/gh/pr-checks.md",
+    "/pr-merge": ".claude/commands/gh/pr-merge.md",
+    "/issue-create": ".claude/commands/gh/issue-create.md",
+    "/bootstrap": ".claude/commands/bootstrap.md",
+    "/research": ".claude/commands/research.md",
+    "/story": ".claude/commands/story.md",
+    "/plan": ".claude/commands/plan.md",
+    "/implement": ".claude/commands/implement.md",
+    "/debug": ".claude/commands/debug.md",
+    "/ship": ".claude/commands/ship.md",
+    "/switch": ".claude/commands/switch.md",
+    "/tdd": ".claude/commands/tdd-loop.md",
+    "/code-search": ".claude/commands/code-search.md",
+    "/plan-tasks": ".claude/commands/plan-tasks.md",
+    "/tasks": ".claude/commands/tm/list.md",
+    "/next-task": ".claude/commands/tm/next/next-task.md",
+    "/task-done": ".claude/commands/tm/set-status/to-done.md",
+    "/expand-task": ".claude/commands/tm/expand/expand-task.md",
+    "/log-dec": ".claude/commands/decision.md",
+    "/get-decisions": ".claude/commands/get-decisions.md",
+    "/search-decisions": ".claude/commands/search-decisions.md",
+    "/mem-query": ".claude/commands/mem-query.md",
+    "/docs-toc": ".claude/commands/docs/docs-toc.md",
+    "/docs-get": ".claude/commands/docs/docs-get.md",
+    "/docs-index": ".claude/commands/docs/docs-index.md",
+    "/zen": ".claude/commands/zen.md",
+    "/zen-continue": ".claude/commands/zen-continue.md",
+    "/privacy-scan": ".claude/commands/privacy-scan.md",
+    "/forensic-validation": ".claude/commands/forensic-validation.md"
+  }
 }

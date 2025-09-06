@@ -9,3 +9,6 @@ Use **exa** (exa-mcp-server) and **duckduckgo** (duckduckgo-mcp-server) to triag
 3) Return a merged brief: 3–5 bullets with links, plus a “What to do next” recommendation.
 
 **Tools**: exa + duckduckgo only.
+
+> Token thrift:
+- **Exa**: avoid broad/generic queries; include specific lib, function, or exact error text.

@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "dotenv": "^17.2.1"
-  },
-  "devDependencies": {
-    "trigger.dev": "^4.0.2"
-  }
-}

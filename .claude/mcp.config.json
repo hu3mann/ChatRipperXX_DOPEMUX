@@ -1,46 +1,40 @@
 {
   "mcpServers": {
-    "claude-context": {
+    "fast-markdown": {
+      "command": "docker",
+      "args": ["exec", "-i", "devdocs-mcp", "python", "-m", "fast_markdown_mcp.server", "/app/storage/markdown"],
+      "env": {},
+      "disabled": false,
+      "alwaysAllow": [
+        "sync_file",
+        "get_status",
+        "list_files",
+        "read_file",
+        "search_files",
+        "search_by_tag",
+        "get_stats",
+        "get_section",
+        "get_table_of_contents"
+      ]
+    },
+    "openmemory": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@zilliz/claude-context-mcp@latest"
-      ],
-      "env": {        
+      "args": ["-y", "openmemory"],
+      "env": {
+        "OPENMEMORY_API_KEY": "om-cxmay45nsl853izt3z2yifpt4bjwo03s"
       }
     },
-    "context7-mcp": {
-      "command": "npx",
+    "zen": {
+      "command": "sh",
       "args": [
-    "-y",
-    "@upstash/context7-mcp",
-    "--api-key",
-    "${SMITHERY_KEY}"
-      ]
-    },
-    "mcp": {
-      "command": "npx",
-      "args": [
-    "-y",
-    "@smithery/cli@latest",
-    "run",
-    "@docfork/mcp",
-    "--key",
-    "${SMITHERY_KEY}"
-      ]
-    },
-    "server-sequential-thinking": {
-      "command": "npx",
-      "args": [
-    "-y",
-    "@smithery/cli@latest",
-    "run",
-    "@smithery-ai/server-sequential-thinking",
-    "--key",
-    "${SMITHERY_KEY}",
-    "--profile",
-    "joint-constrictor-SZYWlg"
-      ]
+        "-c",
+        "exec $(which uvx || echo uvx) --from git+https://github.com/BeehiveInnovations/zen-mcp-server.git zen-mcp-server"
+      ],
+      "env": {
+        "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:~/.local/bin",
+        "OPENAI_API_KEY": "your_api_key_here",
+        "GEMINI_API_KEY": "your_gemini_key_here"
+      }
     }
   }
 }
