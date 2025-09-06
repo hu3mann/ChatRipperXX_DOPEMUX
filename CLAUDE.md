@@ -160,6 +160,9 @@ If context exceeds 100k tokens:
 * `/implement` — tests-first loop; minimal diffs; cite docs used
 * `/debug` — repro → isolate → fix; add guard tests
 * `/ship` — docs + ADR stub + **ConPort** decision; commit/PR/merge via **CLI MCP** (`git`/`gh`)
+* `/complete` — full quality gates (lint/types/tests/coverage) + feature branch + conventional commit + detailed PR
+* `/commit-pr` — quick automated commit/PR with quality verification (tests/lint/types/coverage ≥90%)
+* `/tm/complete-task` — TaskMaster task completion + quality gates + commit/PR workflow
 * `/switch` — compact state → **OpenMemory** + **ConPort**; clear transient memory
 * `/retrospect` — post-run: what worked/failed + follow-ups → Mem0 + backlog
 
@@ -174,20 +177,29 @@ If context exceeds 100k tokens:
 
 ---
 
-## TDD Loop ("Good" Looks Like)
+## TDD Loop + Feature Completion Workflow
 
-1. Read **AC** + **Interfaces** (reference `docs/` on-demand)  
-2. Generate failing tests (unit + schema validation + **RFC-7807** negative paths)  
+### TDD Implementation:
+1. Read **AC** + **Interfaces** (reference `docs/` on-demand)
+2. Generate failing tests (unit + integration + **RFC-7807** negative paths + edge cases)
 3. **Local checks**:
 
 ```bash
 python -m pip install -e .[dev]
 ruff check .
 mypy src
-pytest --cov=src/chatx --cov-fail-under=90
+pytest --cov=src/chatx --cov-fail-under=90 --cov-report=term-missing
 ```
 
 4. Minimal code → pass tests → refactor → docs → ADR
+
+### Feature Completion (Automated):
+5. **Quality Gates**: `/complete` or `/tm/complete-task`
+   - ✅ Tests ≥90% coverage, lint clean, types clean
+   - ✅ Feature branch, conventional commit, detailed PR
+   - ✅ TaskMaster updated, ConPort/OpenMemory logged
+6. **Multi-Session**: Independent branches for concurrent work
+7. **Integration**: PR review → merge → cleanup
 
 ---
 
