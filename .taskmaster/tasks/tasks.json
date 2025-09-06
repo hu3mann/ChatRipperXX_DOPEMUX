@@ -285,7 +285,7 @@
         "description": "Write a test to ensure that the `aggregate_statistics_with_dp` method correctly aggregates statistics with differential privacy. This test should verify that the results are within a reasonable range of the actual values, given the added noise.",
         "details": "",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "subtasks": []
@@ -781,7 +781,7 @@
     ],
     "metadata": {
       "created": "2025-09-05T23:06:32.151Z",
-      "updated": "2025-09-06T16:38:29.082Z",
+      "updated": "2025-09-06T19:34:27.816Z",
       "description": "Tasks for master context"
     }
   }

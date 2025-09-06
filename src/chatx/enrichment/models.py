@@ -229,7 +229,7 @@ class BatchEnrichmentRequest(BaseModel):
     """Request for batch message enrichment."""
     
     requests: list[EnrichmentRequest] = Field(description="List of enrichment requests")
-    model_config: Optional[dict[str, Any]] = Field(None, description="Model configuration")
+    
     batch_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Batch identifier")
     
     @validator('requests')
