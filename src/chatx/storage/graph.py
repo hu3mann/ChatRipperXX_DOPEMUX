@@ -4,9 +4,10 @@ import logging
 from typing import List, Dict, Any, Optional
 import asyncio
 from datetime import datetime, timezone
+from dataclasses import dataclass
 
 try:
-    from neo4j import GraphDatabase, Driver, AsyncDriver
+    from neo4j import AsyncGraphDatabase, AsyncDriver
     from neo4j.exceptions import ServiceUnavailable, AuthError
     NEO4J_AVAILABLE = True
 except ImportError:
@@ -28,16 +29,52 @@ from .psychology_relationship_mapper import PsychologyRelationshipMapper, Relati
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class ConnectionPoolMetrics:
+    """Connection pool performance metrics."""
+    active_connections: int
+    idle_connections: int
+    total_connections: int
+    peak_connections: int
+    connection_acquisition_timeouts: int
+    connection_errors: int
+    avg_connection_time_ms: float
+    
+    @property
+    def utilization_percent(self) -> float:
+        """Calculate pool utilization percentage."""
+        if self.total_connections == 0:
+            return 0.0
+        return (self.active_connections / self.total_connections) * 100.0
+    
+    @property
+    def health_score(self) -> float:
+        """Calculate overall pool health score (0.0-1.0)."""
+        error_penalty = min(self.connection_errors * 0.1, 0.5)
+        timeout_penalty = min(self.connection_acquisition_timeouts * 0.05, 0.3)
+        utilization_score = 1.0 - abs(self.utilization_percent - 75.0) / 100.0  # Optimal ~75%
+        
+        return max(0.0, utilization_score - error_penalty - timeout_penalty)
+
+
 class Neo4jGraphStore(BaseGraphStore):
     """Neo4j implementation of graph storage for conversation relationships."""
 
-    def __init__(self, uri: str, auth: tuple[str, str], database: str = "neo4j"):
+    def __init__(self, uri: str, auth: tuple[str, str], database: str = "neo4j",
+                 max_connection_lifetime: int = 300,
+                 max_connection_pool_size: int = 100,
+                 connection_timeout: int = 30,
+                 connection_acquisition_timeout: int = 60):
         """Initialize Neo4j graph store.
         
         Args:
             uri: Neo4j connection URI (e.g., "bolt://localhost:7687")
             auth: Authentication tuple (username, password)
             database: Database name
+            max_connection_lifetime: Max connection lifetime in seconds
+            max_connection_pool_size: Max connection pool size
+            connection_timeout: Connection timeout in seconds
+            connection_acquisition_timeout: Max time to wait for connection from pool (seconds)
             
         Raises:
             ImportError: If neo4j driver not available
@@ -51,8 +88,122 @@ class Neo4jGraphStore(BaseGraphStore):
         self.uri = uri
         self.auth = auth
         self.database = database
-        self.driver: Optional[Driver] = None
+        self.max_connection_lifetime = max_connection_lifetime
+        self.max_connection_pool_size = max_connection_pool_size
+        self.connection_timeout = connection_timeout
+        self.connection_acquisition_timeout = connection_acquisition_timeout
+        self.driver: Optional[AsyncDriver] = None
         self.psychology_mapper = PsychologyRelationshipMapper()
+        
+        # Connection pool monitoring
+        self._connection_errors = 0
+        self._acquisition_timeouts = 0
+        self._connection_times = []
+        self._peak_connections = 0
+    
+    @classmethod
+    def from_config(cls, neo4j_config) -> "Neo4jGraphStore":
+        """Create Neo4j store from configuration.
+        
+        Args:
+            neo4j_config: Neo4jConfig instance from pydantic settings
+            
+        Returns:
+            Configured Neo4jGraphStore instance
+        """
+        return cls(
+            uri=neo4j_config.uri,
+            auth=(neo4j_config.username, neo4j_config.password),
+            database="neo4j",
+            max_connection_lifetime=neo4j_config.max_connection_lifetime,
+            max_connection_pool_size=neo4j_config.max_connection_pool_size,
+            connection_timeout=neo4j_config.connection_timeout,
+            connection_acquisition_timeout=neo4j_config.connection_acquisition_timeout
+        )
+
+    async def get_pool_metrics(self) -> ConnectionPoolMetrics:
+        """Get current connection pool metrics.
+        
+        Returns:
+            ConnectionPoolMetrics with current pool status
+        """
+        if not self.driver:
+            return ConnectionPoolMetrics(
+                active_connections=0,
+                idle_connections=0,
+                total_connections=0,
+                peak_connections=0,
+                connection_acquisition_timeouts=self._acquisition_timeouts,
+                connection_errors=self._connection_errors,
+                avg_connection_time_ms=0.0
+            )
+        
+        try:
+            # Get pool metrics from driver (if available in neo4j driver)
+            # Note: Neo4j Python driver doesn't expose detailed pool metrics directly
+            # This is a conceptual implementation for monitoring framework
+            
+            avg_time = sum(self._connection_times) / len(self._connection_times) if self._connection_times else 0.0
+            
+            return ConnectionPoolMetrics(
+                active_connections=0,  # Would need driver internals
+                idle_connections=0,    # Would need driver internals
+                total_connections=0,   # Would need driver internals
+                peak_connections=self._peak_connections,
+                connection_acquisition_timeouts=self._acquisition_timeouts,
+                connection_errors=self._connection_errors,
+                avg_connection_time_ms=avg_time
+            )
+            
+        except Exception as e:
+            logger.error(f"Error getting pool metrics: {e}")
+            return ConnectionPoolMetrics(
+                active_connections=0,
+                idle_connections=0,
+                total_connections=0,
+                peak_connections=0,
+                connection_acquisition_timeouts=self._acquisition_timeouts,
+                connection_errors=self._connection_errors,
+                avg_connection_time_ms=0.0
+            )
+    
+    async def log_pool_metrics(self) -> None:
+        """Log current connection pool metrics for monitoring."""
+        metrics = await self.get_pool_metrics()
+        
+        logger.info(
+            f"Neo4j Connection Pool Metrics - "
+            f"Active: {metrics.active_connections}, "
+            f"Idle: {metrics.idle_connections}, "
+            f"Total: {metrics.total_connections}, "
+            f"Utilization: {metrics.utilization_percent:.1f}%, "
+            f"Health Score: {metrics.health_score:.2f}, "
+            f"Errors: {metrics.connection_errors}, "
+            f"Timeouts: {metrics.connection_acquisition_timeouts}, "
+            f"Avg Connection Time: {metrics.avg_connection_time_ms:.1f}ms"
+        )
+        
+        # Log warnings for poor health
+        if metrics.health_score < 0.5:
+            logger.warning(f"Connection pool health degraded: {metrics.health_score:.2f}")
+        
+        if metrics.connection_errors > 0:
+            logger.warning(f"Connection pool has {metrics.connection_errors} errors")
+    
+    def _record_connection_error(self) -> None:
+        """Record a connection error for metrics."""
+        self._connection_errors += 1
+        
+    def _record_acquisition_timeout(self) -> None:
+        """Record a connection acquisition timeout for metrics."""
+        self._acquisition_timeouts += 1
+        
+    def _record_connection_time(self, time_ms: float) -> None:
+        """Record connection acquisition time for metrics."""
+        self._connection_times.append(time_ms)
+        # Keep only last 100 measurements
+        if len(self._connection_times) > 100:
+            self._connection_times.pop(0)
     
     async def connect(self) -> None:
         """Connect to Neo4j database.
@@ -61,26 +212,42 @@ class Neo4jGraphStore(BaseGraphStore):
             ConnectionError: If connection fails
             AuthError: If authentication fails
         """
+        connection_start = datetime.now()
+        
         try:
-            self.driver = GraphDatabase.driver(self.uri, auth=self.auth)
+            self.driver = AsyncGraphDatabase.driver(
+                self.uri, 
+                auth=self.auth,
+                max_connection_lifetime=self.max_connection_lifetime,
+                max_connection_pool_size=self.max_connection_pool_size,
+                connection_timeout=self.connection_timeout,
+                connection_acquisition_timeout=self.connection_acquisition_timeout
+            )
             
             # Test connection
-            with self.driver.session(database=self.database) as session:
-                session.run("RETURN 1")
+            async with self.driver.session(database=self.database) as session:
+                await session.run("RETURN 1")
             
-            logger.info(f"Connected to Neo4j at {self.uri}")
+            # Record successful connection time
+            connection_time = (datetime.now() - connection_start).total_seconds() * 1000
+            self._record_connection_time(connection_time)
+            
+            logger.info(f"Connected to Neo4j at {self.uri} (took {connection_time:.1f}ms)")
             
         except ServiceUnavailable as e:
+            self._record_connection_error()
             raise ConnectionError(f"Cannot connect to Neo4j at {self.uri}: {e}")
         except AuthError as e:
+            self._record_connection_error()
             raise ConnectionError(f"Authentication failed for Neo4j: {e}")
         except Exception as e:
+            self._record_connection_error()
             raise ConnectionError(f"Neo4j connection error: {e}")
     
     async def disconnect(self) -> None:
         """Disconnect from Neo4j database."""
         if self.driver:
-            self.driver.close()
+            await self.driver.close()
             self.driver = None
             logger.info("Disconnected from Neo4j")
     
@@ -137,16 +304,16 @@ class Neo4jGraphStore(BaseGraphStore):
             await self.connect()
         
         try:
-            with self.driver.session(database=self.database) as session:
+            async with self.driver.session(database=self.database) as session:
                 # Query nodes
                 node_query = """
                 MATCH (n {conversation_id: $conv_id})
                 RETURN n.id as id, n.node_type as type, properties(n) as props
                 """
-                node_result = session.run(node_query, conv_id=conversation_id)
+                node_result = await session.run(node_query, conv_id=conversation_id)
                 
                 nodes = []
-                for record in node_result:
+                async for record in node_result:
                     node = GraphNode(
                         id=record["id"],
                         node_type=record["type"],
@@ -162,10 +329,10 @@ class Neo4jGraphStore(BaseGraphStore):
                 MATCH (a {conversation_id: $conv_id})-[r]->(b {conversation_id: $conv_id})
                 RETURN a.id as from_id, b.id as to_id, type(r) as rel_type, properties(r) as props
                 """
-                rel_result = session.run(rel_query, conv_id=conversation_id)
+                rel_result = await session.run(rel_query, conv_id=conversation_id)
                 
                 relationships = []
-                for record in rel_result:
+                async for record in rel_result:
                     rel = GraphRelationship(
                         from_node=record["from_id"],
                         to_node=record["to_id"],
@@ -212,11 +379,11 @@ class Neo4jGraphStore(BaseGraphStore):
         """
         
         try:
-            with self.driver.session(database=self.database) as session:
-                result = session.run(query, **params)
+            async with self.driver.session(database=self.database) as session:
+                result = await session.run(query, **params)
                 
                 relationships = []
-                for record in result:
+                async for record in result:
                     rel = GraphRelationship(
                         from_node=record["from_id"],
                         to_node=record["to_id"], 
@@ -265,11 +432,11 @@ class Neo4jGraphStore(BaseGraphStore):
         """
         
         try:
-            with self.driver.session(database=self.database) as session:
-                result = session.run(query, conv_id=conversation_id)
+            async with self.driver.session(database=self.database) as session:
+                result = await session.run(query, conv_id=conversation_id)
                 
                 evolution_data = []
-                for record in result:
+                async for record in result:
                     evolution_data.append({
                         "timestamp": record["timestamp"],
                         "psychology_labels": record["psychology_labels"] or [],
@@ -421,9 +588,9 @@ class Neo4jGraphStore(BaseGraphStore):
             return
         
         try:
-            with self.driver.session(database=self.database) as session:
+            async with self.driver.session(database=self.database) as session:
                 # Clear existing graph for this conversation
-                session.run(
+                await session.run(
                     "MATCH (n {conversation_id: $conv_id}) DETACH DELETE n",
                     conv_id=conversation_id
                 )
@@ -434,7 +601,7 @@ class Neo4jGraphStore(BaseGraphStore):
                     node_props["id"] = node.id
                     node_props["node_type"] = node.node_type
                     
-                    session.run(
+                    await session.run(
                         "CREATE (n:ConversationNode $props)",
                         props=node_props
                     )
@@ -443,7 +610,7 @@ class Neo4jGraphStore(BaseGraphStore):
                 for rel in relationships:
                     rel_props = rel.properties.copy()
                     
-                    session.run(f"""
+                    await session.run(f"""
                         MATCH (a {{id: $from_id}}), (b {{id: $to_id}})
                         CREATE (a)-[r:`{rel.relationship_type}` $props]->(b)
                     """, from_id=rel.from_node, to_id=rel.to_node, props=rel_props)
@@ -473,11 +640,11 @@ class Neo4jGraphStore(BaseGraphStore):
         """
         
         try:
-            with self.driver.session(database=self.database) as session:
-                result = session.run(query, conv_id=conversation_id)
+            async with self.driver.session(database=self.database) as session:
+                result = await session.run(query, conv_id=conversation_id)
                 
                 patterns = []
-                for record in result:
+                async for record in result:
                     nodes = record["escalation_nodes"]
                     length = record["escalation_length"]
                     
@@ -505,11 +672,11 @@ class Neo4jGraphStore(BaseGraphStore):
         """
         
         try:
-            with self.driver.session(database=self.database) as session:
-                result = session.run(query, conv_id=conversation_id)
+            async with self.driver.session(database=self.database) as session:
+                result = await session.run(query, conv_id=conversation_id)
                 
                 patterns = []
-                for record in result:
+                async for record in result:
                     pattern = PatternMatch(
                         pattern_type=PatternTypes.REPAIR_CYCLE,
                         confidence=0.8,
@@ -534,11 +701,11 @@ class Neo4jGraphStore(BaseGraphStore):
         """
         
         try:
-            with self.driver.session(database=self.database) as session:
-                result = session.run(query, conv_id=conversation_id)
+            async with self.driver.session(database=self.database) as session:
+                result = await session.run(query, conv_id=conversation_id)
                 
                 patterns = []
-                for record in result:
+                async for record in result:
                     nodes = record["boundary_nodes"]
                     test_count = record["test_count"]
                     

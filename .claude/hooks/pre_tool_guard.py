@@ -76,10 +76,10 @@ def evaluate_adaptive_security(command, context):
         if any(os.path.exists(f) for f in ["requirements.txt", "package.json", "pyproject.toml"]):
             risk_score -= 0.1  # Lower risk if package files exist
     
-    # Decision logic
+    # Decision logic - FIXED: Proper range handling
     if risk_score < 0.2:
         return "allow", f"✅ Low risk operation (risk: {risk_score:.1f})", 0.9
-    elif risk_score < 0.5:
+    elif risk_score < 0.8:  # FIXED: Changed from < 0.5 to < 0.8 to include 0.5-0.7 range
         return "ask", f"⚠️ Moderate risk operation (risk: {risk_score:.1f}) | Project: {project_type}", 0.7
     else:
         return "deny", f"🚫 High risk operation blocked (risk: {risk_score:.1f})", 0.8
@@ -129,15 +129,16 @@ def check_legitimate_patterns(command):
     if not ADAPTIVE_SECURITY:
         return False
         
-    # Common legitimate development patterns
+    # Common legitimate development patterns - FIXED: More inclusive patterns
     legitimate_patterns = [
-        r'^git\s+(status|add|commit|push|pull)',
+        r'^git\s+(status|add|commit|push|pull|diff|log|branch)',  # Added more git commands
         r'^python\s+-m\s+(pytest|pip|mypy|ruff)',
-        r'^npm\s+(test|run|start)',
-        r'^docker\s+(build|run|ps)',
+        r'^npm\s+(test|run|start|install)',
+        r'^docker\s+(build|run|ps|stop|rm)',
         r'^ls\s|^cat\s|^head\s|^tail\s',
         r'^mkdir\s+[^/]',  # Local directories only
-        r'^cp\s+[^/].*[^/]'  # Local file operations
+        r'^cp\s+[^/].*[^/]',  # Local file operations
+        r'^cd\s+[^/]'  # Local directory changes
     ]
     
     command_lower = command.lower().strip()

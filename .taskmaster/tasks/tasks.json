@@ -9,7 +9,7 @@
         "testStrategy": "- Run pre-commit across repository to ensure lint/type/test gates pass\n- Verify settings load from .env and environment overrides\n- Snapshot tests for logging format in dev vs prod\n- Ensure coverage reports >=90% on sample tests",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -188,7 +188,7 @@
         "testStrategy": "Write unit and integration tests to verify all database operations are non-blocking and functionally correct. Use asyncio event loop monitoring tools to confirm no blocking calls. Run performance benchmarks to compare async vs. previous sync implementation.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -201,7 +201,7 @@
         "dependencies": [
           13
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -399,11 +399,389 @@
         "dependencies": [],
         "priority": "high",
         "subtasks": []
+      },
+      {
+        "id": 32,
+        "title": "Establish Project Foundation & Repository (Two-Track + Smart Static Loading)",
+        "description": "Initialize the project repository, set up Python environment, and configure CI/CD for the Two-Track Evolutionary Integration and Smart Static Loading approach (no dynamic MCP loading).",
+        "details": "Use Python 3.11+ with Poetry for dependency management. Configure GitHub Actions for CI/CD. Include .claude/settings.json and scripts/mcp/mcpctl.py as integration points for static mapping and hook evaluation. Enforce code style with Black and flake8. Scaffold Track 1 (Smart Hooks Evolution, tasks 32-34, 3 weeks) and Track 2 (Progressive Command Consolidation, tasks 35-39, 4 weeks), and prepare for Smart Static Loading alternative (tasks 40-43, 1 week). Add feature flags: SMART_STATIC_LOADING, TRACK1_HOOKS, TRACK2_COMMANDS. Prioritize deterministic builds and reproducible environments.",
+        "testStrategy": "Validate repository structure and initial CI pipeline, including linting and formatting checks. Set up a CI test matrix for feature flags (TRACK1_HOOKS and TRACK2_COMMANDS toggled on/off). Verify deterministic builds via hash/snapshot checks. Establish baseline benchmark harness for hook latency and token usage to compare against future improvements.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 33,
+        "title": "Implement ConfigManager for Smart Static Configuration",
+        "description": "Develop a deterministic ConfigManager that manages static configuration for hooks heuristics and command consolidation with validation and startup-time environment overrides.",
+        "details": "Use pydantic (v2.x) for JSON schema validation. Define schemas for: static hook heuristics, canonical command maps, consolidation rules, and feature flags. Support layered configuration (defaults -> workspace -> environment) with environment variable overrides applied at startup only. Ensure no runtime mutation or dynamic reloading. Provide backward compatibility and migration helpers from any prior dynamic-oriented config files. Implement configuration snapshotting and checksums for drift detection and audits.",
+        "testStrategy": "Unit test parsing, schema validation, and startup-time environment overrides. Validate backward compatibility with existing configuration files. Verify deterministic behavior across runs given identical inputs. Test checksum/snapshot generation and detection of configuration drift.",
+        "priority": "high",
+        "dependencies": [
+          32
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 34,
+        "title": "Develop Predictive Hooks Engine for Token Reduction (Track 1)",
+        "description": "Create a lightweight, deterministic hooks engine that precomputes context and minimizes tokens without any dynamic server lifecycle management.",
+        "details": "Eliminate dynamic loading; focus on precomputation and fast, static decisions. Precompile regex patterns and static maps; add small LRU caches for recent decisions. Use asyncio only where strictly necessary for non-blocking editor/file I/O. Expose tunables via ConfigManager. Target 30-40% token reduction while keeping per-hook overhead under 50ms. Emit structured diagnostics for metrics collection and auditability. Ensure deterministic behavior to avoid race conditions and unpredictable delays.",
+        "testStrategy": "Unit test hook decision correctness, cold vs warm-path latency, and token reduction versus baseline. Determinism tests ensuring identical inputs yield identical outputs. Stress tests for concurrency safety without race conditions. Benchmark to validate target latency and 30-40% token reduction objectives.",
+        "priority": "high",
+        "dependencies": [
+          33
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 35,
+        "title": "Build Command Inventory and Mapping (Layer 1 of Consolidation)",
+        "description": "Implement initial command discovery and static mapping for file types and slash commands to canonical actions as the first step of Progressive Command Consolidation.",
+        "details": "Monitor active files and command inputs using hooks. Construct and maintain static mapping tables from file extensions and slash commands to canonical actions defined in ConfigManager. Use watchdog for file system events and regex for command parsing. Optimize for <50ms detection latency. Ensure mappings are deterministic and compatible with subsequent consolidation phases.",
+        "testStrategy": "Unit test detection accuracy, mapping logic correctness, and latency. Snapshot tests to ensure canonical mappings remain stable unless explicitly changed. Validate coverage across a wide variety of file types and command patterns.",
+        "priority": "high",
+        "dependencies": [
+          32,
+          33
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 36,
+        "title": "Integrate Predictive Hooks with pre_tool_guard.py (Static, Secure)",
+        "description": "Refactor pre_tool_guard.py to use the Predictive Hooks Engine and static mappings, preserving security and performance while removing dynamic loading paths.",
+        "details": "Replace any dynamic loading logic with deterministic, statically configured decisions. Add feature flags (HOOKS_PREDICTIVE, SMART_STATIC_LOADING) for controlled rollout. Maintain all existing security validations and input sanitization. Ensure integration overhead remains <50ms and that decisions are fully auditable. Aim for 30-40% token reduction via predictive hook optimization.",
+        "testStrategy": "Integration tests to measure hook execution time and ensure security validations are preserved. Regression tests across existing workflows. Verify that no dynamic loader code paths are invoked. Validate fallback to baseline static logic when flags are disabled.",
+        "priority": "high",
+        "dependencies": [
+          34,
+          35
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 37,
+        "title": "Implement Config and Hooks Health Monitor",
+        "description": "Develop a health monitor that checks configuration integrity, hook performance, and detects drift or degradation, triggering alerts or safe reverts.",
+        "details": "Use psutil (v5.x) to monitor resource usage and ensure hooks remain lightweight. Periodically verify config checksums and schema validity. Detect abnormal hook latencies and error spikes; log health events for an audit trail. Integrate with the Predictive Hooks Engine to temporarily disable or downgrade costly heuristics when thresholds are breached. Provide structured outputs consumable by MetricsCollector.",
+        "testStrategy": "Unit tests for config drift detection, latency threshold triggers, and audit logging. Simulate misconfigurations and resource pressure scenarios. Validate that safe-disable behavior activates and restores correctly.",
+        "priority": "medium",
+        "dependencies": [
+          34
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 38,
+        "title": "Develop MetricsCollector for Hooks and Consolidation",
+        "description": "Create a MetricsCollector to gather real-time metrics on token reduction, hook latency, command consolidation effectiveness, and resource usage.",
+        "details": "Use Prometheus client (v0.17+) for metrics export. Track token reduction percentages, hook execution latencies, command consolidation rate (duplication reduction), error rates, and CPU/memory usage. Store aggregated summaries in local SQLite (v3.42+) for dashboard integration. Provide queries and reports aligned to impact targets: Track 1 (30-40% token reduction), Track 2 (25% duplication reduction), Smart Static Loading (10-15% configuration optimization), and 55-65% overall improvement.",
+        "testStrategy": "Unit test metrics collection, export, and storage. Validate accuracy under load and during failure scenarios. Ensure metrics schemas are versioned and backward compatible. Cross-check recorded metrics against synthetic workloads for correctness.",
+        "priority": "medium",
+        "dependencies": [
+          34,
+          35,
+          37
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 40,
+        "title": "Smart Static Loading Optimization and Safe Fallbacks",
+        "description": "Optimize static, startup-time configuration with deterministic selection and safe, reversible fallbacks to known-good versions. Dynamic loading is abandoned; all behavior is fixed at initialization and remains static thereafter.",
+        "status": "pending",
+        "dependencies": [
+          36
+        ],
+        "priority": "high",
+        "details": "Implement deterministic, startup-only configuration management focused on static selection and pruning. Replace prior dynamic-loading concepts with static configuration optimization. Provide environment toggles read only at process start: SMART_STATIC_CONFIG (replaces SMART_STATIC_LOADING), PREDICTIVE_SELECTION (replaces HOOKS_PREDICTIVE), and CONSOLIDATION. Snapshot and version static configurations, storing a manifest with version/hash and metadata, and enable restoration from version control to a last known-good snapshot. Enforce a pure, reproducible selection function that maps inputs (env toggles, feature flags, platform constraints) to a single immutable configuration. Perform startup-time validation (schema, referential integrity, completeness) and, on validation failure, atomically fall back to the previous known-good snapshot before proceeding. No background hooks, on-the-fly changes, or runtime mutation. Target 10–15% configuration optimization via refined static selection and pruning of unused mappings/resources. Maintain zero architectural complexity and deterministic behavior throughout.",
+        "testStrategy": "Unit tests: verify the selection function is deterministic (same inputs yield identical configuration content and hash across runs). Integration tests: confirm environment toggles are applied at startup only and result in the expected static configuration; verify the configuration is immutable/read-only after startup. Fallback tests: simulate invalid or degraded configuration at startup and assert automatic restoration to the last known-good snapshot prior to continuing initialization; verify the applied configuration matches the expected snapshot manifest. Optimization tests: confirm pruning reduces unused mappings/resources and meets the 10–15% optimization target (size/count deltas). Regression tests: ensure no post-startup mutation attempts can alter the configuration and that configuration artifacts are consistent and reproducible.",
+        "subtasks": []
+      },
+      {
+        "id": 41,
+        "title": "Establish Comprehensive Testing Frameworks (Tracks 1 & 2 + Smart Static)",
+        "description": "Set up unit, integration, performance, and security testing tailored to predictive hooks, command consolidation, and smart static loading.",
+        "details": "Use pytest (v8.x) for unit/integration tests and coverage.py for code coverage. Implement load/latency testing for hooks with locust (v2.x). Security testing via bandit (v1.7+). Automate test runs in CI/CD. Add benchmark gates asserting impact targets: >=30% token reduction (Track 1), >=25% duplication reduction (Track 2), and >=10% configuration optimization (Smart Static). Include determinism tests and concurrency safety checks. Remove or replace any tests assuming dynamic server pools.",
+        "testStrategy": "Run full test suite, validate coverage thresholds, and review security and performance reports. Enforce benchmark gates for impact targets. Perform load and regression tests across feature flag combinations to guarantee deterministic behavior and stability.",
+        "priority": "high",
+        "dependencies": [
+          32,
+          36,
+          38
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 42,
+        "title": "Document System Architecture and User Guides (Two-Track + Smart Static)",
+        "description": "Produce detailed documentation for the Smart Static baseline and its tracks, now including a revised Track 3: constrained dynamic loading with pattern-based activation, synchronous execution, and strict safety controls. Emphasize Smart Static as the foundation (startup-only policy definition, deterministic configuration), while documenting the simplified, feasible Track 3 approach as an opt-in, policy-gated extension. Cover migration from prior dynamic approaches to the Smart Static baseline and the constrained dynamic model, troubleshooting, and usage.",
+        "status": "pending",
+        "dependencies": [
+          41
+        ],
+        "priority": "medium",
+        "details": "Use MkDocs (v1.5+) for the documentation site. Provide architecture diagrams for Track 1 (Smart Hooks Evolution), Track 2 (Progressive Command Consolidation), and the revised Track 3 (Constrained Dynamic Loading). Present Smart Static configuration as the foundation across all tracks: policies and toggles are defined at startup and immutable thereafter. Clarify that dynamic server lifecycle management remains unsupported; Track 3 enables in-process, synchronous, policy-gated dynamic activation only. Include configuration examples, feature flag/toggle guides, and admin playbooks focused on deterministic startup behavior plus constrained, auditable dynamic actions. Canonical environment toggles for the static baseline remain: SMART_STATIC_CONFIG (replaces SMART_STATIC_LOADING), PREDICTIVE_SELECTION (replaces HOOKS_PREDICTIVE), and CONSOLIDATION. Introduce explicit Track 3 policy flags: DYNAMIC_CONSTRAINED_ENABLE (opt-in, default false), DYNAMIC_PATTERN_ALLOWLIST (comma-separated or YAML list of approved patterns/globs), DYNAMIC_PATTERN_DENYLIST, DYNAMIC_SYNC_ONLY=true (required; asynchronous/background execution prohibited), DYNAMIC_TIMEOUT_MS, DYNAMIC_RESOURCE_LIMITS (e.g., tokens/memory/calls), and DYNAMIC_SAFE_MODE=strict. Document snapshotting/versioning of static configurations and dynamic policy settings, including a manifest (version/hash/metadata, plus dynamic policy snapshot: enabled state, allow/deny patterns, limits). Provide step-by-step restoration procedures to known-good versions that reset policy state to disable or re-enable constrained dynamic loading as defined by the manifest. Provide a migration guide from prior dynamic approaches to the Smart Static baseline and the constrained Track 3 model, including deprecation notes and mappings from old dynamic flags to static and constrained-dynamic equivalents. Explain the rationale for revising Track 3 into a constrained, synchronous, safe mode and outline expected impact targets (55-65% overall improvement) while regaining selective runtime flexibility under strict controls. Ensure docs are updated with each release and include CI/link-check steps to prevent regressions or accidental reintroduction of unconstrained dynamic-loading or dynamic server management references.",
+        "testStrategy": "Manual review of documentation completeness, clarity, and accuracy. Validate with user walkthroughs covering static setup, feature toggling at startup, consolidation workflows, rollback procedures using the versioned manifest, and constrained dynamic usage: pattern-based activation, synchronous execution, and safety policy enforcement. Perform link checks, MkDocs build verification, and runnable examples verification. Acceptance checks: no references claiming Track 3 is abandoned; no guidance enabling dynamic server lifecycle management; environment variable names and behaviors match the static baseline and constrained dynamic policy model; static examples produce deterministic configuration artifacts (including consistent manifest/hash) across runs with identical inputs; constrained dynamic examples are synchronous, respect allow/deny patterns and limits, generate audit logs, and fail closed with safe fallback to static behavior when policies are violated.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Update Architecture Overview and Diagrams (Two-Track + Smart Static)",
+            "description": "Revise the architecture chapter to depict Smart Static configuration as the foundation for Track 1 (Smart Hooks Evolution), Track 2 (Progressive Command Consolidation), and the revised Track 3 (Constrained Dynamic Loading). Clearly show that dynamic server lifecycle management remains unsupported, while Track 3 enables in-process, synchronous, policy-gated dynamic activation with pattern-based controls and strict safety limits.",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Update diagrams: baseline Smart Static policy layer; Track 1 and Track 2 on top; Track 3 as an optional, constrained side-path with allowlist/denylist, sync-only execution, timeouts/resource caps, and audit logging. Include sequence diagrams for a constrained dynamic call path and a blocked call path (policy violation -> safe fallback).",
+            "testStrategy": "Review diagrams for inclusion of Track 3 constrained flow and safety gates. Verify text removes statements about Track 3 being abandoned and instead describes the constrained model. Cross-check that no diagrams depict dynamic server lifecycle management."
+          },
+          {
+            "id": 2,
+            "title": "Configuration and Flags Guide (Startup-Only, Deterministic)",
+            "description": "Document static, startup-only configuration and policy definition with examples. Use SMART_STATIC_CONFIG, PREDICTIVE_SELECTION, and CONSOLIDATION as the canonical baseline toggles. Introduce constrained dynamic policy flags: DYNAMIC_CONSTRAINED_ENABLE, DYNAMIC_PATTERN_ALLOWLIST, DYNAMIC_PATTERN_DENYLIST, DYNAMIC_SYNC_ONLY (required true), DYNAMIC_TIMEOUT_MS, DYNAMIC_RESOURCE_LIMITS, DYNAMIC_SAFE_MODE. Clarify that policies are read once at process start and are immutable thereafter; dynamic actions, when enabled, are runtime but must be synchronous and policy-gated.",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Provide sample YAML/JSON for baseline static config and additional sections for constrained dynamic policy. Include examples of allowlist/denylist patterns, resource/time limits, and strict safe mode. Show resulting manifest/hash for static artifacts and a policy snapshot block for dynamic settings.",
+            "testStrategy": "Validate examples build and render in MkDocs. Verify that toggles and policies applied at startup are reflected in the generated manifest/policy snapshot. Confirm examples demonstrate blocked dynamic actions when outside patterns or limits."
+          },
+          {
+            "id": 3,
+            "title": "Migration Guide from Dynamic Loading to Smart Static",
+            "description": "Provide a step-by-step guide for migrating from prior dynamic MCP loading/server management to the Smart Static baseline and the revised constrained Track 3 model. Include mapping of deprecated flags (e.g., SMART_STATIC_LOADING -> SMART_STATIC_CONFIG, HOOKS_PREDICTIVE -> PREDICTIVE_SELECTION) and mappings from prior dynamic toggles to constrained equivalents (e.g., enable -> DYNAMIC_CONSTRAINED_ENABLE, patterns -> DYNAMIC_PATTERN_ALLOWLIST/DENYLIST, async -> disallowed via DYNAMIC_SYNC_ONLY).",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Include: inventory of old dynamic behaviors; static-first transition; optional constrained dynamic re-enablement under policy; checklists to remove dynamic server lifecycle flows; examples converting broad plugin enablement to pattern allowlists; validation steps and rollback plan.",
+            "testStrategy": "Walk through a sample migration and verify resulting system adheres to sync-only, policy-gated dynamic actions. Ensure no remaining references or instructions for dynamic server management. Verify mapping tables are accurate and unambiguous."
+          },
+          {
+            "id": 4,
+            "title": "Rollback and Recovery Procedures Using Versioned Manifests",
+            "description": "Document how to snapshot and restore static configurations using a versioned manifest (version/hash/metadata) and include the dynamic policy snapshot when Track 3 is enabled. Include safe fallback procedures and validation checks to ensure deterministic restoration and fail-closed behavior for constrained dynamic actions.",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Describe manifest fields for static config plus dynamic policy (enabled, patterns, limits, safe mode). Provide procedures to roll back to a known-good manifest that disables or resets constrained dynamic policies. Include steps to verify audit logs and policy enforcement post-restore.",
+            "testStrategy": "Execute a rollback dry run using provided examples: confirm static artifacts match expected hash, constrained dynamic is disabled or reset per manifest, and attempted dynamic actions outside policy are blocked with clear errors and audit entries."
+          },
+          {
+            "id": 5,
+            "title": "Admin Playbooks and Troubleshooting (Static-Only + Constrained Dynamic)",
+            "description": "Create admin playbooks covering startup validation, configuration immutability checks, handling configuration drift, and resolving common startup failures. Add procedures for constrained dynamic: verifying enablement state, reviewing allow/deny patterns, interpreting audit logs, handling policy violations (fail-closed), and changing behavior via re-initialization only.",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Include commands/checklists for: confirming policy flags at startup; tailing/verifying synchronous dynamic execution logs; triaging timeouts/resource limit hits; rotating to a manifest that disables constrained dynamic during incidents.",
+            "testStrategy": "Run through playbooks on example setups: confirm that changing policies requires restart; confirm that out-of-policy dynamic attempts are blocked and logged; verify incident response steps cleanly revert to static-only behavior."
+          },
+          {
+            "id": 6,
+            "title": "Rationale and Impact Targets",
+            "description": "Explain the rationale for revising Track 3 into a constrained, synchronous model with strict safety controls, expected operational benefits, and impact targets (55-65% overall improvement). Include FAQs addressing concerns about runtime flexibility, safety, and why dynamic server lifecycle management remains prohibited.",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Cover trade-offs: predictability and safety of Smart Static vs. selective flexibility under constrained dynamic. Detail invariants: policies immutable at runtime, sync-only execution, audited actions, fail-closed defaults.",
+            "testStrategy": "Editorial review for clarity and consistency; ensure no claims remain about abandoning Track 3. Validate FAQ answers align with constraints and policy model."
+          },
+          {
+            "id": 7,
+            "title": "Docs Quality Gate: Build, Links, and Example Verification",
+            "description": "Add and document CI steps for MkDocs build, link checking, and runnable example verification that produces deterministic static artifacts and policy snapshots. Include an explicit checklist to prevent reintroduction of unconstrained dynamic loading or dynamic server management and to ensure constrained dynamic examples demonstrate sync-only, policy-gated behavior.",
+            "status": "pending",
+            "dependencies": [],
+            "details": "CI tasks: mkdocs build, link check, doctest-like example runners for static manifest hashing and constrained dynamic calls. Lint rule/checklist ensuring any mention of dynamic includes pattern-based, sync-only, safe-mode qualifiers; block references to dynamic server lifecycle management.",
+            "testStrategy": "Pipeline run must pass: build ok, links ok, examples produce identical static hashes for identical inputs, dynamic examples generate audit logs, are synchronous, and are blocked when out-of-policy. Manual review of checklist adherence."
+          },
+          {
+            "id": 8,
+            "title": "Constrained Dynamic Loading Guide: Patterns, Sync Semantics, and Safety Controls",
+            "description": "Author a dedicated section for Track 3 detailing pattern-based activation (allowlist/denylist), synchronous execution requirements, strict safety controls (timeouts, resource limits, safe mode), auditing, and fail-closed behavior with static fallback.",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Include end-to-end examples: enabling DYNAMIC_CONSTRAINED_ENABLE; configuring DYNAMIC_PATTERN_ALLOWLIST/DENYLIST; demonstrating a permitted synchronous call; demonstrating a blocked call due to pattern or limit; showcasing audit entries and user-facing error messages; guidance on testing and observability.",
+            "testStrategy": "Verify examples run and align with policy: permitted actions succeed synchronously; prohibited actions are blocked with clear messaging and audit records; removing enable flag or adjusting patterns requires restart and is reflected in behavior."
+          }
+        ]
+      },
+      {
+        "id": 43,
+        "title": "Prepare Deployment & Release Automation (Static-First)",
+        "description": "Automate deployment and release processes optimized for static configurations, deterministic behavior, and fast rollback.",
+        "details": "Use Docker for containerization. Configure deployment scripts for staging and production with GitHub Actions for automated releases. Package static configuration snapshots and metrics dashboards with releases. Ensure rollback and recovery scripts are included and feature flags are configurable at deploy time. Provide release notes highlighting impact metrics and migration steps.",
+        "testStrategy": "Test deployment to staging and production environments. Validate rollback and configuration swapping operations. Confirm metrics endpoints availability and deterministic builds across environments.",
+        "priority": "medium",
+        "dependencies": [
+          41,
+          42
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 44,
+        "title": "Integrate Smart Hooks Phase 1 enforcement into EmbeddingProvider pipeline",
+        "description": "Wire Enhanced Token Budget Management and Adaptive Security Model into the embedding workflow. Enforce per-request budgets and context-aware security on every embed call, standardize violations as RFC-7807 problems, and emit audit/metric events to existing dashboards.",
+        "details": "Scope:\n- Apply Smart Hooks Phase 1 (token budget management, adaptive security, pattern tracking, audit trails, real-time dashboards) to all embedding requests by wrapping the EmbeddingProvider chain.\n\nDesign/Implementation:\n- SmartHookedProvider wrapper:\n  - Create SmartHookedProvider(EmbeddingProvider) that decorates any concrete provider and intercepts embed() calls.\n  - Inject via the provider registry (Task 5): when a provider is selected, return a wrapped instance. Ensure fallbacks are wrapped as well.\n- Context propagation:\n  - Define a RequestContext data class (tenant_id, user_id, project_id, purpose, data_sensitivity, allow_cloud_override, correlation_id, request_source) and propagate via contextvars to avoid mutating method signatures. Provide helpers set_request_context()/get_request_context().\n- Preflight: Token budget enforcement\n  - Policy model: per-tenant/project rules for max_tokens_per_request, max_tokens_per_item, batch_size_limit, truncation_strategy (truncate|split|reject), dry_run flag, and overflow_action (reject|fallback_local|truncate).\n  - Token estimation: pluggable tokenizer interface; default to tiktoken or fast tokenizer; compute estimated tokens per item and total. Cache estimates per text hash within request scope to avoid recomputation.\n  - Apply policy: if over limits, execute configured overflow_action. If truncate, apply safe truncation preserving UTF-8 boundaries; if split, split batch into smaller chunks consistent with provider max batch size.\n- Preflight: Adaptive security checks\n  - Rules: allow_cloud gating, data residency (e.g., region=EU only), sensitivity gating (block PII in cloud), time-of-day/role-based constraints.\n  - Provider compatibility: validate selected provider against rules (e.g., is_cloud, region, residency guarantees). If incompatible and fallbacks exist (Task 5), attempt next compatible provider. If none, raise policy violation.\n- Around-call: pattern tracking\n  - Record request shape (batch size, token estimate distribution, provider/model_id, input_type). Detect anomalies (sudden spikes) and tag audit events with anomaly flags.\n- Post-call: audit + metrics emission\n  - Emit structured audit events for allow/deny, truncations/splits, provider selected, policy_id, enforcement outcomes, token_estimate, correlation_id, and reason codes. Reuse the existing audit bus and dashboard pipeline; add backpressure-safe, async, non-blocking publish (bounded queue + drop-oldest with WARN if saturated).\n  - Emit counters (requests_allowed/denied), histograms (estimated_tokens_per_item), gauges (current budget utilization). Include per-tenant and per-provider dimensions.\n- Error normalization (ties to Task 3)\n  - Map enforcement failures to RFC-7807 ProblemDetails with types:\n    - type: about:quota/exceeded, title: Token budget exceeded, status: 429 or 413\n    - type: about:security/forbidden, title: Policy violation, status: 403\n    - type: about:policy/unsupported-provider, title: No compliant provider available, status: 503 or 424\n  - Include instance (correlation_id) and safe details; strip PII and secrets.\n- Configuration and rollout\n  - Central config under settings.smart_hooks.* with live reload support if available. Support per-environment defaults and dry_run to observe impact without blocking.\n  - No-op mode when disabled; wrapper delegates directly to underlying provider.\n- Performance/concurrency\n  - Ensure O(1) overhead per item for checks. Batch compute token estimates. Use asyncio primitives to avoid blocking. Avoid repeated policy fetches by caching per request.\n- Telemetry/Debugging\n  - Add debug logging (opt-in) with redaction. Include correlation_id in all logs and audit events.\n\nMigration/Compatibility:\n- Backward compatible: if Smart Hooks disabled, behavior unchanged.\n- Fallback chain remains effective; this task only constrains provider eligibility based on policy.\n\nSecurity/Privacy considerations:\n- Do not emit raw texts in audit or error details. Only stemmed statistics and hashed identifiers where needed.\n- Respect allow_cloud and residency gates strictly before any network calls.",
+        "testStrategy": "Unit tests:\n- Budget enforcement\n  - Given a policy with max_tokens_per_item=100, item of ~150 tokens with truncation_strategy=truncate => verify text is truncated and embed() called once with truncated text.\n  - Given overflow_action=reject => verify embed() not called and RFC-7807 problem returned with type about:quota/exceeded, correct status, correlation_id propagated.\n- Security policy\n  - Context allow_cloud=False and selected provider marked is_cloud=True with available local fallback => verify fallback chosen; if no fallback, verify RFC-7807 about:security/forbidden.\n  - Residency rule mismatch => verify denial with proper type and audit event includes reason_code=residency_violation.\n- Fallback integration\n  - Primary incompatible, secondary compatible => verify SmartHookedProvider chooses secondary and emits audit event provider_selected=secondary.\n- RFC-7807 mapping\n  - Verify ProblemDetails fields (type, title, status, detail redacted, instance=correlation_id) match Task 3 model and helpers. Snapshot test JSON.\n- Audit/metrics\n  - Mock audit bus; assert events emitted on allow/deny/truncate with required fields. Metrics counters/histograms updated with expected labels.\n- Context propagation\n  - Verify contextvars carry RequestContext across awaits; correlation_id appears in audit and error.\n- Performance\n  - Benchmark wrapper overhead on small batches (e.g., 8 items) to ensure added latency < X ms (configurable threshold) compared to bare provider.\n\nIntegration tests:\n- Wrap a fake provider; send mixed batch exceeding total budget; with split strategy => verify multiple provider calls with correct chunk sizes and consistent correlation_id across audit events.\n- Concurrency\n  - Launch 50 concurrent embed() calls under same tenant; ensure no race conditions, consistent policy application, and no duplicate audit events per call.\n- Dry-run mode\n  - With dry_run=true, over-budget requests should pass through while still emitting audit warnings; ensure no RFC-7807 errors returned.\n\nSecurity/privacy tests:\n- Ensure raw text content never appears in audit events or ProblemDetails by scanning emitted payloads for sent strings.\n\nConfig reload test:\n- Change policy at runtime (e.g., toggle allow_cloud) and verify subsequent requests honor the new setting without restart.",
+        "status": "pending",
+        "dependencies": [
+          3,
+          5
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 45,
+        "title": "Progressive Command Consolidation 48→24 Rollout with Safe Migration and Feedback",
+        "description": "Design and implement a staged consolidation (shadow → cohort → default) that maps 48 commands to 24 canonical actions using static mappings, targeting a 25% reduction in duplication while preserving backward compatibility and collecting user feedback.",
+        "details": "Scope and goals:\n- Consolidate 48 overlapping/duplicative commands into 24 canonical actions (48→24) using the static inventory/mapping from Task 35 and canonical maps/rules from ConfigManager (Task 33).\n- Achieve at least a 25% reduction in effective command duplication without breaking existing workflows, with explicit user feedback capture and a rapid rollback path.\n\nKey components:\n1) Consolidation data model (ConfigManager integration)\n- Extend ConfigManager schemas (Task 33) with a versioned ConsolidationRules spec:\n  - canonical_actions: [{id, name, description, handler_ref, introduced_in, version}]\n  - aliases: [{alias, canonical_id, deprecates?: bool, since_version, planned_removal_version?: str, help_redirect?: str}]\n  - rollout: {version, stages: [shadow, cohort, default], flags: {enabled, shadow_only, cohort_percentage, kill_switch}, cohorts: {assignment_seed, buckets}}\n  - migration_notes: [{canonical_id, from: [aliases], risk_level, test_cases: [..]}]\n  - telemetry: {event_names, sampling, local_store_path}\n- Store as deterministic static config (no runtime mutation) and snapshot checksums to detect drift.\n\n2) Command Router and Compatibility Layer\n- Implement CommandRouter in src/commands/consolidation/router.py:\n  - route(input_cmd: str, context) -> CanonicalActionInvocation\n  - Uses Task 35 mapping to resolve aliases → canonical_id; preserves all original arguments/options.\n  - Emits Telemetry events: Consolidation.Routed, Consolidation.Fallback, Consolidation.WarningShown, Feedback.Provided.\n  - In shadow stage, resolves and logs the canonical target but executes the original handler (no behavior change).\n  - In active stages, executes canonical handler, logging alias_used=true and showing a brief deprecation notice with a link/--help redirect.\n- Backward compatibility guarantees:\n  - All legacy aliases remain accepted through the entire rollout; behavior-parity tests required.\n  - Kill switch flag forces passthrough to legacy handlers.\n\n3) Staged rollout controller\n- Implement ConsolidationController in src/commands/consolidation/rollout.py:\n  - Reads ConsolidationRules from ConfigManager (Task 33).\n  - Stages:\n    - Stage 0: Shadow (100%). Log-only mapping. No user-facing changes aside from optional subtle notices when --verbose.\n    - Stage 1: Cohort (e.g., 20–50%). Alias calls execute canonical handlers with deprecation notices and auto-help redirect; non-cohort users remain in shadow.\n    - Stage 2: Default (100%). Canonical by default; aliases remain supported. If metrics regress or error spikes occur, auto-revert to Stage 0 via kill switch.\n  - Cohort assignment: deterministic hash(user_id or workspace_id, assignment_seed) to ensure stable bucket membership.\n\n4) UX feedback capture and surfaces\n- Add non-intrusive prompts after first N remaps per user/session: \"Was this command behavior expected? [y/N]\" (CLI) or inline toast with thumbs up/down (UI).\n- Store feedback and minimal context locally (SQLite or JSONL) in a privacy-preserving manner: no PII, only alias, canonical_id, exit_code, duration, thumbs, optional freeform comment.\n- Provide a feedback CLI: chatx feedback export --since=.. to review aggregated results.\n\n5) Metrics and success criteria\n- Define duplication_reduction metric: 1 - (unique_effective_actions_post / unique_effective_actions_pre). Target ≥25%.\n- Track error_rate_delta, help_open_rate, re-run_rate (same command re-run within 2m), and satisfaction_rate (thumbs up ratio).\n- Success gate for advancing stages: duplication_reduction ≥25%, error_rate_delta ≤ +0.5 p.p., satisfaction_rate ≥75%, p95 latency change ≤ +5%.\n\n6) Safe migration and rollback\n- One-line kill switch: config flag rollout.flags.kill_switch=true.\n- Versioned rules with monotonic version numbers; on revert, router respects previous version mapping.\n- Clear deprecation window settings; do not remove aliases in this task—only consolidate execution paths.\n\n7) Documentation and ops\n- Update help/usage to display canonical action first with alias badges.\n- Provide a migration doc with before→after examples for all 48→24 clusters.\n- Add release notes and a runbook for toggling stages and exporting feedback.\n\nImplementation notes:\n- Use existing static mapping from Task 35; do not recrawl/learn at runtime.\n- Keep routing latency under 1 ms per invocation (pure table lookup and normalized matching).\n- Ensure deterministic behavior across runs via ConfigManager snapshots and seeded cohorting.\n- Provide JSON schemas for telemetry payloads and feedback records for downstream analytics.\n",
+        "testStrategy": "Unit tests:\n- Router resolution: For every alias in the 48→24 plan, assert alias maps to the correct canonical_id; arguments/options preserved; help redirect strings populated when configured.\n- Shadow mode: Verify original handlers execute while Routed events are logged and no user-facing deprecation is shown by default.\n- Active stages: In cohort/default stages, assert canonical handler is invoked, deprecation notice appears once per session (rate-limited), and exit codes/outputs match legacy behavior.\n- Kill switch: When enabled, verify passthrough to legacy handlers with no consolidation side effects.\n- Deterministic cohorting: Given a fixed assignment_seed and user_id/workspace_id, bucket assignment is stable across runs.\n\nIntegration tests:\n- Stage transitions: Simulate config toggles from shadow → cohort (20%) → default; verify cohort coverage percentages within ±2% on synthetic user IDs and that non-cohort users remain unaffected in Stage 1.\n- Backward compatibility: Run a suite of representative commands per alias and canonical action; assert identical outputs, side effects, and exit codes pre- and post-consolidation.\n- Telemetry and feedback: Trigger routed and fallback events; submit thumbs up/down and optional comments; assert they are persisted, schema-valid, and exportable via CLI.\n- Performance: Measure routing overhead; assert p95 < 1 ms for 10k invocations.\n- Safety and rollback: Introduce a synthetic regression (e.g., canonical handler raises); assert health signals trigger revert (or simulate toggling kill switch) and system returns to shadow behavior.\n\nMetrics validation:\n- Compute duplication_reduction using precomputed \"pre\" baseline (from Task 35 inventory) vs consolidated routing; assert ≥25% reduction.\n- Error rate and latency deltas remain within thresholds defined in details.\n\nDocumentation and UX:\n- Snapshot tests for help output: canonical actions listed first with alias badges and deprecation notes for Stage 1+.\n- Validate migration guide includes all 48→24 mappings with accurate examples.",
+        "status": "pending",
+        "dependencies": [
+          33,
+          35
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 46,
+        "title": "Implement Progressive Command Consolidation (48→24 Safe Migration)",
+        "description": "Create staged consolidation plan to reduce command duplication by 25% through static mapping. Implement 48→24 safe migration with backward compatibility, user experience testing, and feedback collection mechanisms.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          "35",
+          "38"
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 47,
+        "title": "Enhance Predictive Hooks with Cross-Session Pattern Learning",
+        "description": "Implement advanced pattern learning for hooks system to recognize and optimize repeated workflows. Add cross-session learning with deterministic fallback mechanisms and measurable token reduction targets.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          "34"
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 48,
+        "title": "Implement Constrained Dynamic Loading (Revised Track 3)",
+        "description": "Add selective, pattern-based MCP server activation with strict constraints: pre-approved registry, synchronous execution, mandatory health checks, automatic cleanup, and admin override capability. Target 15-25% token reduction through intelligent server loading. Update to leverage available MCP tools (Serena, Claude-context, Task-master, Exa) and integrate with the existing MCP controller architecture for code analysis, symbol management, orchestration, and testing.",
+        "status": "in-progress",
+        "dependencies": [],
+        "priority": "medium",
+        "details": "Scope and goals:\n- Replace any basic file-operation based discovery/activation with MCP-native tooling: Serena for code analysis and symbol graph, Exa for pattern-based capability/server discovery, Task-master for synchronous orchestration and lifecycle, Claude-context for token accounting and context packing.\n- Integrate with the existing MCP controller architecture (controller registry, adapters, lifecycle hooks, health-check protocol) to perform constrained dynamic loading of MCP servers and tools.\n- Maintain strict constraints: pre-approved registry allowlist, synchronous activation, mandatory health checks, automatic cleanup/teardown, and admin override with audit logging. Achieve 15-25% reduction in token usage by only loading necessary servers/tools and trimming context via Claude-context.\n\nArchitecture integration:\n- Implement ConstrainedDynamicLoader in src/mcp/controller/dynamic_loader.py. Expose an interface IDynamicLoader used by the MCP controller to request tool/server activation.\n- Use the controller's registry for the pre-approved allowlist. Patterns may include tool name regex, capability tags, and symbol namespaces.\n- Discovery and selection:\n  1) Use Exa to perform query-based discovery against known MCP server manifests and capability indexes (local repo + remote registry APIs). Map request patterns to candidate servers.\n  2) Use Serena's symbol index to confirm which server exposes the requested tools/symbols and to resolve version/namespace ambiguities. Persist a lightweight cache in the controller's store (no direct file I/O; rely on tool APIs and controller storage abstractions).\n- Orchestration (synchronous):\n  - Use Task-master to run the activation pipeline single-flight per capability key with timeouts, CPU/memory quotas, and cancellation propagation. All activation steps run synchronously relative to the requesting flow, with progress surfaced via controller events.\n- Health checks:\n  - Before exposing a dynamically loaded server, perform MCP-standard health probes (handshake/ping, tool list introspection, optional no-op tool invocation). Require success within timeouts; otherwise reject and emit telemetry.\n- Automatic cleanup:\n  - Use Task-master finalizers to ensure teardown of ephemeral sessions, temporary resources, and symbol cache entries on completion, error, or timeout. Implement idle TTL and reference counting to unload safely when no longer needed.\n- Admin override:\n  - Add RBAC-aware override (role: admin) that can bypass pattern restrictions and load non-allowlisted servers temporarily. All overrides must be tagged, time-bounded, and audit-logged in controller telemetry.\n- Token optimization:\n  - Use Claude-context to estimate predicted token cost of candidate activations and to pack only necessary context/tool manifests. Gate activation on budget policies to reach 15-25% token reductions vs. baseline greedy loading. Record pre/post token usage metrics to validate savings.\n- Observability:\n  - Emit structured events for discovery decisions, health outcomes, activation timings, token deltas, cleanup results, and override usage. Provide counters and traces for SLOs.\n- Configuration:\n  - Loader policies support: allowlist entries, pattern rules (regex/capability tags), timeouts, quotas, token budget thresholds, and admin roles. Keep configuration static at startup and read via existing controller config interfaces. When Task 33 (ConfigManager) lands, wire policies to its schemas without changing this loader’s public API.\n- Security and safety:\n  - Enforce allowlist first, then pattern matching, then health checks. Deny by default. No direct filesystem access from the loader; use MCP tool APIs and controller storage abstractions only. Comprehensive audit logging for overrides and failures.\n\nNon-goals:\n- Do not implement dynamic runtime config reloading. Do not add new external dependencies outside the MCP toolchain and existing controller interfaces.",
+        "testStrategy": "Unit tests:\n- Policy enforcement: verify allowlist and pattern rules deny/allow correctly, including edge cases and malformed patterns.\n- Discovery and selection: mock Exa to return candidate manifests and Serena to return symbol graphs; ensure the selector picks correct servers and rejects mismatches.\n- Orchestration: simulate Task-master single-flight behavior, timeouts, and cancellations; verify synchronous behavior and proper error propagation.\n- Health checks: mock MCP handshake, tool list introspection, and no-op tool calls; assert mandatory health checks gate activation.\n- Token accounting: mock Claude-context estimates and verify activation gating on token budgets and recorded token deltas.\n- Cleanup: verify finalizers always run and resources are released on success, error, and timeout.\n- Admin override: RBAC checks and audit log emission; ensure overrides bypass pattern restrictions but still require health checks.\n\nIntegration tests:\n- End-to-end activation: from request pattern to active tool with Serena and Exa running in test mode; assert telemetry events, health results, and loader state transitions.\n- Failure injection: discovery returns stale or conflicting candidates; health probe failures; Task-master timeout; ensure graceful denial and cleanup.\n- Token reduction validation: run a representative scenario set with baseline greedy loading vs. constrained loader using Claude-context accounting; assert 15-25% reduction median across scenarios, with per-scenario metrics persisted.\n- Concurrency: multiple simultaneous requests for the same and different capabilities; assert single-flight behavior, no duplicate loads, correct reference counting, and teardown after idle TTL.\n\nTooling and harness:\n- Provide mocks/fakes for Serena, Exa, Task-master, and Claude-context where direct invocation is not feasible. Include contract tests against real tool endpoints in CI optional jobs.\n- Snapshot and golden tests for selection decisions and audit logs to detect regressions.\n- Performance tests to measure activation latency and overhead. Security tests to ensure no activation for non-allowlisted servers and that override use is fully logged.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Wire ConstrainedDynamicLoader into MCP controller",
+            "description": "Create src/mcp/controller/dynamic_loader.py with IDynamicLoader interface and ConstrainedDynamicLoader implementation. Register it with the existing controller, routing activation requests through the loader.",
+            "status": "todo",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement pattern-based discovery using Exa and Serena",
+            "description": "Use Exa for query/pattern discovery of candidate MCP servers and Serena to confirm tool/symbol availability and resolve namespaces/versions. Cache results via controller storage, not direct file I/O.",
+            "status": "todo",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Enforce pre-approved registry and policy rules",
+            "description": "Add allowlist validation and pattern rule checks prior to discovery/activation. Deny-by-default with clear error codes and telemetry.",
+            "status": "todo",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Synchronous activation orchestration via Task-master",
+            "description": "Implement single-flight activation per capability key with timeouts, quotas, and cancellation. Ensure activation path is synchronous for callers and exposes progress events.",
+            "status": "todo",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Mandatory health checks before exposure",
+            "description": "Perform handshake/ping, tool-list introspection, and an optional no-op call. Reject unhealthy servers and emit structured telemetry.",
+            "status": "todo",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Token budget estimation and gating with Claude-context",
+            "description": "Estimate token costs for candidate activations, pack minimal context, and gate on policy to reach 15-25% token reduction. Record pre/post token usage.",
+            "status": "todo",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Automatic cleanup and lifecycle finalizers",
+            "description": "Add Task-master finalizers for teardown, implement idle TTL and reference counting, and guarantee cleanup on error/timeout/success.",
+            "status": "todo",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "Admin override with RBAC and audit logging",
+            "description": "Implement an admin-only override path that bypasses pattern restrictions but still enforces health checks. Add time-bounded overrides with complete audit trails.",
+            "status": "todo",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "Telemetry, metrics, and tracing",
+            "description": "Emit events for discovery, selection rationale, health outcomes, activation timings, token deltas, cleanup results, and overrides. Provide counters and traces for CI assertions.",
+            "status": "todo",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 10,
+            "title": "Tests and CI harness for MCP tool-backed loader",
+            "description": "Add unit, integration, and performance tests using mocks/fakes for Serena, Exa, Task-master, and Claude-context. Include failure injection and token reduction benchmarks with golden snapshots.",
+            "status": "todo",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-09-05T23:06:32.151Z",
-      "updated": "2025-09-06T01:57:17.817Z",
+      "updated": "2025-09-06T16:38:29.082Z",
       "description": "Tasks for master context"
     }
   }

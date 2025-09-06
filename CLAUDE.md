@@ -261,3 +261,4 @@ These markdown prompts live under `.claude/commands/` so you (and Claude) can re
 | `/issue-create`     | `.claude/commands/gh/issue-create.md`            | Create issue.                                                   |
 
 > **Token thrift**: Claude-Context ≤**3**; ConPort `limit` **3–5**; **TaskMaster** `status` + `withSubtasks=false`; **Zen** `files≤2` + `continuation_id`; DevDocs **TOC→Section** with small limits; prefer summaries before full context pulls.
+- use serena for file and shell work

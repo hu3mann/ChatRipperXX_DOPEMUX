@@ -100,22 +100,40 @@ class TestNeo4jGraphStore:
     """Test Neo4j graph store implementation."""
 
     @pytest.fixture
-    def mock_neo4j_driver(self):
-        """Mock Neo4j driver."""
-        driver = Mock()
-        session = Mock()
-        driver.session.return_value.__enter__.return_value = session
-        driver.session.return_value.__exit__.return_value = None
+    def mock_async_neo4j_driver(self):
+        """Mock async Neo4j driver."""
+        driver = AsyncMock()
+        session = AsyncMock()
+        
+        # Mock async context manager for sessions
+        driver.session.return_value.__aenter__ = AsyncMock(return_value=session)
+        driver.session.return_value.__aexit__ = AsyncMock(return_value=None)
+        
+        # Mock async session.run results
+        async_result = AsyncMock()
+        async_result.__aiter__ = AsyncMock(return_value=iter([]))
+        session.run.return_value = async_result
+        
         return driver, session
 
     @pytest.fixture
-    def graph_store(self, mock_neo4j_driver):
-        """Create Neo4j graph store with mocked driver."""
-        driver, session = mock_neo4j_driver
+    def graph_store(self, mock_async_neo4j_driver):
+        """Create Neo4j graph store with mocked async driver."""
+        driver, session = mock_async_neo4j_driver
         
-        # Mock the constructor to avoid actual Neo4j connection
-        with pytest.raises(ImportError):
-            store = Neo4jGraphStore("bolt://localhost:7687")
+        store = Neo4jGraphStore(
+            uri="bolt://localhost:7687",
+            auth=("neo4j", "password"),
+            database="neo4j",
+            max_connection_lifetime=300,
+            max_connection_pool_size=25,
+            connection_timeout=30,
+            connection_acquisition_timeout=60
+        )
+        
+        # Replace driver with mock
+        store.driver = driver
+        return store, session
             
     def test_neo4j_import_successful(self):
         """Test successful Neo4j import and instantiation."""
@@ -127,18 +145,123 @@ class TestNeo4jGraphStore:
         assert isinstance(store, Neo4jGraphStore)
 
     @pytest.mark.asyncio
-    async def test_neo4j_connection_and_basic_crud(self):
-        """Test Neo4j connection and basic CRUD operations."""
-        # Mock test - will be implemented with actual Neo4j operations
-        mock_store = Mock(spec=BaseGraphStore)
-        mock_store.connect = AsyncMock()
-        mock_store.disconnect = AsyncMock()
+    async def test_neo4j_async_connection(self, graph_store):
+        """Test async Neo4j connection and disconnection."""
+        from unittest.mock import patch
+        from chatx.storage.graph import AsyncGraphDatabase
         
-        await mock_store.connect()
-        mock_store.connect.assert_called_once()
+        store, session = graph_store
         
-        await mock_store.disconnect()
-        mock_store.disconnect.assert_called_once()
+        # Configure the mock driver's session context manager properly
+        session_context = AsyncMock()
+        session_context.__aenter__ = AsyncMock(return_value=session)
+        session_context.__aexit__ = AsyncMock(return_value=None)
+        mock_driver = AsyncMock()
+        mock_driver.session.return_value = session_context
+        
+        # Mock AsyncGraphDatabase.driver to return our configured mock driver
+        with patch.object(AsyncGraphDatabase, 'driver', return_value=mock_driver):
+            await store.connect()
+            mock_driver.session.assert_called_with(database="neo4j")
+            session.run.assert_called_with("RETURN 1")
+        
+        # Test disconnection (now using the mock_driver)
+        await store.disconnect()
+        mock_driver.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_async_session_context_management(self, graph_store):
+        """Test that async sessions are properly managed."""
+        store, session = graph_store
+        
+        # Mock a simple query
+        await store.get_conversation_graph("test_conv")
+        
+        # Verify async session context was used
+        store.driver.session.assert_called_with(database="neo4j")
+        store.driver.session.return_value.__aenter__.assert_called()
+        store.driver.session.return_value.__aexit__.assert_called()
+
+    @pytest.mark.asyncio 
+    async def test_async_query_execution(self, graph_store):
+        """Test that queries are properly awaited."""
+        store, session = graph_store
+        
+        # Mock query result with records
+        mock_records = [
+            {"id": "node_1", "type": "chunk", "props": {"text": "test"}},
+            {"id": "node_2", "type": "chunk", "props": {"text": "test2"}}
+        ]
+        
+        async def mock_aiter():
+            for record in mock_records:
+                yield record
+        
+        session.run.return_value.__aiter__ = mock_aiter
+        
+        # Execute query
+        result = await store.get_conversation_graph("test_conv")
+        
+        # Verify async run was called
+        session.run.assert_called()
+        
+        # Should handle empty results gracefully
+        assert result is None  # No nodes found in this mock
+
+    @pytest.mark.asyncio
+    async def test_configuration_integration(self):
+        """Test Neo4j store creation from pydantic config."""
+        from chatx.utils.config import Neo4jConfig
+        
+        # Create config
+        config = Neo4jConfig(
+            uri="bolt://test:7687",
+            username="testuser",
+            password="testpass",
+            max_connection_lifetime=600,
+            max_connection_pool_size=50,
+            connection_timeout=15
+        )
+        
+        # Create store from config
+        store = Neo4jGraphStore.from_config(config)
+        
+        # Verify configuration was applied
+        assert store.uri == "bolt://test:7687"
+        assert store.auth == ("testuser", "testpass")
+        assert store.max_connection_lifetime == 600
+        assert store.max_connection_pool_size == 50
+        assert store.connection_timeout == 15
+
+    @pytest.mark.asyncio
+    async def test_async_driver_configuration(self, mock_async_neo4j_driver):
+        """Test that async driver is created with proper configuration."""
+        from chatx.storage.graph import AsyncGraphDatabase
+        
+        driver, session = mock_async_neo4j_driver
+        
+        # Create store with custom config
+        store = Neo4jGraphStore(
+            uri="bolt://localhost:7687",
+            auth=("neo4j", "password"),
+            max_connection_lifetime=500,
+            max_connection_pool_size=75,
+            connection_timeout=20
+        )
+        
+        # Mock AsyncGraphDatabase.driver
+        from unittest.mock import patch
+        with patch.object(AsyncGraphDatabase, 'driver', return_value=driver) as mock_driver:
+            await store.connect()
+            
+            # Verify driver was created with proper config
+            mock_driver.assert_called_once_with(
+                "bolt://localhost:7687",
+                auth=("neo4j", "password"),
+                max_connection_lifetime=500,
+                max_connection_pool_size=75,
+                connection_timeout=20
+            )
 
     @pytest.mark.asyncio
     async def test_conversation_to_graph_transformation(self):

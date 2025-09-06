@@ -67,7 +67,7 @@ def estimate_token_usage(tool_name, tool_input):
     # High token usage tools
     if "zen" in tool_lower:
         return 29000
-    elif "task-master-ai" in tool_lower and "get_tasks" in tool_lower:
+    elif "task-master-ai" in tool_lower:
         if tool_input.get("status") or tool_input.get("withSubtasks") == False:
             return 1500  # Filtered
         return 6000  # Unfiltered
