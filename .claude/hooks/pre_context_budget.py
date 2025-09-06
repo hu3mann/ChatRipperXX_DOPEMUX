@@ -4,9 +4,9 @@ import json
 import os
 CONPORT_STRICT = os.getenv("HOOKS_CONPORT_STRICT", "1") == "1"
 EXA_MIN_QUERY_LEN = int(os.getenv("HOOKS_EXA_MIN_QUERY_LEN", "3"))
-CLAUDE_CONTEXT_MAX_RESULTS = int(os.getenv("HOOKS_CLAUDE_CONTEXT_MAX_RESULTS", "5"))
-TASKMASTER_DEFAULT_LIMIT = int(os.getenv("HOOKS_TASKMASTER_LIMIT", "5"))
-ZEN_MAX_FILES = int(os.getenv("HOOKS_ZEN_MAX_FILES", "2"))
+CLAUDE_CONTEXT_MAX_RESULTS = int(os.getenv("HOOKS_CLAUDE_CONTEXT_MAX_RESULTS", "3"))
+TASKMASTER_DEFAULT_LIMIT = int(os.getenv("HOOKS_TASKMASTER_LIMIT", "3"))
+ZEN_MAX_FILES = int(os.getenv("HOOKS_ZEN_MAX_FILES", "1"))
 GENERIC_TERMS = {"help","docs","documentation","fix","error","issue","bug","search"}
 def out(decision, reason): print(json.dumps({"decision": decision, "permissionDecisionReason": reason}), flush=True)
 def main():

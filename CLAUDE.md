@@ -67,12 +67,14 @@ Produce **small, correct patches** that build and pass first run, leveraging **M
 * **PreToolUse**
   * Block/ask on dangerous shell (`sudo`, `rm`) and network installs (`curl`, `wget`, `pip install`, `npm install`).
   * Prevent reading sensitive files (`.env`, `secrets/**`).
-  * Token thrift nudges:
-    * **ConPort** → use summaries/search with small `limit` before full context.
-    * **Claude-Context** → cap results ≤ 3 (down from 5).
-    * **TaskMaster** → use `status` filters + `withSubtasks=false` (saves ~5k tokens).
-    * **Zen** → limit context files ≤2, reuse `continuation_id` for long chats.
-    * **Exa** → refine over-broad queries, min 5 chars (up from 3).
+  * **Token thrift nudges** (Target: <25k MCP context):
+    * **Zen (~29k tokens)** → MANDATORY `files≤1` + `continuation_id` reuse; avoid for simple tasks
+    * **TaskMaster (~21k tokens)** → ALWAYS use `status=pending` + `withSubtasks=false` (saves ~15k)
+    * **ConPort (~17k tokens)** → use `limit=3-5` on searches; summaries before full context
+    * **Serena (~15k tokens)** → prefer symbolic tools over full file reads
+    * **Claude-Context** → cap results ≤3 (down from 5)
+    * **Exa** → refine over-broad queries, min 5 chars; prefer specific lib/error terms
+    * **Fast-Markdown (~4k tokens)** → use section-specific queries vs full file reads
 * **PostToolUse** (on write/edit, including **Serena** changes): run `ruff`, `mypy`, and `pytest --cov-fail-under=${HOOKS_COV_MIN:-90}`.
 
 See `.claude/hooks/README.md` for matcher examples (include both `mcp__claude-context__.*` and `mcp__claude_context__.*`).
@@ -90,6 +92,53 @@ See `.claude/hooks/README.md` for matcher examples (include both `mcp__claude-co
 5. **Repository Operations**: Use semantic tools first, bash only for git commands and operations the sophisticated tools cannot handle
 
 **Enforcement**: This is a hard requirement - using basic bash commands when better tools exist is a workflow violation.
+
+## MCP Server Token Budget Management (CRITICAL)
+
+**Current Usage: ~93k tokens from MCP tools alone**
+
+### High-Impact Token Reduction (Priority Order)
+
+1. **Zen Server (~29k tokens)** - MOST EXPENSIVE
+   - Use ONLY for complex multi-step workflows requiring expert analysis
+   - MANDATORY: `files≤1` parameter (not ≤2)
+   - ALWAYS reuse `continuation_id` for follow-ups
+   - Consider basic tools first before Zen workflows
+
+2. **TaskMaster (~21k tokens)** - SECOND MOST EXPENSIVE  
+   - DEFAULT pattern: `status=pending withSubtasks=false` (saves ~15k tokens)
+   - Use `get_task id=X` for specific tasks vs `get_tasks`
+   - Filter by status before expanding with subtasks
+   - Batch operations when possible
+
+3. **ConPort (~17k tokens)** - THIRD MOST EXPENSIVE
+   - ALWAYS use `limit=3-5` on searches and gets
+   - Use `search_*_fts` with targeted queries vs broad gets
+   - Summary-first approach: search → targeted get → full context (last resort)
+
+4. **Serena (~15k tokens)** - FOURTH MOST EXPENSIVE
+   - Prefer `find_symbol` + `get_symbols_overview` over `read_file`
+   - Use `search_for_pattern` with specific regex vs broad file reads
+   - Target specific functions/classes, not entire files
+
+### Token-Efficient Alternatives
+
+| Instead of | Use This | Token Savings |
+|------------|----------|---------------|
+| `zen` workflow | Basic tools (Read, Edit, Bash) | ~25k tokens |
+| `get_tasks` unlimited | `get_tasks status=pending withSubtasks=false` | ~15k tokens |
+| ConPort full context | `search_decisions_fts` with `limit=3` | ~10k tokens |
+| `read_file` entire file | `find_symbol` + targeted reads | ~5k tokens |
+| `get_active_context` | `search_custom_data_value_fts` | ~3k tokens |
+
+### Emergency Token Budget Protocol
+
+If context exceeds 100k tokens:
+1. **STOP** using Zen tools immediately  
+2. Switch TaskMaster to `status=pending withSubtasks=false`
+3. Use ConPort with `limit=1-2` maximum
+4. Prefer Serena symbolic tools over file reads
+5. Consider `/clear` to reset context
 
 ## Core Project Constraints
 
