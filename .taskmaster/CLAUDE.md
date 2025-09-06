@@ -284,6 +284,61 @@ task-master models --set-fallback gpt-4o-mini
 }
 ```
 
+## Token Optimization for MCP Usage
+
+### High-Impact Token Savings
+
+**TaskMaster MCP calls** can consume **6,000+ tokens** per `get_tasks` without filtering. Use these patterns:
+
+**✅ Token-Efficient (Recommended)**:
+```javascript
+// Default pattern - saves ~5k tokens
+mcp__task-master-ai__get_tasks:
+- projectRoot: /absolute/path
+- status: "pending" 
+- withSubtasks: false
+```
+
+**⚠️ Medium Token Usage**:
+```javascript  
+// When you need more context - ~1.5k tokens
+mcp__task-master-ai__get_tasks:
+- projectRoot: /absolute/path
+- status: "pending,in-progress"
+- withSubtasks: false
+- limit: 10
+```
+
+**🔴 High Token Usage** (use sparingly):
+```javascript
+// Full context - ~6k tokens
+mcp__task-master-ai__get_tasks:
+- projectRoot: /absolute/path
+- withSubtasks: true
+```
+
+### MCP Hook Protection
+
+Your `.claude/hooks/pre_context_budget.py` now enforces:
+- **TaskMaster**: Requires `status` filter or `withSubtasks=false`
+- **Environment**: Set `HOOKS_TASKMASTER_LIMIT=5` for default limits
+
+### Token-Conscious Command Examples
+
+```bash
+# Efficient patterns
+task-master list --status=pending        # CLI equivalent
+mcp__task-master-ai__get_tasks status=pending withSubtasks=false
+
+# When you need specific tasks
+task-master show 1,2,3                   # CLI equivalent  
+mcp__task-master-ai__get_task id="1,2,3"
+
+# Avoid unlimited queries
+# ❌ mcp__task-master-ai__get_tasks (no filters)
+# ✅ mcp__task-master-ai__get_tasks status=pending withSubtasks=false
+```
+
 ## Claude Code Best Practices with Task Master
 
 ### Context Management

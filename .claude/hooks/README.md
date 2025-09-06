@@ -37,6 +37,14 @@ echo '{"event":"PreToolUse","tool":"mcp__exa__web_search","toolInput":{"query":"
 ```
 
 ## Environment variables
+
+### Security & Quality Gates
 - `HOOKS_DISABLE_NETWORK=1` (default), `HOOKS_BLOCK_SUDO=1`, `HOOKS_BLOCK_RM=1`
 - `HOOKS_COV_MIN=60` (raise to 90 if desired), `HOOKS_TEST_ARGS=-q`
-- `HOOKS_CONPORT_STRICT=1`, `HOOKS_EXA_MIN_QUERY_LEN=3`, `HOOKS_CLAUDE_CONTEXT_MAX_RESULTS=5`
+
+### Token Optimization (Recommended Settings)
+- `HOOKS_CONPORT_STRICT=1`, `HOOKS_EXA_MIN_QUERY_LEN=5`, `HOOKS_CLAUDE_CONTEXT_MAX_RESULTS=3`
+- `HOOKS_TASKMASTER_LIMIT=5`, `HOOKS_ZEN_MAX_FILES=2`
+
+### Legacy/Loose Settings (Higher Token Usage)
+- `HOOKS_EXA_MIN_QUERY_LEN=3`, `HOOKS_CLAUDE_CONTEXT_MAX_RESULTS=5`

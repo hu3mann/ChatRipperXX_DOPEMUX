@@ -69,8 +69,10 @@ Produce **small, correct patches** that build and pass first run, leveraging **M
   * Prevent reading sensitive files (`.env`, `secrets/**`).
   * Token thrift nudges:
     * **ConPort** → use summaries/search with small `limit` before full context.
-    * **Claude-Context** → cap results ≤ 5.
-    * **Exa** → refine over-broad queries.
+    * **Claude-Context** → cap results ≤ 3 (down from 5).
+    * **TaskMaster** → use `status` filters + `withSubtasks=false` (saves ~5k tokens).
+    * **Zen** → limit context files ≤2, reuse `continuation_id` for long chats.
+    * **Exa** → refine over-broad queries, min 5 chars (up from 3).
 * **PostToolUse** (on write/edit, including **Serena** changes): run `ruff`, `mypy`, and `pytest --cov-fail-under=${HOOKS_COV_MIN:-90}`.
 
 See `.claude/hooks/README.md` for matcher examples (include both `mcp__claude-context__.*` and `mcp__claude_context__.*`).
@@ -209,4 +211,4 @@ These markdown prompts live under `.claude/commands/` so you (and Claude) can re
 | `/pr-merge`         | `.claude/commands/gh/pr-merge.md`                | Merge PR (squash).                                              |
 | `/issue-create`     | `.claude/commands/gh/issue-create.md`            | Create issue.                                                   |
 
-> Token thrift: Claude-Context results ≤ **5**; ConPort list/search with `limit` **3–5**; DevDocs use **TOC → Section** with small limits; prefer summaries before full context pulls.
+> **Token thrift**: Claude-Context ≤**3**; ConPort `limit` **3–5**; **TaskMaster** `status` + `withSubtasks=false`; **Zen** `files≤2` + `continuation_id`; DevDocs **TOC→Section** with small limits; prefer summaries before full context pulls.

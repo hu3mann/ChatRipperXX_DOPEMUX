@@ -27,8 +27,19 @@ Let me parse your request intelligently:
    - "1-5" → tasks 1 through 5
    - "subtasks tree" → hierarchical view with subtasks
 
-3. **Execute Appropriate Query**
-   Based on parsed intent, run the most specific task-master command
+3. **Execute Token-Efficient Query**
+   Based on parsed intent, use the most efficient TaskMaster call:
+   
+   **Default Pattern** (recommended - saves ~5k tokens):
+   - Always start with `status` filter and `withSubtasks=false`
+   - Use `limit≤10` for unfiltered queries
+   - Example: `status=pending withSubtasks=false`
+   
+   **Token-Conscious Execution**:
+   - "pending" → `status=pending withSubtasks=false`
+   - "pending high" → `status=pending withSubtasks=false` + client-side priority filter
+   - "1-5" → `status=pending,done withSubtasks=false limit=10` + client-side ID filter
+   - "blocked" → `status=pending withSubtasks=false` + dependency analysis
 
 4. **Enhanced Display**
    - Group by relevant criteria
