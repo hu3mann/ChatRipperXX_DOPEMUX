@@ -138,23 +138,21 @@ class TestPreToolGuard:
     @patch.dict(os.environ, {"HOOKS_ENABLE_ADAPTIVE_SECURITY": "1"})
     def test_check_legitimate_patterns(self):
         """Test legitimate development pattern detection"""
-        # Temporarily enable adaptive security for pattern testing
-        with patch('pre_tool_guard.ADAPTIVE_SECURITY', True):
-            # Legitimate patterns
-            assert check_legitimate_patterns("git status") is True
-            assert check_legitimate_patterns("python -m pytest") is True
-            assert check_legitimate_patterns("npm run test") is True
-            assert check_legitimate_patterns("docker build .") is True
-            assert check_legitimate_patterns("ls -la") is True
-            assert check_legitimate_patterns("cat file.txt") is True
-            assert check_legitimate_patterns("mkdir new_folder") is True
-            assert check_legitimate_patterns("cp src/file.py dest/") is True
+        # Legitimate patterns
+        assert check_legitimate_patterns("git status") is True
+        assert check_legitimate_patterns("python -m pytest") is True
+        assert check_legitimate_patterns("npm run test") is True
+        assert check_legitimate_patterns("docker build .") is True
+        assert check_legitimate_patterns("ls -la") is True
+        assert check_legitimate_patterns("cat file.txt") is True
+        assert check_legitimate_patterns("mkdir new_folder") is True
+        assert check_legitimate_patterns("cp src/file.py dest/") is True
 
-            # Non-legitimate patterns
-            assert check_legitimate_patterns("rm -rf /") is False
-            assert check_legitimate_patterns("sudo apt update") is False
-            assert check_legitimate_patterns("") is False
-            assert check_legitimate_patterns("random command") is False
+        # Non-legitimate patterns
+        assert check_legitimate_patterns("rm -rf /") is False
+        assert check_legitimate_patterns("sudo apt update") is False
+        assert check_legitimate_patterns("") is False
+        assert check_legitimate_patterns("random command") is False
 
     def test_out_function_json_output(self, capsys):
         """Test that out function produces valid JSON output"""
