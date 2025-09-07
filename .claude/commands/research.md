@@ -1,1 +1,1 @@
-DevDocs TOC→Section + Exa; log sources & unknowns to ConPort.
+context7 API docs + Exa; log sources & unknowns to ConPort.

@@ -29,7 +29,7 @@ git branch  # Confirm on feature branch
 ### 1.3 Research & Requirements Gathering
 ```bash
 /research
-# → DevDocs TOC→Section + Exa search
+# → context7 API docs + Exa search
 # → Log sources, unknowns to ConPort
 # → Gather API docs, examples, constraints
 ```

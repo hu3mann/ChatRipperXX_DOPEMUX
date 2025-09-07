@@ -15,8 +15,8 @@
    - Check for any local LLM configurations: `src/chatx/enrichment/`
    - Validate test coverage exists for privacy components
 
-3. **DevDocs Context Retrieval**
-   - Query DevDocs TOC for relevant privacy engineering patterns
+3. **context7 Documentation Retrieval**
+   - Query context7 for relevant privacy engineering patterns
    - Fetch sections on differential privacy implementation
    - Retrieve forensic analysis best practices if applicable
 

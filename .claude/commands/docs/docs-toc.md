@@ -1,1 +1,1 @@
-List DevDocs TOC; choose smallest relevant sections.
+Search context7 library docs; choose most relevant sections.

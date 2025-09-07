@@ -5,7 +5,7 @@
 ### **Phase 1: Planning & Design**
 1. **Task Setup**: `task-master next` → `task-master show <id>` → `task-master set-status in-progress`
 2. **Branch Isolation**: `git checkout -b feature/name-$(date +%s)` *(multi-session safe)*
-3. **Research**: `/research` *(DevDocs + Exa → ConPort)*
+3. **Research**: `/research` *(context7 + Exa → ConPort)*
 4. **Requirements**: `/story` *(user story + AC + NFR → ConPort)*
 5. **Design**: `/plan` *(sequential_thinking → ≤5 steps with files/tests → ConPort)*
 

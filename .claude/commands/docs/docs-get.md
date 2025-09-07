@@ -1,1 +1,1 @@
-Fetch a specific DevDocs section by id.
+Search context7 for specific API documentation.

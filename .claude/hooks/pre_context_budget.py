@@ -11,6 +11,7 @@ CLAUDE_CONTEXT_MAX_RESULTS = int(os.getenv("HOOKS_CLAUDE_CONTEXT_MAX_RESULTS", "
 TASKMASTER_DEFAULT_LIMIT = int(os.getenv("HOOKS_TASKMASTER_LIMIT", "3"))
 ZEN_MAX_FILES = int(os.getenv("HOOKS_ZEN_MAX_FILES", "1"))
 SMART_OPTIMIZATION = os.getenv("HOOKS_ENABLE_SMART_OPTIMIZATION", "0") == "1"
+DEV_MODE = os.getenv("HOOKS_DEV_MODE", "0") == "1"
 GENERIC_TERMS = {"help","docs","documentation","fix","error","issue","bug","search"}
 
 def out(decision, reason): 
@@ -111,6 +112,11 @@ def get_smart_suggestions(tool_name, tool_input):
     return suggestions
 
 def main():
+    # Development mode bypass - allows smooth development workflow
+    if DEV_MODE:
+        out("allow", "🚀 Development mode - bypassing token restrictions")
+        return
+        
     try: 
         data = json.loads(sys.stdin.read() or "{}")
     except Exception: 

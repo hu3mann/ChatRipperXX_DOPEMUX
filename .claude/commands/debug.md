@@ -1,1 +1,1 @@
-Repro→isolate→fix; cite DevDocs sections; add guard tests; ConPort postmortem.
+Repro→isolate→fix; cite context7 API docs; add guard tests; ConPort postmortem.

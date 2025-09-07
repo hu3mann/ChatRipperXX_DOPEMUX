@@ -29,7 +29,7 @@ Produce **small, correct patches** that build and pass first run, leveraging **M
 **Context & Planning**: Sequential Thinking (reasoning), TaskMaster (task breakdown/exec), Claude-Context (semantic code search), Serena (IDE LSP edits)  
 **Search**: Exa (high-signal realtime dev search)  
 **Integration**: **CLI (Shell Command MCP)** — whitelisted `git`/`gh` (optional read-only `ls`,`cat`); **Zen** (multi-model orchestration; untrimmed)  
-**Docs**: **DevDocs (CyberAGI)** — tech docs ingestion + query *(TOC → Section Access)*
+**Docs**: **context7** — tech docs ingestion + query *(authoritative API docs)*
 
 > Manage: `claude mcp list|add-json|get|remove`
 
@@ -39,11 +39,11 @@ Produce **small, correct patches** that build and pass first run, leveraging **M
 
 **/bootstrap** → preflight: summarize task (≤5 bullets), fetch hot files, get API docs, query memory, confirm constraints, propose tiny test-first plan
 
-**Research** → `/research` pulls **DevDocs** *(TOC → Section)* + **Exa** sources → synthesize requirements + risks  
+**Research** → `/research` pulls **context7** *(authoritative APIs)* + **Exa** sources → synthesize requirements + risks  
 **Story** → `/story` converts research → user story + AC + non-functional constraints → **ConPort**  
 **Plan** → `/plan` uses **sequential_thinking** → ≤5 steps mapping to files + tests  
 **Implement** → `/implement` writes tests first, minimal edits via **local_files/Serena**, runs checks, loops until green  
-**Debug** → `/debug` narrows repro, instruments, proposes smallest fix + cites **DevDocs** section behavior  
+**Debug** → `/debug` narrows repro, instruments, proposes smallest fix + cites **context7** API behavior  
 **Ship** → `/ship` updates docs + ADR stubs + **ConPort** decision; then via **CLI MCP**:  
 `git add -A` → `git commit -m "type(scope): summary"` → `git push` →  
 `gh pr create -t "<title>" -b "<desc>"` → monitor `gh pr status` / `gh pr checks` →  
@@ -154,7 +154,7 @@ If context exceeds 100k tokens:
 
 **Core Workflow**:
 * `/bootstrap` — session preflight (context gather + constraints + tiny plan)
-* `/research` — API/doc ingest (**DevDocs** + Exa) → risks + unknowns → **ConPort**
+* `/research` — API/doc ingest (**context7** + Exa) → risks + unknowns → **ConPort**
 * `/story` — user story + AC + test checklist → **ConPort**
 * `/plan` — sequential plan with explicit file list + test ordering
 * `/implement` — tests-first loop; minimal diffs; cite docs used
@@ -243,11 +243,11 @@ These markdown prompts live under `.claude/commands/` so you (and Claude) can re
 | Slash command       | Prompt file                                      | Notes                                                           |
 | ------------------- | ------------------------------------------------ | --------------------------------------------------------------- |
 | `/bootstrap`        | `.claude/commands/bootstrap.md`                  | Hot files + Exa docs + OpenMemory/ConPort fetch; tiny TDD plan. |
-| `/research`         | `.claude/commands/research.md`                   | DevDocs TOC→Section + Exa; log to ConPort.                      |
+| `/research`         | `.claude/commands/research.md`                   | context7 API docs + Exa; log to ConPort.                      |
 | `/story`            | `.claude/commands/story.md`                      | Story + AC + NFR; write docs; ConPort decision.                 |
 | `/plan`             | `.claude/commands/plan.md`                       | Sequential steps (+ slice mode); log to ConPort.                |
 | `/implement`        | `.claude/commands/implement.md`                  | Tests-first; Serena edits; ConPort progress.                    |
-| `/debug`            | `.claude/commands/debug.md`                      | Repro→isolate→fix; postmortem; cite DevDocs.                    |
+| `/debug`            | `.claude/commands/debug.md`                      | Repro→isolate→fix; postmortem; cite context7.                    |
 | `/ship`             | `.claude/commands/ship.md`                       | Docs + ADR stub; ConPort decision; commit/PR/merge (CLI MCP).   |
 | `/switch`           | `.claude/commands/switch.md`                     | Compact slice → ConPort/OpenMemory.                             |
 | `/tdd`              | `.claude/commands/tdd-loop.md`                   | Red→Green→Refactor; cov `${HOOKS_COV_MIN:-90}`.               |
@@ -261,9 +261,9 @@ These markdown prompts live under `.claude/commands/` so you (and Claude) can re
 | `/get-decisions`    | `.claude/commands/get-decisions.md`              | ConPort decisions list.                                         |
 | `/search-decisions` | `.claude/commands/search-decisions.md`           | ConPort FTS over decisions.                                     |
 | `/mem-query`        | `.claude/commands/mem-query.md`                  | OpenMemory retrieval.                                           |
-| `/docs-toc`         | `.claude/commands/docs/docs-toc.md`              | DevDocs TOC (small limit).                                      |
-| `/docs-get`         | `.claude/commands/docs/docs-get.md`              | DevDocs section by id.                                          |
-| `/docs-index`       | `.claude/commands/docs/docs-index.md`            | DevDocs add/crawl a source.                                     |
+| `/context7-search`  | `.claude/commands/docs/docs-toc.md`              | context7 API search.                                      |
+| `/context7-get`     | `.claude/commands/docs/docs-get.md`              | context7 documentation.                                          |
+| `/context7-add`     | `.claude/commands/docs/docs-index.md`            | context7 add library docs.                                     |
 | `/zen`              | `.claude/commands/zen.md`                        | Route instruction to Zen workflow.                              |
 | `/zen-continue`     | `.claude/commands/zen-continue.md`               | Zen context recovery.                                           |
 | `/git-commit`       | `.claude/commands/git/git-commit.md`             | Conventional Commit → push.                                     |
@@ -272,5 +272,5 @@ These markdown prompts live under `.claude/commands/` so you (and Claude) can re
 | `/pr-merge`         | `.claude/commands/gh/pr-merge.md`                | Merge PR (squash).                                              |
 | `/issue-create`     | `.claude/commands/gh/issue-create.md`            | Create issue.                                                   |
 
-> **Token thrift**: Claude-Context ≤**3**; ConPort `limit` **3–5**; **TaskMaster** `status` + `withSubtasks=false`; **Zen** `files≤2` + `continuation_id`; DevDocs **TOC→Section** with small limits; prefer summaries before full context pulls.
+> **Token thrift**: Claude-Context ≤**3**; ConPort `limit` **3–5**; **TaskMaster** `status` + `withSubtasks=false`; **Zen** `files≤2` + `continuation_id`; **context7** with API search limits; prefer summaries before full context pulls.
 - use serena for file and shell work
