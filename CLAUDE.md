@@ -27,9 +27,9 @@ Produce **small, correct patches** that build and pass first run, leveraging **M
 
 **Persistence**: OpenMemory (cross-session personal), ConPort (project memory/knowledge)  
 **Context & Planning**: Sequential Thinking (reasoning), TaskMaster (task breakdown/exec), Claude-Context (semantic code search), Serena (IDE LSP edits)  
-**Search**: Exa (high-signal realtime dev search)  
+**Search**: Exa (high-signal realtime web research), **Context7** (authoritative library docs)  
 **Integration**: **CLI (Shell Command MCP)** — whitelisted `git`/`gh` (optional read-only `ls`,`cat`); **Zen** (multi-model orchestration; untrimmed)  
-**Docs**: **context7** — tech docs ingestion + query *(authoritative API docs)*
+**Docs**: **Context7** — tech docs ingestion + query *(authoritative API docs)*
 
 > Manage: `claude mcp list|add-json|get|remove`
 
@@ -39,11 +39,11 @@ Produce **small, correct patches** that build and pass first run, leveraging **M
 
 **/bootstrap** → preflight: summarize task (≤5 bullets), fetch hot files, get API docs, query memory, confirm constraints, propose tiny test-first plan
 
-**Research** → `/research` pulls **context7** *(authoritative APIs)* + **Exa** sources → synthesize requirements + risks  
+**Research** → `/research` pulls **Context7** *(authoritative library docs)* + **Exa** *(web research)* → synthesize requirements + risks  
 **Story** → `/story` converts research → user story + AC + non-functional constraints → **ConPort**  
 **Plan** → `/plan` uses **sequential_thinking** → ≤5 steps mapping to files + tests  
 **Implement** → `/implement` writes tests first, minimal edits via **local_files/Serena**, runs checks, loops until green  
-**Debug** → `/debug` narrows repro, instruments, proposes smallest fix + cites **context7** API behavior  
+**Debug** → `/debug` narrows repro, instruments, proposes smallest fix + cites **Context7** API behavior  
 **Ship** → `/ship` updates docs + ADR stubs + **ConPort** decision; then via **CLI MCP**:  
 `git add -A` → `git commit -m "type(scope): summary"` → `git push` →  
 `gh pr create -t "<title>" -b "<desc>"` → monitor `gh pr status` / `gh pr checks` →  
@@ -154,17 +154,24 @@ If context exceeds 100k tokens:
 
 **Core Workflow**:
 * `/bootstrap` — session preflight (context gather + constraints + tiny plan)
-* `/research` — API/doc ingest (**context7** + Exa) → risks + unknowns → **ConPort**
+* `/research` — API/doc ingest (**Context7** + Exa) → risks + unknowns → **ConPort**
+* `/context7-ingest` — **PRE-DEVELOPMENT**: Load library documentation for code generation context
 * `/story` — user story + AC + test checklist → **ConPort**
 * `/plan` — sequential plan with explicit file list + test ordering
-* `/implement` — tests-first loop; minimal diffs; cite docs used
-* `/debug` — repro → isolate → fix; add guard tests
+* `/implement` — **Context7-informed**: tests-first loop with up-to-date library docs & examples
+* `/debug` — **Context7-guided**: repro → isolate → fix with authoritative API references
 * `/ship` — docs + ADR stub + **ConPort** decision; commit/PR/merge via **CLI MCP** (`git`/`gh`)
 * `/complete` — full quality gates (lint/types/tests/coverage) + feature branch + conventional commit + detailed PR
 * `/commit-pr` — quick automated commit/PR with quality verification (tests/lint/types/coverage ≥90%)
 * `/tm/complete-task` — TaskMaster task completion + quality gates + commit/PR workflow
 * `/switch` — compact state → **OpenMemory** + **ConPort**; clear transient memory
 * `/retrospect` — post-run: what worked/failed + follow-ups → Mem0 + backlog
+
+**Context7 Documentation**:
+* `/context7-ingest` — **PRE-DEVELOPMENT**: Load library documentation for code generation context
+* `/context7-search` — Query Context7 for library API documentation and code examples
+* `/context7-examples` — Extract code examples and patterns from library documentation
+* `/context7-compare` — Compare documentation and API changes between library versions
 
 **Memory Helpers**:
 * `/decision` — log decision to **ConPort** (mirror to OpenMemory if cross-project)
@@ -243,11 +250,15 @@ These markdown prompts live under `.claude/commands/` so you (and Claude) can re
 | Slash command       | Prompt file                                      | Notes                                                           |
 | ------------------- | ------------------------------------------------ | --------------------------------------------------------------- |
 | `/bootstrap`        | `.claude/commands/bootstrap.md`                  | Hot files + Exa docs + OpenMemory/ConPort fetch; tiny TDD plan. |
-| `/research`         | `.claude/commands/research.md`                   | context7 API docs + Exa; log to ConPort.                      |
+| `/research`         | `.claude/commands/research.md`                   | Context7 API docs + Exa web research; log to ConPort.          |
+| `/context7-ingest`  | `.claude/commands/context7-ingest.md`            | **PRE-DEVELOPMENT**: Load library docs for code generation.     |
+| `/context7-search`  | `.claude/commands/context7-search.md`            | Query Context7 for library API docs and examples.               |
+| `/context7-examples`| `.claude/commands/context7-examples.md`           | Extract code examples and patterns from documentation.          |
+| `/context7-compare` | `.claude/commands/context7-compare.md`           | Compare library versions and breaking changes.                  |
 | `/story`            | `.claude/commands/story.md`                      | Story + AC + NFR; write docs; ConPort decision.                 |
 | `/plan`             | `.claude/commands/plan.md`                       | Sequential steps (+ slice mode); log to ConPort.                |
 | `/implement`        | `.claude/commands/implement.md`                  | Tests-first; Serena edits; ConPort progress.                    |
-| `/debug`            | `.claude/commands/debug.md`                      | Repro→isolate→fix; postmortem; cite context7.                    |
+| `/debug`            | `.claude/commands/debug.md`                      | Repro→isolate→fix; postmortem; cite Context7 API behavior.      |
 | `/ship`             | `.claude/commands/ship.md`                       | Docs + ADR stub; ConPort decision; commit/PR/merge (CLI MCP).   |
 | `/switch`           | `.claude/commands/switch.md`                     | Compact slice → ConPort/OpenMemory.                             |
 | `/tdd`              | `.claude/commands/tdd-loop.md`                   | Red→Green→Refactor; cov `${HOOKS_COV_MIN:-90}`.               |
@@ -261,9 +272,6 @@ These markdown prompts live under `.claude/commands/` so you (and Claude) can re
 | `/get-decisions`    | `.claude/commands/get-decisions.md`              | ConPort decisions list.                                         |
 | `/search-decisions` | `.claude/commands/search-decisions.md`           | ConPort FTS over decisions.                                     |
 | `/mem-query`        | `.claude/commands/mem-query.md`                  | OpenMemory retrieval.                                           |
-| `/context7-search`  | `.claude/commands/docs/docs-toc.md`              | context7 API search.                                      |
-| `/context7-get`     | `.claude/commands/docs/docs-get.md`              | context7 documentation.                                          |
-| `/context7-add`     | `.claude/commands/docs/docs-index.md`            | context7 add library docs.                                     |
 | `/zen`              | `.claude/commands/zen.md`                        | Route instruction to Zen workflow.                              |
 | `/zen-continue`     | `.claude/commands/zen-continue.md`               | Zen context recovery.                                           |
 | `/git-commit`       | `.claude/commands/git/git-commit.md`             | Conventional Commit → push.                                     |
@@ -272,5 +280,5 @@ These markdown prompts live under `.claude/commands/` so you (and Claude) can re
 | `/pr-merge`         | `.claude/commands/gh/pr-merge.md`                | Merge PR (squash).                                              |
 | `/issue-create`     | `.claude/commands/gh/issue-create.md`            | Create issue.                                                   |
 
-> **Token thrift**: Claude-Context ≤**3**; ConPort `limit` **3–5**; **TaskMaster** `status` + `withSubtasks=false`; **Zen** `files≤2` + `continuation_id`; **context7** with API search limits; prefer summaries before full context pulls.
+> **Token thrift**: Claude-Context ≤**3**; ConPort `limit` **3–5**; **TaskMaster** `status` + `withSubtasks=false`; **Zen** `files≤2` + `continuation_id`; **Context7** targeted queries + ingestion limits; prefer summaries before full context pulls.
 - use serena for file and shell work

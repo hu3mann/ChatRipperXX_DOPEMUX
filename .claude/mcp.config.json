@@ -18,6 +18,18 @@
         "OPENAI_API_KEY": "your_api_key_here",
         "GEMINI_API_KEY": "your_gemini_key_here"
       }
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "context7-mcp"],
+      "env": {},
+      "alwaysAllow": [
+        "ingest_docs",
+        "search_docs",
+        "get_library_info",
+        "list_libraries",
+        "get_doc_structure"
+      ]
     }
   }
 }
