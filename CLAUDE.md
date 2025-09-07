@@ -154,12 +154,11 @@ If context exceeds 100k tokens:
 
 **Core Workflow**:
 * `/bootstrap` — session preflight (context gather + constraints + tiny plan)
-* `/research` — API/doc ingest (**Context7** + Exa) → risks + unknowns → **ConPort**
-* `/context7-ingest` — **PRE-DEVELOPMENT**: Load library documentation for code generation context
+* `/research` — **Context7 + Exa integration**: Auto-query library docs + web research → comprehensive requirements
 * `/story` — user story + AC + test checklist → **ConPort**
 * `/plan` — sequential plan with explicit file list + test ordering
-* `/implement` — **Context7-informed**: tests-first loop with up-to-date library docs & examples
-* `/debug` — **Context7-guided**: repro → isolate → fix with authoritative API references
+* `/implement` — **Context7-driven TDD**: Tests-first with automatic library doc context + examples
+* `/debug` — **Context7-verified debugging**: Cross-reference against official API docs during diagnosis
 * `/ship` — docs + ADR stub + **ConPort** decision; commit/PR/merge via **CLI MCP** (`git`/`gh`)
 * `/complete` — full quality gates (lint/types/tests/coverage) + feature branch + conventional commit + detailed PR
 * `/commit-pr` — quick automated commit/PR with quality verification (tests/lint/types/coverage ≥90%)
@@ -167,11 +166,12 @@ If context exceeds 100k tokens:
 * `/switch` — compact state → **OpenMemory** + **ConPort**; clear transient memory
 * `/retrospect` — post-run: what worked/failed + follow-ups → Mem0 + backlog
 
-**Context7 Documentation**:
-* `/context7-ingest` — **PRE-DEVELOPMENT**: Load library documentation for code generation context
-* `/context7-search` — Query Context7 for library API documentation and code examples
-* `/context7-examples` — Extract code examples and patterns from library documentation
-* `/context7-compare` — Compare documentation and API changes between library versions
+**Integrated Context7 Features**:
+* **Implicit Documentation**: Automatically queries Context7 when libraries/APIs are detected
+* **Pre-Implementation Context**: Library documentation loaded before code generation begins
+* **API Verification**: Cross-references implementation against official documentation
+* **Code Examples**: Pulls authoritative examples and patterns during implementation
+* **Debug Validation**: Verifies fixes against official API specifications
 
 **Memory Helpers**:
 * `/decision` — log decision to **ConPort** (mirror to OpenMemory if cross-project)
@@ -250,15 +250,11 @@ These markdown prompts live under `.claude/commands/` so you (and Claude) can re
 | Slash command       | Prompt file                                      | Notes                                                           |
 | ------------------- | ------------------------------------------------ | --------------------------------------------------------------- |
 | `/bootstrap`        | `.claude/commands/bootstrap.md`                  | Hot files + Exa docs + OpenMemory/ConPort fetch; tiny TDD plan. |
-| `/research`         | `.claude/commands/research.md`                   | Context7 API docs + Exa web research; log to ConPort.          |
-| `/context7-ingest`  | `.claude/commands/context7-ingest.md`            | **PRE-DEVELOPMENT**: Load library docs for code generation.     |
-| `/context7-search`  | `.claude/commands/context7-search.md`            | Query Context7 for library API docs and examples.               |
-| `/context7-examples`| `.claude/commands/context7-examples.md`           | Extract code examples and patterns from documentation.          |
-| `/context7-compare` | `.claude/commands/context7-compare.md`           | Compare library versions and breaking changes.                  |
+| `/research`         | `.claude/commands/research.md`                   | **Context7 + Exa**: Auto-query library docs + web research.     |
 | `/story`            | `.claude/commands/story.md`                      | Story + AC + NFR; write docs; ConPort decision.                 |
 | `/plan`             | `.claude/commands/plan.md`                       | Sequential steps (+ slice mode); log to ConPort.                |
-| `/implement`        | `.claude/commands/implement.md`                  | Tests-first; Serena edits; ConPort progress.                    |
-| `/debug`            | `.claude/commands/debug.md`                      | Repro→isolate→fix; postmortem; cite Context7 API behavior.      |
+| `/implement`        | `.claude/commands/implement.md`                  | **Context7-driven TDD**: Library docs + examples integrated.    |
+| `/debug`            | `.claude/commands/debug.md`                      | **Context7-verified**: Cross-reference official API docs.       |
 | `/ship`             | `.claude/commands/ship.md`                       | Docs + ADR stub; ConPort decision; commit/PR/merge (CLI MCP).   |
 | `/switch`           | `.claude/commands/switch.md`                     | Compact slice → ConPort/OpenMemory.                             |
 | `/tdd`              | `.claude/commands/tdd-loop.md`                   | Red→Green→Refactor; cov `${HOOKS_COV_MIN:-90}`.               |
@@ -280,5 +276,5 @@ These markdown prompts live under `.claude/commands/` so you (and Claude) can re
 | `/pr-merge`         | `.claude/commands/gh/pr-merge.md`                | Merge PR (squash).                                              |
 | `/issue-create`     | `.claude/commands/gh/issue-create.md`            | Create issue.                                                   |
 
-> **Token thrift**: Claude-Context ≤**3**; ConPort `limit` **3–5**; **TaskMaster** `status` + `withSubtasks=false`; **Zen** `files≤2` + `continuation_id`; **Context7** targeted queries + ingestion limits; prefer summaries before full context pulls.
+> **Token thrift**: Claude-Context ≤**3**; ConPort `limit` **3–5**; **TaskMaster** `status` + `withSubtasks=false`; **Zen** `files≤2` + `continuation_id`; **Context7** auto-integrated (no manual calls needed); prefer summaries before full context pulls.
 - use serena for file and shell work
