@@ -289,7 +289,7 @@ python .claude/hooks/dashboard.py --patterns && python .claude/hooks/security_da
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|Read|Write|mcp__conport__.*|mcp__claude-context__.*|mcp__claude_context__.*|mcp__exa__.*|mcp__task-master-ai__.*|mcp__zen__.*|mcp__devdocs__.*",
+        "matcher": "Bash|Read|Write|mcp__conport__.*|mcp__claude-context__.*|mcp__claude_context__.*|mcp__exa__.*|mcp__task-master-ai__.*|mcp__zen__.*|mcp__context7__.*",
         "hooks": [
           { "type": "command", "command": "python3 .claude/hooks/pre_tool_guard.py" },
           { "type": "command", "command": "python3 .claude/hooks/pre_context_budget.py" }

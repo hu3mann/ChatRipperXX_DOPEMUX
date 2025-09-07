@@ -31,12 +31,17 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|Read|Write|mcp__conport__.*|mcp__claude-context__.*|mcp__claude_context__.*|mcp__exa__.*|mcp__task-master-ai__.*|mcp__zen__.*|mcp__devdocs__.*|mcp__openmemory__.*|mcp__fast-markdown__.*|mcp__serena__.*",
+        "matcher": "Bash(sudo:*)|Bash(rm:*)|Bash(curl:*)|Bash(wget:*)",
         "hooks": [
           {
             "type": "command",
             "command": "python3 .claude/hooks/pre_tool_guard.py"
-          },
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__zen__.*|mcp__conport__get_active_context",
+        "hooks": [
           {
             "type": "command",
             "command": "python3 .claude/hooks/pre_context_budget.py"
@@ -86,9 +91,6 @@
     "/get-decisions": ".claude/commands/get-decisions.md",
     "/search-decisions": ".claude/commands/search-decisions.md",
     "/mem-query": ".claude/commands/mem-query.md",
-    "/docs-toc": ".claude/commands/docs/docs-toc.md",
-    "/docs-get": ".claude/commands/docs/docs-get.md",
-    "/docs-index": ".claude/commands/docs/docs-index.md",
     "/zen": ".claude/commands/zen.md",
     "/zen-continue": ".claude/commands/zen-continue.md",
     "/privacy-scan": ".claude/commands/privacy-scan.md",

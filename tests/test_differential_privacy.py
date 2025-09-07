@@ -95,23 +95,123 @@ class TestDifferentialPrivacy:
         assert len(result.value) == 3
         assert all(count >= 0 for count in result.value)  # Non-negative
     
-    def test_policy_shield_dp_integration(self):
-        """Test PolicyShield integration with differential privacy."""
+    def test_generate_privacy_safe_summary_basic(self):
+        """Test basic privacy-safe summary generation with differential privacy."""
         policy = PrivacyPolicy(enable_differential_privacy=True, dp_epsilon=1.0)
         shield = PolicyShield(policy=policy)
         
         test_chunks = [
-            {'chunk_id': '1', 'text': 'Hello', 'meta': {'labels_coarse': ['friendly']}},
-            {'chunk_id': '2', 'text': 'World', 'meta': {'labels_coarse': ['neutral']}},
+            {'chunk_id': '1', 'text': 'Hello world', 'meta': {'labels_coarse': ['friendly', 'positive']}},
+            {'chunk_id': '2', 'text': 'Test message', 'meta': {'labels_coarse': ['neutral']}},
+            {'chunk_id': '3', 'text': 'Another test', 'meta': {'labels_coarse': ['friendly', 'informative']}},
         ]
         
         # Test privacy-safe summary generation
-        summary = shield.generate_privacy_safe_summary(test_chunks)
+        summary = shield.generate_privacy_safe_summary(test_chunks, include_label_distribution=True)
         
+        # Verify basic structure
         assert summary['privacy_method'] == 'differential_privacy'
         assert summary['privacy_parameters']['epsilon'] == 1.0
+        assert summary['privacy_parameters']['delta'] == 1e-6
+        assert summary['privacy_parameters']['noise_calibrated'] == True
+        
+        # Verify statistical fields
+        assert 'total_chunks' in summary
+        assert 'avg_chunk_length' in summary
+        assert 'timestamp' in summary
+        assert isinstance(summary['total_chunks'], float)
+        assert isinstance(summary['avg_chunk_length'], float)
+        
+        # Verify label distribution is included
+        assert 'label_distribution' in summary
+        assert isinstance(summary['label_distribution'], dict)
+        
+        # Verify privacy guarantees - values should be noisy but reasonable
+        assert 2.0 <= summary['total_chunks'] <= 4.0  # Should be close to 3 with noise
+        assert summary['avg_chunk_length'] > 0
+    
+    def test_generate_privacy_safe_summary_no_labels(self):
+        """Test privacy-safe summary generation without label distribution."""
+        policy = PrivacyPolicy(enable_differential_privacy=True, dp_epsilon=0.5)
+        shield = PolicyShield(policy=policy)
+        
+        test_chunks = [
+            {'chunk_id': '1', 'text': 'Short text'},
+            {'chunk_id': '2', 'text': 'Another message'},
+        ]
+        
+        # Test without label distribution
+        summary = shield.generate_privacy_safe_summary(test_chunks, include_label_distribution=False)
+        
+        # Verify basic structure
+        assert summary['privacy_method'] == 'differential_privacy'
+        assert summary['privacy_parameters']['epsilon'] == 0.5
+        
+        # Should not include label distribution
+        assert 'label_distribution' not in summary
         assert 'total_chunks' in summary
         assert isinstance(summary['total_chunks'], float)
+        
+        # Verify privacy parameters
+        assert summary['privacy_parameters']['epsilon'] == 0.5
+        assert summary['privacy_parameters']['delta'] == 1e-6
+    
+    def test_generate_privacy_safe_summary_empty_data(self):
+        """Test privacy-safe summary generation with empty data."""
+        policy = PrivacyPolicy(enable_differential_privacy=True, dp_epsilon=1.0)
+        shield = PolicyShield(policy=policy)
+        
+        # Test with empty chunks
+        summary = shield.generate_privacy_safe_summary([])
+        
+        # Should return empty but valid structure
+        assert summary['privacy_method'] == 'differential_privacy'
+        assert summary['total_chunks'] == 0.0
+        assert summary['avg_chunk_length'] == 0.0
+        assert 'label_distribution' not in summary
+    
+    def test_generate_privacy_safe_summary_dp_disabled(self):
+        """Test privacy-safe summary generation when differential privacy is disabled."""
+        policy = PrivacyPolicy(enable_differential_privacy=False)
+        shield = PolicyShield(policy=policy)
+        
+        test_chunks = [
+            {'chunk_id': '1', 'text': 'Test message', 'meta': {'labels_coarse': ['test']}},
+        ]
+        
+        # Test with DP disabled
+        summary = shield.generate_privacy_safe_summary(test_chunks)
+        
+        # Should use fallback method
+        assert summary['privacy_method'] == 'none'
+        assert summary['total_chunks'] == 1  # Exact count when DP disabled
+        assert 'warning' in summary
+        assert summary['warning'] == 'Differential privacy not enabled'
+        
+        # Should not include privacy parameters
+        assert 'privacy_parameters' not in summary
+    
+    def test_generate_privacy_safe_summary_deterministic(self):
+        """Test that privacy-safe summary generation is deterministic with fixed seed."""
+        # Create two shields with same salt for deterministic behavior
+        policy = PrivacyPolicy(enable_differential_privacy=True, dp_epsilon=1.0)
+        
+        test_chunks = [
+            {'chunk_id': '1', 'text': 'Deterministic test', 'meta': {'labels_coarse': ['test']}},
+            {'chunk_id': '2', 'text': 'Another test', 'meta': {'labels_coarse': ['test', 'demo']}},
+        ]
+        
+        # Test with same salt for deterministic results
+        shield1 = PolicyShield(policy=policy)
+        shield2 = PolicyShield(policy=policy)
+        
+        summary1 = shield1.generate_privacy_safe_summary(test_chunks)
+        summary2 = shield2.generate_privacy_safe_summary(test_chunks)
+        
+        # Results should be very similar (allowing for minor floating point differences)
+        assert abs(summary1['total_chunks'] - summary2['total_chunks']) < 0.1
+        assert summary1['privacy_method'] == summary2['privacy_method']
+        assert summary1['privacy_parameters']['epsilon'] == summary2['privacy_parameters']['epsilon']
     
     def test_privacy_budget_tracking(self):
         """Test privacy budget tracking functionality."""

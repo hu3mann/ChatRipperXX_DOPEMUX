@@ -15,7 +15,7 @@ This document summarizes the comprehensive Claude Code optimization strategy imp
 - Policy Shield coverage threshold validation (99.5% default, 99.9% strict)
 - Differential privacy parameter (ε, δ) validation
 - Hot files discovery for privacy-critical components
-- DevDocs integration for privacy engineering patterns
+- context7 integration for privacy engineering patterns
 - TDD plan generation with privacy-first approach
 
 **Impact**: Ensures every development session starts with proper ChatX context and privacy awareness.

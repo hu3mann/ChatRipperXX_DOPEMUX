@@ -77,5 +77,5 @@ Perform on-demand privacy engineering validation to ensure all code changes main
 
 - **Privacy-Guardian Agent**: Primary validation executor
 - **ConPort**: Log findings for persistent project memory
-- **DevDocs**: Reference privacy engineering best practices
+- **context7**: Reference privacy engineering best practices
 - **Quality Gates**: Integrate results into CI/CD pipeline
