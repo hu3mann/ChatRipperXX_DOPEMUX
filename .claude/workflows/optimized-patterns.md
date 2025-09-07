@@ -16,7 +16,7 @@ graph TD
 **Implementation Steps:**
 1. **Context Retrieval**: Query OpenMemory for existing patterns/projects
 2. **Analysis**: Use Sequential Thinking for problem decomposition
-3. **Research**: Query with Exa for best practices if needed
+3. **Research**: Query Context7 for API docs + Exa for best practices if needed
 4. **Implementation**: Use Serena for code operations with LSP guidance
 5. **Storage**: Store implementation patterns in ConPort
 6. **Learning**: Update OpenMemory with successful patterns
@@ -26,7 +26,7 @@ graph TD
 ## Research-Driven Implementation Pattern
 ```mermaid
 graph TD
-    A[Complex Feature] --> B[Query Exa for Best Practices]
+    A[Complex Feature] --> B[Query Context7 + Exa for Docs & Best Practices]
     B --> C[Extract Patterns with Sequential Thinking]
     C --> D[Store Research in OpenMemory]
     D --> E[Create Implementation Tasks]
@@ -39,7 +39,7 @@ graph TD
 ```
 
 **Key Integration Points:**
-- **Exa Queries**: Limited to 5 results with semantic relevance
+- **Context7 + Exa Queries**: Authoritative API docs + community best practices
 - **ConPort Storage**: All research findings with version control
 - **OpenMemory**: Cross-session research pattern learning
 - **Serena**: Implementation with automatic error correction
@@ -95,7 +95,41 @@ graph TD
   - ConPort: limit=3-5 reduces token usage by ~10k
   - Zen: files≤1 parameter saves ~25k tokens
   - Serena: Use symbolic tools before file reads
+  - Context7: Authoritative API docs with targeted queries
   - Exa: Refine queries to reduce from generic to specific
+
+## Documentation-Driven Development Pattern
+
+### Context7 Integration Workflow
+```mermaid
+graph TD
+    A[API Integration Required] --> B[Query Context7 for Library Docs]
+    B --> C{Documentation Found?}
+    C -->|Yes| D[Extract Code Examples & Patterns]
+    C -->|No| E[Ingest Docs with Context7]
+    E --> D
+    D --> F[Generate Implementation Template]
+    F --> G[Test Template with Sequential Thinking]
+    G --> H[Execute with Serena LSP]
+    H --> I[Validate Implementation]
+    I --> J{Valid?}
+    J -->|Yes| K[Store Pattern in ConPort]
+    J -->|No| L[Refine with Context7 Examples]
+    L --> H
+```
+
+**Context7 Capabilities:**
+1. **Library Documentation**: Query authoritative API documentation for libraries
+2. **Code Examples**: Extract implementation examples and patterns
+3. **Best Practices**: Access framework-specific best practices
+4. **Search Integration**: Full-text search across documentation
+5. **Version Tracking**: Access docs for specific library versions
+
+**Integration Points:**
+- **Bootstrap**: Load project dependencies into Context7
+- **Research**: Query documentation during implementation
+- **Validation**: Cross-reference with official docs
+- **Learning**: Store successful patterns for future reuse
 
 ## Performance Monitoring Integration
 
